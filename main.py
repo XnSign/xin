@@ -1,5 +1,6 @@
 import pygame
 import sys
+import math
 from player import Player
 from world import World
 from inventory import Inventory
@@ -60,6 +61,7 @@ class Button:
 
 class Game:
     def __init__(self):
+        pygame.init()
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         pygame.display.set_caption("2D冒险游戏")
         self.clock = pygame.time.Clock()
@@ -72,9 +74,54 @@ class Game:
         # 游戏状态
         self.game_state = "menu"  # "menu", "playing", "keybinds", "save_menu", "settings"
         self.game_paused = False
+        self.show_keybinds = False
+        
+        # 初始化按键绑定
+        self.key_bindings = {
+            'left': pygame.K_a,
+            'right': pygame.K_d,
+            'jump': pygame.K_SPACE
+        }
+        
+        # 按键名称中文映射
+        self.action_names = {
+            'left': '向左移动',
+            'right': '向右移动',
+            'jump': '跳跃'
+        }
+        
+        # 等待按键绑定的状态
+        self.waiting_for_key = None
         
         # 创建存档管理器
         self.save_manager = SaveManager()
+        
+        # 初始化世界
+        self.world = World(WINDOW_WIDTH, WINDOW_HEIGHT, TILE_SIZE)
+        world_width, world_height = self.world.get_world_size()
+        
+        # 计算地图中央的地面位置
+        center_x = world_width // 2
+        center_grid_x = center_x // TILE_SIZE
+        spawn_y = 0
+        
+        # 从上往下找到第一个地面方块
+        for y in range(len(self.world.grid)):
+            if self.world.grid[y][center_grid_x] != self.world.EMPTY:
+                spawn_y = y * TILE_SIZE - TILE_SIZE  # 将玩家放在地面方块上方
+                break
+        
+        # 初始化玩家在地图中央的地面上
+        self.player = Player(center_x - TILE_SIZE // 2, spawn_y)  # 调整水平位置以确保居中
+        self.all_sprites = pygame.sprite.Group()
+        self.all_sprites.add(self.player)
+        
+        # 初始化摄像机位置（以玩家为中心）
+        self.camera_x = center_x - WINDOW_WIDTH // 2
+        self.camera_y = max(0, spawn_y - WINDOW_HEIGHT // 2)
+        
+        # 创建背包
+        self.inventory = Inventory(10, 10)  # 位于左上角
         
         # 创建菜单按钮
         button_width = 200
@@ -103,69 +150,6 @@ class Game:
             Button(WINDOW_WIDTH//2 - 100, WINDOW_HEIGHT//2 + 120, 200, 50, "退出游戏")
         ]
         
-        # 初始化世界
-        self.world = World(WINDOW_WIDTH, WINDOW_HEIGHT, TILE_SIZE)
-        
-        # 计算地图中央的地面位置
-        center_x = (len(self.world.grid[0]) * TILE_SIZE) // 2
-        spawn_y = 0
-        
-        # 从上往下找到第一个地面方块
-        for y in range(len(self.world.grid)):
-            if self.world.grid[y][center_x // TILE_SIZE] != self.world.EMPTY:
-                spawn_y = y * TILE_SIZE - TILE_SIZE  # 将玩家放在地面方块上方
-                break
-        
-        # 初始化玩家在地图中央的地面上
-        self.player = Player(center_x - TILE_SIZE // 2, spawn_y)
-        self.all_sprites = pygame.sprite.Group()
-        self.all_sprites.add(self.player)
-        
-        # 初始化摄像机位置
-        self.camera_x = 0
-        self.camera_y = 0
-        
-        # 初始化按键绑定
-        self.key_bindings = {
-            'left': pygame.K_a,
-            'right': pygame.K_d,
-            'jump': pygame.K_SPACE
-        }
-        
-        # 游戏相关初始化
-        self.init_game()
-        
-    def init_game(self):
-        # 游戏设置
-        self.show_keybinds = False
-        self.player_speed = 5
-        self.jump_power = 15
-        self.gravity = 0.8
-        
-        # 创建背包
-        self.inventory = Inventory(10, 10)  # 位于左上角
-        
-        # 尝试加载已保存的按键设置
-        save_slots = self.save_manager.get_save_slots()
-        if save_slots:
-            # 加载最新的存档中的按键设置
-            latest_save = save_slots[0]["name"]
-            self.save_manager.load_game(latest_save, {
-                "player": self.player,
-                "inventory": self.inventory,
-                "camera_x": self.camera_x,
-                "camera_y": self.camera_y,
-                "key_bindings": self.key_bindings
-            })
-        
-        # 按键名称中文映射
-        self.action_names = {
-            'left': '向左移动',
-            'right': '向右移动',
-            'jump': '跳跃'
-        }
-        self.waiting_for_key = None
-        
     def handle_menu_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -176,12 +160,13 @@ class Game:
                 if button.handle_event(event):
                     if i == 0:  # 开始游戏
                         self.game_state = "playing"
+                        self.game_paused = False  # 确保游戏开始时不是暂停状态
                     elif i == 1:  # 按键设置
                         self.game_state = "keybinds"
                         self.show_keybinds = True
                     elif i == 2:  # 退出游戏
                         self.running = False
-                        
+
     def draw_menu(self):
         self.screen.fill(SKY_BLUE)
         
@@ -202,28 +187,8 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    if self.show_keybinds:
-                        self.show_keybinds = False
-                        self.game_paused = False
-                    elif self.game_state == "settings":
-                        self.game_state = "playing"
-                        self.game_paused = False
-                    else:
-                        # 切换背包和设置按钮的显示状态
-                        self.inventory.visible = not self.inventory.visible
-                elif event.key == pygame.K_F5:
-                    # 快速保存
-                    self.save_manager.save_game({
-                        "player": self.player,
-                        "inventory": self.inventory,
-                        "camera_x": self.camera_x,
-                        "camera_y": self.camera_y,
-                        "key_bindings": self.key_bindings
-                    })
-                elif self.waiting_for_key is not None:
+                if self.waiting_for_key is not None:
                     # 更新按键绑定
-                    old_key = self.key_bindings[self.waiting_for_key]
                     self.key_bindings[self.waiting_for_key] = event.key
                     print(f"按键已更新: {self.action_names[self.waiting_for_key]} -> {pygame.key.name(event.key)}")
                     self.waiting_for_key = None
@@ -235,9 +200,16 @@ class Game:
                         "camera_y": self.camera_y,
                         "key_bindings": self.key_bindings
                     })
-                else:
-                    # 处理物品栏快捷键
-                    self.inventory.handle_key(event)
+                elif event.key == pygame.K_ESCAPE:
+                    if self.show_keybinds:
+                        self.show_keybinds = False
+                        self.game_paused = False
+                    elif self.game_state == "settings":
+                        self.game_state = "playing"
+                        self.game_paused = False
+                    else:
+                        self.inventory.visible = not self.inventory.visible
+                        self.game_paused = self.inventory.visible  # 当背包打开时暂停游戏
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = event.pos
                 # 首先处理按键绑定界面的点击
@@ -342,7 +314,8 @@ class Game:
             button.draw(self.screen)
 
     def update(self):
-        if self.game_state == "playing" and not self.game_paused:
+        # 只在游戏状态为 playing 且未暂停时更新
+        if self.game_state == "playing" and not self.game_paused and not self.show_keybinds:
             # 更新玩家
             self.player.update(self.world, self.key_bindings)
             
@@ -352,8 +325,9 @@ class Game:
             self.camera_y = player_y - WINDOW_HEIGHT // 2
             
             # 确保摄像机不会超出世界边界
-            self.camera_x = max(0, min(self.camera_x, self.world.get_world_size()[0] - WINDOW_WIDTH))
-            self.camera_y = max(0, min(self.camera_y, self.world.get_world_size()[1] - WINDOW_HEIGHT))
+            world_width, world_height = self.world.get_world_size()
+            self.camera_x = max(0, min(self.camera_x, world_width - WINDOW_WIDTH))
+            self.camera_y = max(0, min(self.camera_y, world_height - WINDOW_HEIGHT))
             
             # 检查是否需要自动保存
             current_time = pygame.time.get_ticks()
@@ -436,8 +410,14 @@ class Game:
         minimap_width = 200
         minimap_height = 150
         margin = 10
-        minimap_x = WINDOW_WIDTH - minimap_width - margin
-        minimap_y = margin
+        heart_size = 20  # 减小心形大小
+        heart_spacing = 2  # 减小间距
+        star_size = 20  # 减小星形大小
+        star_spacing = 2  # 减小间距
+        
+        # 计算小地图位置，考虑生命值图标的空间（2行红心）
+        minimap_x = WINDOW_WIDTH - minimap_width - margin - (star_size + star_spacing + margin)  # 左移，为星形图标留空间
+        minimap_y = margin + (heart_size + heart_spacing) * 2 + margin  # 下移，为两行红心留空间
         
         # 创建小地图表面
         minimap = pygame.Surface((minimap_width, minimap_height))
@@ -500,6 +480,9 @@ class Game:
                            (sprite.rect.x - self.camera_x, 
                             sprite.rect.y - self.camera_y))
         
+        # 绘制生命值和魔力值
+        self.draw_status_bars()
+        
         # 绘制物品栏（始终显示）
         self.inventory.draw_hotbar(self.screen, get_font(16))
         
@@ -519,6 +502,69 @@ class Game:
         # 绘制按键绑定面板（最后绘制，保证在最上层）
         if self.show_keybinds:
             self.draw_keybinds()
+
+    def draw_status_bars(self):
+        # 计算小地图位置
+        minimap_width = 200
+        minimap_height = 150
+        margin = 10
+        heart_size = 20  # 减小心形大小
+        heart_spacing = 2  # 减小间距
+        star_size = 20  # 减小星形大小
+        star_spacing = 2  # 减小间距
+        
+        # 计算小地图位置
+        minimap_x = WINDOW_WIDTH - minimap_width - margin - (star_size + star_spacing + margin)
+        minimap_y = margin + (heart_size + heart_spacing) * 2 + margin
+        
+        # 绘制生命值心形（两行）
+        hearts_per_row = 10
+        total_hearts = self.player.get_health_hearts()
+        
+        # 计算心形区域的总宽度，确保与小地图对齐
+        hearts_total_width = hearts_per_row * (heart_size + heart_spacing) - heart_spacing
+        hearts_start_x = minimap_x
+        
+        for i in range(min(total_hearts, 20)):  # 最多显示20个心（2行*10列）
+            row = i // hearts_per_row
+            col = i % hearts_per_row
+            heart_x = hearts_start_x + col * (heart_size + heart_spacing)
+            heart_y = margin + row * (heart_size + heart_spacing)
+            
+            # 绘制红色心形
+            pygame.draw.polygon(self.screen, (255, 0, 0), [
+                (heart_x + heart_size//2, heart_y + heart_size//4),
+                (heart_x + heart_size//4, heart_y),
+                (heart_x, heart_y + heart_size//4),
+                (heart_x + heart_size//2, heart_y + heart_size),
+                (heart_x + heart_size, heart_y + heart_size//4),
+                (heart_x + heart_size*3//4, heart_y),
+            ])
+        
+        # 绘制魔力值星形（一列）
+        star_x = WINDOW_WIDTH - star_size - margin  # 放在屏幕右边
+        
+        for i in range(self.player.get_mana_stars()):
+            star_y = minimap_y + i * (star_size + star_spacing)  # 从小地图顶部开始往下排列
+            
+            # 绘制蓝色星形
+            points = []
+            for j in range(5):
+                # 外部点
+                angle = -90 + j * 72  # 从正上方开始，每72度一个点
+                rad = math.radians(angle)
+                points.append((
+                    star_x + star_size//2 + int(star_size//2 * math.cos(rad)),
+                    star_y + star_size//2 + int(star_size//2 * math.sin(rad))
+                ))
+                # 内部点
+                angle += 36
+                rad = math.radians(angle)
+                points.append((
+                    star_x + star_size//2 + int(star_size//4 * math.cos(rad)),
+                    star_y + star_size//2 + int(star_size//4 * math.sin(rad))
+                ))
+            pygame.draw.polygon(self.screen, (0, 100, 255), points)
 
     def draw(self):
         if self.game_state == "menu":
@@ -547,6 +593,147 @@ class Game:
             
         pygame.quit()
         sys.exit()
+
+    def load_characters_and_maps(self):
+        # TODO: 从文件加载已有角色和地图
+        # 如果没有检测到角色和地图，列表将为空
+        self.characters = []
+        self.maps = []
+        self.update_selection_buttons()
+
+    def update_selection_buttons(self):
+        # 更新角色选择按钮
+        button_width = 200
+        button_height = 50
+        button_spacing = 20
+        start_y = 150
+        
+        self.character_buttons = []
+        if len(self.characters) == 0:
+            # 如果没有角色，只显示新建角色按钮
+            self.new_character_button = Button(
+                WINDOW_WIDTH//2 - button_width//2,
+                start_y,
+                button_width,
+                button_height,
+                "新建角色"
+            )
+        else:
+            # 有角色时，显示所有角色按钮
+            for i, char in enumerate(self.characters):
+                self.character_buttons.append(
+                    Button(WINDOW_WIDTH//2 - button_width//2,
+                          start_y + i * (button_height + button_spacing),
+                          button_width,
+                          button_height,
+                          char)
+                )
+            # 新建角色按钮放在最后一个角色按钮下方
+            self.new_character_button = Button(
+                WINDOW_WIDTH//2 - button_width//2,
+                start_y + len(self.characters) * (button_height + button_spacing),
+                button_width,
+                button_height,
+                "新建角色"
+            )
+            
+        # 更新地图选择按钮
+        self.map_buttons = []
+        if len(self.maps) == 0:
+            # 如果没有地图，只显示新建地图按钮
+            self.new_map_button = Button(
+                WINDOW_WIDTH//2 - button_width//2,
+                start_y,
+                button_width,
+                button_height,
+                "新建地图"
+            )
+        else:
+            # 有地图时，显示所有地图按钮
+            for i, map_name in enumerate(self.maps):
+                self.map_buttons.append(
+                    Button(WINDOW_WIDTH//2 - button_width//2,
+                          start_y + i * (button_height + button_spacing),
+                          button_width,
+                          button_height,
+                          map_name)
+                )
+            # 新建地图按钮放在最后一个地图按钮下方
+            self.new_map_button = Button(
+                WINDOW_WIDTH//2 - button_width//2,
+                start_y + len(self.maps) * (button_height + button_spacing),
+                button_width,
+                button_height,
+                "新建地图"
+            )
+            
+        # 更新返回按钮位置
+        self.back_button = Button(
+            50,
+            WINDOW_HEIGHT - 70,
+            100,
+            40,
+            "返回",
+            get_font(24)
+        )
+
+    def handle_character_select_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+                
+            # 处理返回按钮
+            if self.back_button.handle_event(event):
+                self.game_state = "menu"
+                return
+                
+            # 处理新建角色按钮
+            if self.new_character_button.handle_event(event):
+                # 创建新角色
+                new_char = f"角色{len(self.characters) + 1}"
+                self.characters.append(new_char)
+                self.update_selection_buttons()
+                # 如果这是第一个角色，直接选择它并进入地图选择
+                if len(self.characters) == 1:
+                    self.selected_character = new_char
+                    self.game_state = "map_select"
+                return
+                
+            # 处理角色选择按钮
+            for i, button in enumerate(self.character_buttons):
+                if button.handle_event(event):
+                    self.selected_character = self.characters[i]
+                    self.game_state = "map_select"
+                    return
+                    
+    def handle_map_select_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+                
+            # 处理返回按钮
+            if self.back_button.handle_event(event):
+                self.game_state = "character_select"
+                return
+                
+            # 处理新建地图按钮
+            if self.new_map_button.handle_event(event):
+                # 创建新地图
+                new_map = f"地图{len(self.maps) + 1}"
+                self.maps.append(new_map)
+                self.update_selection_buttons()
+                # 如果这是第一个地图，直接选择它并开始游戏
+                if len(self.maps) == 1:
+                    self.selected_map = new_map
+                    self.initialize_game()
+                return
+                
+            # 处理地图选择按钮
+            for i, button in enumerate(self.map_buttons):
+                if button.handle_event(event):
+                    self.selected_map = self.maps[i]
+                    self.initialize_game()
+                    return
 
 if __name__ == "__main__":
     game = Game()
