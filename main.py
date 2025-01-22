@@ -65,6 +65,10 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         
+        # 自动保存相关
+        self.last_autosave_time = pygame.time.get_ticks()
+        self.autosave_interval = 5 * 60 * 1000  # 5分钟，转换为毫秒
+        
         # 游戏状态
         self.game_state = "menu"  # "menu", "playing", "keybinds", "save_menu", "settings"
         self.game_paused = False
@@ -99,29 +103,39 @@ class Game:
             Button(WINDOW_WIDTH//2 - 100, WINDOW_HEIGHT//2 + 120, 200, 50, "退出游戏")
         ]
         
+        # 初始化世界
+        self.world = World(WINDOW_WIDTH, WINDOW_HEIGHT, TILE_SIZE)
+        
+        # 计算地图中央的地面位置
+        center_x = (len(self.world.grid[0]) * TILE_SIZE) // 2
+        spawn_y = 0
+        
+        # 从上往下找到第一个地面方块
+        for y in range(len(self.world.grid)):
+            if self.world.grid[y][center_x // TILE_SIZE] != self.world.EMPTY:
+                spawn_y = y * TILE_SIZE - TILE_SIZE  # 将玩家放在地面方块上方
+                break
+        
+        # 初始化玩家在地图中央的地面上
+        self.player = Player(center_x - TILE_SIZE // 2, spawn_y)
+        self.all_sprites = pygame.sprite.Group()
+        self.all_sprites.add(self.player)
+        
+        # 初始化摄像机位置
+        self.camera_x = 0
+        self.camera_y = 0
+        
+        # 初始化按键绑定
+        self.key_bindings = {
+            'left': pygame.K_a,
+            'right': pygame.K_d,
+            'jump': pygame.K_SPACE
+        }
+        
         # 游戏相关初始化
         self.init_game()
         
     def init_game(self):
-        # 创建世界
-        self.world = World(WINDOW_WIDTH, WINDOW_HEIGHT, TILE_SIZE)
-        self.world_width, self.world_height = self.world.get_world_size()
-        
-        # 创建玩家（初始位置在地面上）
-        initial_x = WINDOW_WIDTH // 2
-        initial_y = 0
-        for y in range(WINDOW_HEIGHT):
-            if self.world.is_solid(initial_x, y):
-                initial_y = y - TILE_SIZE
-                break
-        self.player = Player(initial_x, initial_y)
-        self.all_sprites = pygame.sprite.Group()
-        self.all_sprites.add(self.player)
-        
-        # 摄像机位置
-        self.camera_x = 0
-        self.camera_y = 0
-        
         # 游戏设置
         self.show_keybinds = False
         self.player_speed = 5
@@ -130,13 +144,6 @@ class Game:
         
         # 创建背包
         self.inventory = Inventory(10, 10)  # 位于左上角
-        
-        # 默认按键绑定
-        self.key_bindings = {
-            'left': pygame.K_a,
-            'right': pygame.K_d,
-            'jump': pygame.K_SPACE
-        }
         
         # 尝试加载已保存的按键设置
         save_slots = self.save_manager.get_save_slots()
@@ -187,18 +194,6 @@ class Game:
         # 绘制按钮
         for button in self.menu_buttons:
             button.draw(self.screen)
-            
-        # 绘制操作提示
-        hint_font = get_font(24)
-        hints = [
-            "游戏操作说明：",
-            "ESC键：打开/关闭背包",
-            "1-0键：选择物品栏",
-            "F5键：快速保存"
-        ]
-        for i, hint in enumerate(hints):
-            hint_text = hint_font.render(hint, True, BLACK)
-            self.screen.blit(hint_text, (20, WINDOW_HEIGHT - 120 + i * 20))
             
         pygame.display.flip()
         
@@ -357,9 +352,26 @@ class Game:
             self.camera_y = player_y - WINDOW_HEIGHT // 2
             
             # 确保摄像机不会超出世界边界
-            self.camera_x = max(0, min(self.camera_x, self.world_width - WINDOW_WIDTH))
-            self.camera_y = max(0, min(self.camera_y, self.world_height - WINDOW_HEIGHT))
+            self.camera_x = max(0, min(self.camera_x, self.world.get_world_size()[0] - WINDOW_WIDTH))
+            self.camera_y = max(0, min(self.camera_y, self.world.get_world_size()[1] - WINDOW_HEIGHT))
             
+            # 检查是否需要自动保存
+            current_time = pygame.time.get_ticks()
+            if current_time - self.last_autosave_time >= self.autosave_interval:
+                self.auto_save()
+                self.last_autosave_time = current_time
+
+    def auto_save(self):
+        # 执行自动保存
+        self.save_manager.save_game({
+            "player": self.player,
+            "inventory": self.inventory,
+            "camera_x": self.camera_x,
+            "camera_y": self.camera_y,
+            "key_bindings": self.key_bindings
+        })
+        print("游戏已自动保存")
+
     def draw_keybinds(self):
         if self.show_keybinds:
             # 绘制半透明背景
@@ -419,6 +431,63 @@ class Game:
             back_rect = back_text.get_rect(centerx=WINDOW_WIDTH//2, bottom=panel_y + panel_height - 20)
             self.screen.blit(back_text, back_rect)
 
+    def draw_minimap(self):
+        # 小地图尺寸和位置
+        minimap_width = 200
+        minimap_height = 150
+        margin = 10
+        minimap_x = WINDOW_WIDTH - minimap_width - margin
+        minimap_y = margin
+        
+        # 创建小地图表面
+        minimap = pygame.Surface((minimap_width, minimap_height))
+        minimap.fill((100, 100, 100))  # 灰色背景
+        
+        # 获取玩家的网格坐标
+        player_grid_x = self.player.rect.centerx // TILE_SIZE
+        player_grid_y = self.player.rect.centery // TILE_SIZE
+        view_range = 25  # 上下左右各25格，总共50格
+        
+        # 计算可见区域的起始和结束位置
+        start_x = max(0, player_grid_x - view_range)
+        end_x = min(len(self.world.grid[0]), player_grid_x + view_range)
+        start_y = max(0, player_grid_y - view_range)
+        end_y = min(len(self.world.grid), player_grid_y + view_range)
+        
+        # 计算缩放比例
+        visible_width = (end_x - start_x) * TILE_SIZE
+        visible_height = (end_y - start_y) * TILE_SIZE
+        scale_x = minimap_width / visible_width
+        scale_y = minimap_height / visible_height
+        
+        # 绘制地形
+        for y in range(int(start_y), int(end_y)):
+            for x in range(int(start_x), int(end_x)):
+                if self.world.grid[y][x] != self.world.EMPTY:
+                    # 计算相对于可见区域的位置
+                    rel_x = (x - start_x) * TILE_SIZE
+                    rel_y = (y - start_y) * TILE_SIZE
+                    block_x = int(rel_x * scale_x)
+                    block_y = int(rel_y * scale_y)
+                    block_size = max(1, int(TILE_SIZE * scale_x))
+                    
+                    # 使用方块对应的颜色
+                    color = self.world.colors[self.world.grid[y][x]]
+                    pygame.draw.rect(minimap, color, (block_x, block_y, block_size, block_size))
+        
+        # 绘制玩家位置（红点）
+        player_rel_x = (self.player.rect.centerx // TILE_SIZE - start_x) * TILE_SIZE
+        player_rel_y = (self.player.rect.centery // TILE_SIZE - start_y) * TILE_SIZE
+        player_minimap_x = int(player_rel_x * scale_x)
+        player_minimap_y = int(player_rel_y * scale_y)
+        pygame.draw.circle(minimap, (255, 0, 0), (player_minimap_x, player_minimap_y), 3)
+        
+        # 绘制小地图边框
+        pygame.draw.rect(minimap, (255, 255, 255), (0, 0, minimap_width, minimap_height), 2)
+        
+        # 将小地图绘制到主屏幕
+        self.screen.blit(minimap, (minimap_x, minimap_y))
+
     def draw_game(self):
         self.screen.fill(SKY_BLUE)
         
@@ -433,6 +502,9 @@ class Game:
         
         # 绘制物品栏（始终显示）
         self.inventory.draw_hotbar(self.screen, get_font(16))
+        
+        # 绘制小地图（始终显示）
+        self.draw_minimap()
         
         # 绘制背包和设置按钮（当背包可见时）
         if self.inventory.visible:
@@ -468,6 +540,10 @@ class Game:
             self.update()
             self.draw()
             self.clock.tick(60)
+            
+        # 退出游戏时自动保存
+        if self.game_state == "playing":
+            self.auto_save()
             
         pygame.quit()
         sys.exit()

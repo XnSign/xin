@@ -20,21 +20,15 @@ class Player(pygame.sprite.Sprite):
         self.true_x = float(x)
         self.true_y = float(y)
         
-        # 默认按键绑定
-        self.default_bindings = {
-            'left': pygame.K_LEFT,
-            'right': pygame.K_RIGHT,
-            'jump': pygame.K_SPACE
-        }
-        
     def move(self, dx, dy, world):
         # 保存旧位置
         old_x = self.true_x
         
         # 尝试移动
-        self.true_x += dx * self.speed
+        new_x = self.true_x + dx * self.speed
         
-        # 更新rect位置
+        # 更新位置
+        self.true_x = new_x
         self.rect.x = int(self.true_x)
         
         # 检查碰撞
@@ -76,26 +70,27 @@ class Player(pygame.sprite.Sprite):
             self.true_y = float(self.rect.y)
             self.velocity_y = 0
         
-    def update(self, world, key_bindings=None):
+    def update(self, world, key_bindings):
         # 获取键盘输入
         keys = pygame.key.get_pressed()
         
-        # 使用提供的按键绑定或默认绑定
-        bindings = key_bindings if key_bindings is not None else self.default_bindings
-        
         # 水平移动
-        if keys[bindings['left']]:
-            self.move(-1, 0, world)
-        if keys[bindings['right']]:
-            self.move(1, 0, world)
+        dx = 0
+        if keys[key_bindings['left']]:
+            dx -= 1
+        if keys[key_bindings['right']]:
+            dx += 1
+            
+        # 如果有移动输入，执行移动
+        if dx != 0:
+            self.move(dx, 0, world)
             
         # 跳跃
-        if keys[bindings['jump']]:
+        if keys[key_bindings['jump']]:
             self.jump()
             
         # 应用重力和碰撞检测
         self.apply_gravity(world)
         
     def get_position(self):
-        return self.rect.x, self.rect.y 
         return self.rect.x, self.rect.y 
