@@ -1,0 +1,187 @@
+{
+  "player": {
+    "x": 600,
+    "y": 320
+  },
+  "inventory": {
+    "slots": [
+      {
+        "item": {
+          "name": "石头",
+          "color": [
+            128,
+            128,
+            128
+          ]
+        }
+      },
+      {
+        "item": {
+          "name": "泥土",
+          "color": [
+            139,
+            69,
+            19
+          ]
+        }
+      },
+      {
+        "item": {
+          "name": "草地",
+          "color": [
+            34,
+            139,
+            34
+          ]
+        }
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      },
+      {
+        "item": null
+      }
+    ],
+    "selected_slot": 0
+  },
+  "camera": {
+    "x": 0,
+    "y": 0
+  },
+  "timestamp": "2025-01-23 01:23:42"
+}
