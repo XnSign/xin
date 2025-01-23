@@ -433,6 +433,54 @@ class CharacterCreator:
             "inventory": []
         }
 
+class MessageBox:
+    def __init__(self, x, y, width, height, message, font_size=32):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.message = message
+        self.font = get_font(font_size)
+        self.visible = True
+        self.close_button = SimpleButton(
+            x + width - 40,
+            y + 10,
+            30,
+            30,
+            "×",
+            color=(200, 0, 0),
+            font_size=24
+        )
+        
+    def draw(self, surface):
+        if not self.visible:
+            return
+            
+        # 绘制半透明背景
+        overlay = pygame.Surface((surface.get_width(), surface.get_height()))
+        overlay.fill((0, 0, 0))
+        overlay.set_alpha(128)
+        surface.blit(overlay, (0, 0))
+        
+        # 绘制消息框背景
+        pygame.draw.rect(surface, (50, 50, 50), self.rect)
+        pygame.draw.rect(surface, (200, 200, 200), self.rect, 2)
+        
+        # 绘制消息文本
+        text = self.font.render(self.message, True, (255, 255, 255))
+        text_rect = text.get_rect(center=self.rect.center)
+        surface.blit(text, text_rect)
+        
+        # 绘制关闭按钮
+        self.close_button.draw(surface)
+        
+    def handle_event(self, event):
+        if not self.visible:
+            return False
+            
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if self.close_button.rect.collidepoint(event.pos):
+                self.visible = False
+                return True
+        return False
+
 class Game:
     def __init__(self):
         """初始化游戏"""
@@ -461,23 +509,50 @@ class Game:
         
         # 主菜单按钮
         self.menu_buttons = {
-            'start': SimpleButton(
+            'singleplayer': SimpleButton(
                 self.screen_width//2 - 200,
-                300,
+                200,
                 400,
-                80,
-                "开始游戏",
+                60,
+                "单人模式",
                 color=(0, 200, 0),
-                font_size=48
+                font_size=36
+            ),
+            'multiplayer': SimpleButton(
+                self.screen_width//2 - 200,
+                280,
+                400,
+                60,
+                "多人模式",
+                color=(0, 150, 200),
+                font_size=36
+            ),
+            'achievements': SimpleButton(
+                self.screen_width//2 - 200,
+                360,
+                400,
+                60,
+                "成就",
+                color=(200, 150, 0),
+                font_size=36
+            ),
+            'credits': SimpleButton(
+                self.screen_width//2 - 200,
+                440,
+                400,
+                60,
+                "制作人员",
+                color=(150, 150, 150),
+                font_size=36
             ),
             'exit': SimpleButton(
                 self.screen_width//2 - 200,
+                520,
                 400,
-                400,
-                80,
+                60,
                 "退出游戏",
                 color=(200, 0, 0),
-                font_size=48
+                font_size=36
             )
         }
         
@@ -533,8 +608,10 @@ class Game:
         )
         
         # 加载角色和地图
-        self.player_path = "players"
-        self.world_path = "worlds"
+        docs_path = get_documents_path()
+        base_path = os.path.join(docs_path, 'My Games', 'TrFk')
+        self.player_path = os.path.join(base_path, 'Players')
+        self.world_path = os.path.join(base_path, 'Worlds')
         os.makedirs(self.player_path, exist_ok=True)
         os.makedirs(self.world_path, exist_ok=True)
         self.load_characters_and_maps()
@@ -551,6 +628,9 @@ class Game:
         self.map_name_input = ""
         self.map_name_active = False
         self.map_name_error = False
+        
+        # 消息框
+        self.message_box = None
 
     def run(self):
         """游戏主循环"""
@@ -572,6 +652,10 @@ class Game:
                 self.handle_map_select_events()
                 if self.needs_redraw:
                     self.draw_map_select()
+            elif self.game_state == "credits":
+                self.handle_credits_events()
+                if self.needs_redraw:
+                    self.draw_credits()
             elif self.game_state == "playing":
                 self.handle_events()
                 # 更新游戏状态
@@ -861,12 +945,35 @@ class Game:
                     
     def handle_menu_events(self, event):
         """处理主菜单界面的事件"""
+        # 如果消息框可见，优先处理消息框事件
+        if self.message_box and self.message_box.visible:
+            if self.message_box.handle_event(event):
+                self.needs_redraw = True
+                return
+            return
+
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = pygame.mouse.get_pos()
             
-            # 检查开始游戏按钮
-            if self.menu_buttons['start'].rect.collidepoint(mouse_pos):
+            # 检查单人模式按钮
+            if self.menu_buttons['singleplayer'].rect.collidepoint(mouse_pos):
                 self.game_state = "character_select"
+                self.needs_redraw = True
+                return
+            
+            # 检查多人模式按钮
+            if self.menu_buttons['multiplayer'].rect.collidepoint(mouse_pos):
+                self.show_message("多人模式暂未开放")
+                return
+            
+            # 检查成就按钮
+            if self.menu_buttons['achievements'].rect.collidepoint(mouse_pos):
+                self.show_message("成就系统暂未开放")
+                return
+            
+            # 检查制作人员按钮
+            if self.menu_buttons['credits'].rect.collidepoint(mouse_pos):
+                self.game_state = "credits"
                 self.needs_redraw = True
                 return
             
@@ -1008,16 +1115,16 @@ class Game:
         self.characters = []
         if os.path.exists(self.player_path):
             for file in os.listdir(self.player_path):
-                if file.endswith('.json'):
-                    character_name = file[:-5]  # 移除 .json 后缀
+                if file.endswith('.plr'):
+                    character_name = file[:-4]  # 移除 .plr 后缀
                     self.characters.append(character_name)
         
         # 加载地图
         self.maps = []
         if os.path.exists(self.world_path):
             for file in os.listdir(self.world_path):
-                if file.endswith('.json'):
-                    map_name = file[:-5]  # 移除 .json 后缀
+                if file.endswith('.wld'):
+                    map_name = file[:-4]  # 移除 .wld 后缀
                     self.maps.append(map_name)
         
         print(f"已加载的角色: {self.characters}")
@@ -1172,6 +1279,10 @@ class Game:
         for button in self.menu_buttons.values():
             button.draw(self.buffer)
         
+        # 如果有消息框，绘制消息框
+        if self.message_box and self.message_box.visible:
+            self.message_box.draw(self.buffer)
+        
         # 将缓冲区内容复制到屏幕
         self.screen.blit(self.buffer, (0, 0))
         pygame.display.flip()
@@ -1304,7 +1415,7 @@ class Game:
                     if button.rect.collidepoint(mouse_pos):
                         character_name = self.characters[i]
                         # 删除角色文件
-                        character_file = os.path.join(self.player_path, f"{character_name}.json")
+                        character_file = os.path.join(self.player_path, f"{character_name}.plr")
                         if os.path.exists(character_file):
                             os.remove(character_file)
                         # 从列表中移除
@@ -1341,7 +1452,7 @@ class Game:
         os.makedirs(self.player_path, exist_ok=True)
         
         # 保存角色数据
-        character_file = os.path.join(self.player_path, f"{name}.json")
+        character_file = os.path.join(self.player_path, f"{name}.plr")
         with open(character_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
 
@@ -1360,7 +1471,7 @@ class Game:
         
         # 保存地图
         os.makedirs(self.world_path, exist_ok=True)
-        map_file = os.path.join(self.world_path, f"{name}.json")
+        map_file = os.path.join(self.world_path, f"{name}.wld")
         with open(map_file, 'w', encoding='utf-8') as f:
             json.dump(world_data, f, ensure_ascii=False, indent=4)
         
@@ -1390,7 +1501,7 @@ class Game:
         """初始化游戏，创建世界和玩家"""
         # 加载或创建世界
         if self.selected_map:
-            world_file = os.path.join(self.world_path, f"{self.selected_map}.json")
+            world_file = os.path.join(self.world_path, f"{self.selected_map}.wld")
             if os.path.exists(world_file):
                 with open(world_file, 'r', encoding='utf-8') as f:
                     world_data = json.load(f)
@@ -1401,12 +1512,12 @@ class Game:
                 )
                 self.world.grid = world_data['grid']
             else:
-                print(f"找不到地图文件: {world_file}")
+                self.show_message(f"找不到地图文件: {world_file}")
                 return
         
         # 加载或创建玩家
         if self.selected_character:
-            player_file = os.path.join(self.player_path, f"{self.selected_character}.json")
+            player_file = os.path.join(self.player_path, f"{self.selected_character}.plr")
             if os.path.exists(player_file):
                 with open(player_file, 'r', encoding='utf-8') as f:
                     player_data = json.load(f)
@@ -1421,7 +1532,7 @@ class Game:
                 # 使用正确的参数创建玩家实例
                 self.player = Player(spawn_x, spawn_y, player_data)
             else:
-                print(f"找不到角色文件: {player_file}")
+                self.show_message(f"找不到角色文件: {player_file}")
                 return
         
         # 初始化摄像机位置
@@ -1434,6 +1545,84 @@ class Game:
         self.inventory = Inventory(inventory_x, inventory_y)
         
         self.game_state = "playing"
+        self.needs_redraw = True
+
+    def draw_credits(self):
+        """绘制制作人员界面"""
+        # 清空缓冲区
+        self.buffer.fill(SKY_BLUE)
+        
+        # 绘制标题
+        title_font = get_font(64)
+        title = title_font.render("制作人员", True, WHITE)
+        title_rect = title.get_rect(centerx=self.screen_width//2, y=100)
+        self.buffer.blit(title, title_rect)
+        
+        # 制作人员列表
+        credits_font = get_font(36)
+        credits_list = [
+            "游戏设计：TrFk团队",
+            "程序开发：TrFk团队",
+            "美术设计：TrFk团队",
+            "音效设计：TrFk团队",
+            "测试团队：TrFk团队"
+        ]
+        
+        # 绘制制作人员列表
+        y_pos = 250
+        for credit in credits_list:
+            text = credits_font.render(credit, True, WHITE)
+            text_rect = text.get_rect(centerx=self.screen_width//2, y=y_pos)
+            self.buffer.blit(text, text_rect)
+            y_pos += 70
+        
+        # 绘制返回按钮
+        self.back_button = SimpleButton(
+            50,
+            self.screen_height - 100,
+            200,
+            60,
+            "返回",
+            color=(200, 100, 0),
+            font_size=36
+        )
+        self.back_button.draw(self.buffer)
+        
+        # 将缓冲区内容复制到屏幕
+        self.screen.blit(self.buffer, (0, 0))
+        pygame.display.flip()
+        
+        self.needs_redraw = False
+
+    def handle_credits_events(self):
+        """处理制作人员界面的事件"""
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+                return
+                
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                # 检查返回按钮
+                if self.back_button.rect.collidepoint(event.pos):
+                    self.game_state = "main_menu"
+                    self.needs_redraw = True
+                    return
+
+    def delete_map(self, map_name):
+        """删除指定的地图"""
+        map_file = os.path.join(self.world_path, f"{map_name}.wld")
+        if os.path.exists(map_file):
+            os.remove(map_file)
+            self.maps.remove(map_name)
+            print(f"已删除地图: {map_name}")
+        else:
+            print(f"找不到地图文件: {map_name}")
+
+    def show_message(self, message):
+        """显示消息框"""
+        x = self.screen_width // 2 - 200
+        y = self.screen_height // 2 - 100
+        self.message_box = MessageBox(x, y, 400, 200, message)
         self.needs_redraw = True
 
 if __name__ == "__main__":
