@@ -64,6 +64,8 @@ class Player(pygame.sprite.Sprite):
         # 角色外观
         self.hairstyle = character_data.get("hairstyle", "发型1") if character_data else "发型1"
         self.draw_character()
+        
+        self.jump_pressed = False  # 新增：跳跃键是否被按下
     
     def load_character_data(self, data):
         """从保存的数据中加载角色属性"""
@@ -299,12 +301,14 @@ class Player(pygame.sprite.Sprite):
             self.move(dx, 0, world)
             
         # 处理跳跃输入
-        if keys[key_bindings['jump']]:
-            if not self.on_ground:
-                self.dy = self.jump_power
-                self.on_ground = False
-        else:
-            self.dy = 0  # 释放跳跃键
+        if not keys[key_bindings['jump']]:
+            self.jump_pressed = False  # 释放跳跃键
+        elif not self.jump_pressed and self.jumps_left > 0:  # 只在第一次按下时跳跃
+            self.dy = self.jump_power
+            self.jumps_left -= 1
+            self.on_ground = False
+            self.state = "jump"
+            self.jump_pressed = True
             
         # 应用重力和碰撞检测
         self.apply_gravity(world)
