@@ -380,6 +380,14 @@ class Player(pygame.sprite.Sprite):
         # 更新水平位置并检查碰撞
         self.rect.x += int(self.dx)
         
+        # 检查世界边界
+        if self.rect.left < 0:
+            self.rect.left = 0
+            self.dx = 0
+        elif self.rect.right > world.world_width:
+            self.rect.right = world.world_width
+            self.dx = 0
+        
         # 检查水平碰撞
         if world.check_collision(self):
             # 如果发生碰撞，回退移动
@@ -436,6 +444,16 @@ class Player(pygame.sprite.Sprite):
         
         # 更新垂直位置并检查碰撞
         self.rect.y += int(self.dy)
+        
+        # 检查世界边界
+        if self.rect.bottom > world.world_height:
+            self.rect.bottom = world.world_height
+            self.dy = 0
+            self.on_ground = True
+            self.jumps_left = self.max_jumps
+        elif self.rect.top < 0:
+            self.rect.top = 0
+            self.dy = 0
         
         # 检查垂直碰撞
         if world.check_collision(self):
