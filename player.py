@@ -77,13 +77,13 @@ class Player(pygame.sprite.Sprite):
         
         # 计算肢体位置的偏移量（基于动画帧）
         if self.state == "walk":
-            leg_offset = math.sin(self.animation_frame * 0.5) * 4
-            arm_offset = -math.sin(self.animation_frame * 0.5) * 4
+            leg_offset = math.sin(self.animation_frame * 0.3) * 6  # 增加腿部摆动幅度
+            arm_offset = -math.sin(self.animation_frame * 0.3) * 6  # 增加手臂摆动幅度
         elif self.state == "jump":
-            leg_offset = 2
-            arm_offset = -4
+            leg_offset = 4  # 跳跃时腿部稍微分开
+            arm_offset = -6  # 跳跃时手臂上举
         else:  # idle
-            leg_offset = math.sin(self.animation_frame * 0.1) * 2
+            leg_offset = math.sin(self.animation_frame * 0.1) * 2  # 待机时轻微摆动
             arm_offset = math.sin(self.animation_frame * 0.1) * 2
         
         # 45度角效果的偏移量
@@ -95,12 +95,12 @@ class Player(pygame.sprite.Sprite):
         # 左腿（后腿）
         pygame.draw.rect(self.image, (0, 255, 0), 
                         (self.width//4 - leg_width//2 - offset_x, 
-                         self.height*2//3,
+                         self.height*2//3 + leg_offset,  # 添加腿部动画偏移
                          leg_width, leg_height))
         # 右腿（前腿）
         pygame.draw.rect(self.image, (0, 255, 0),
                         (self.width*3//4 - leg_width//2 + offset_x,
-                         self.height*2//3,
+                         self.height*2//3 - leg_offset,  # 添加腿部动画偏移
                          leg_width, leg_height))
         
         # 绘制躯干（稍微倾斜）
@@ -120,12 +120,12 @@ class Player(pygame.sprite.Sprite):
         # 左手臂（后臂）
         pygame.draw.rect(self.image, (0, 255, 0),
                         (self.width//6 - arm_width//2 - offset_x,
-                         self.height//3 + 2,
+                         self.height//3 + 2 + arm_offset,  # 添加手臂动画偏移
                          arm_width, arm_height))
         # 右手臂（前臂）
         pygame.draw.rect(self.image, (0, 255, 0),
                         (self.width*5//6 - arm_width//2 + offset_x,
-                         self.height//3 - 2,
+                         self.height//3 - 2 - arm_offset,  # 添加手臂动画偏移
                          arm_width, arm_height))
         
         # 绘制头部（稍微偏移）
@@ -259,8 +259,8 @@ class Player(pygame.sprite.Sprite):
                         (self.width//2 + 4 + offset_x, head_size*0.7),
                         2)
         
-        # 如果面向左边且不是预览模式，翻转图像
-        if not self.facing_right and not self.preview_mode:
+        # 根据朝向翻转图像
+        if not self.facing_right:
             self.image = pygame.transform.flip(self.image, True, False)
     
     def update(self, world, key_bindings):
@@ -324,6 +324,15 @@ class Player(pygame.sprite.Sprite):
     
     def move(self, dx, dy, world):
         """处理移动，包括碰撞检测"""
+        # 更新朝向
+        if dx != 0:
+            self.facing_right = dx > 0
+            self.state = "walk"  # 设置为行走状态
+            # 更新动画帧
+            self.animation_frame += 1
+        else:
+            self.state = "idle"  # 设置为待机状态
+            
         # 水平移动
         if self.on_ground:
             # 在地面上时使用正常速度
@@ -331,6 +340,7 @@ class Player(pygame.sprite.Sprite):
         else:
             # 在空中时使用降低的控制
             self.dx = dx * self.speed * self.air_control
+            self.state = "jump"  # 设置为跳跃状态
         
         # 更新水平位置并检查碰撞
         self.rect.x += int(self.dx)
@@ -369,6 +379,9 @@ class Player(pygame.sprite.Sprite):
                 self.rect.top = ((self.rect.top + world.tile_size) // world.tile_size) * world.tile_size
             self.dy = 0
         
+        # 重新绘制角色
+        self.draw_character()
+    
     def reset_position(self, world):
         """重置角色位置到世界中央的地面上"""
         # 计算世界中央的x坐标
