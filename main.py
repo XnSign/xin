@@ -3,6 +3,7 @@ import sys
 import math
 import os
 import json
+import random
 from player import Player
 from world import World
 from inventory import Inventory
@@ -15,6 +16,15 @@ pygame.init()
 WINDOW_WIDTH = 1200
 WINDOW_HEIGHT = 800
 TILE_SIZE = 32
+
+# 职业选项
+CLASSES = ["战士", "法师", "弓箭手"]
+
+# 发型选项
+HAIRSTYLES = [f"发型{i+1}" for i in range(10)]
+
+# 体型选项
+BODY_TYPES = ["瘦小", "普通", "魁梧"]
 
 # 颜色
 WHITE = (255, 255, 255)
@@ -86,6 +96,220 @@ class Button:
                 return True
         return False
 
+class Slider:
+    def __init__(self, x, y, width, height, min_val, max_val, initial_val, label):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.min_val = min_val
+        self.max_val = max_val
+        self.value = initial_val
+        self.label = label
+        self.dragging = False
+        self.handle_rect = pygame.Rect(
+            self.get_handle_x(), y, 10, height
+        )
+        
+    def get_handle_x(self):
+        return (self.rect.x + 
+                (self.value - self.min_val) / (self.max_val - self.min_val) * 
+                (self.rect.width - 10))
+        
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if self.handle_rect.collidepoint(event.pos):
+                self.dragging = True
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.dragging = False
+        elif event.type == pygame.MOUSEMOTION and self.dragging:
+            rel_x = min(max(event.pos[0], self.rect.x), self.rect.right - 10)
+            self.value = (self.min_val + 
+                         (rel_x - self.rect.x) / self.rect.width * 
+                         (self.max_val - self.min_val))
+            self.handle_rect.x = rel_x
+            return True
+        return False
+        
+    def draw(self, screen):
+        # 绘制滑动条背景
+        pygame.draw.rect(screen, GRAY, self.rect)
+        # 绘制滑块
+        pygame.draw.rect(screen, BLUE, self.handle_rect)
+        # 绘制标签和数值
+        font = get_font(20)
+        label_text = font.render(f"{self.label}: {int(self.value)}", True, BLACK)
+        screen.blit(label_text, (self.rect.x, self.rect.y - 25))
+
+class CharacterCreator:
+    def __init__(self, x, y, width, height):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.name = ""
+        self.name_active = False
+        
+        # 初始化滑动条
+        slider_width = 200
+        slider_height = 20
+        slider_x = x + 50
+        slider_y = y + 250  # 调整位置，为名称输入框留出空间
+        spacing = 50
+        
+        self.color_sliders = [
+            Slider(slider_x, slider_y, slider_width, slider_height, 0, 255, 128, "红色"),
+            Slider(slider_x, slider_y + spacing, slider_width, slider_height, 0, 255, 128, "绿色"),
+            Slider(slider_x, slider_y + spacing * 2, slider_width, slider_height, 0, 255, 128, "蓝色")
+        ]
+        
+        # 选择按钮
+        button_width = 30
+        button_height = 30
+        text_width = 120  # 文字显示区域宽度
+        button_spacing = 40
+        
+        # 发型选择按钮
+        self.hairstyle_index = 0
+        self.hairstyle_prev = Button(x + 180, y + 100, button_width, button_height, "<", get_font(20))
+        self.hairstyle_next = Button(x + 180 + text_width + button_width, y + 100, button_width, button_height, ">", get_font(20))
+        
+        # 体型选择按钮
+        self.body_type_index = 1  # 默认普通体型
+        self.body_prev = Button(x + 180, y + 140, button_width, button_height, "<", get_font(20))
+        self.body_next = Button(x + 180 + text_width + button_width, y + 140, button_width, button_height, ">", get_font(20))
+        
+        # 职业选择按钮
+        self.class_index = 0
+        self.class_prev = Button(x + 180, y + 180, button_width, button_height, "<", get_font(20))
+        self.class_next = Button(x + 180 + text_width + button_width, y + 180, button_width, button_height, ">", get_font(20))
+        
+        # 确认和取消按钮
+        self.confirm_button = Button(x + width//4 - 50, y + height - 60, 100, 40, "确认", get_font(24))
+        self.cancel_button = Button(x + width*3//4 - 50, y + height - 60, 100, 40, "取消", get_font(24))
+        
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            # 处理名称输入框点击
+            name_rect = pygame.Rect(self.rect.x + 120, self.rect.y + 50, 200, 30)
+            self.name_active = name_rect.collidepoint(event.pos)
+            
+            # 处理发型选择
+            if self.hairstyle_prev.handle_event(event):
+                self.hairstyle_index = (self.hairstyle_index - 1) % len(HAIRSTYLES)
+                return True
+            if self.hairstyle_next.handle_event(event):
+                self.hairstyle_index = (self.hairstyle_index + 1) % len(HAIRSTYLES)
+                return True
+                
+            # 处理体型选择
+            if self.body_prev.handle_event(event):
+                self.body_type_index = (self.body_type_index - 1) % len(BODY_TYPES)
+                return True
+            if self.body_next.handle_event(event):
+                self.body_type_index = (self.body_type_index + 1) % len(BODY_TYPES)
+                return True
+                
+            # 处理职业选择
+            if self.class_prev.handle_event(event):
+                self.class_index = (self.class_index - 1) % len(CLASSES)
+                return True
+            if self.class_next.handle_event(event):
+                self.class_index = (self.class_index + 1) % len(CLASSES)
+                return True
+                
+            # 处理确认和取消按钮
+            if self.confirm_button.handle_event(event):
+                return "confirm"
+            if self.cancel_button.handle_event(event):
+                return "cancel"
+                
+        elif event.type == pygame.KEYDOWN:
+            if self.name_active:
+                if event.key == pygame.K_RETURN:
+                    self.name_active = False
+                elif event.key == pygame.K_BACKSPACE:
+                    self.name = self.name[:-1]
+                else:
+                    # 只接受可打印字符
+                    if event.unicode.isprintable() and len(self.name) < 10:
+                        self.name += event.unicode
+                return True
+                    
+        # 处理滑动条
+        for slider in self.color_sliders:
+            if slider.handle_event(event):
+                return True
+                
+        return False
+        
+    def draw(self, screen):
+        # 绘制背景
+        pygame.draw.rect(screen, WHITE, self.rect)
+        pygame.draw.rect(screen, BLACK, self.rect, 2)
+        
+        # 绘制标题
+        title_font = get_font(36)
+        title_text = title_font.render("创建角色", True, BLACK)
+        screen.blit(title_text, (self.rect.centerx - title_text.get_width()//2, self.rect.y + 10))
+        
+        # 绘制名称输入框
+        name_font = get_font(24)
+        name_text = name_font.render("名称:", True, BLACK)
+        screen.blit(name_text, (self.rect.x + 50, self.rect.y + 50))
+        
+        name_rect = pygame.Rect(self.rect.x + 120, self.rect.y + 50, 200, 30)
+        pygame.draw.rect(screen, (240, 240, 240) if self.name_active else WHITE, name_rect)
+        pygame.draw.rect(screen, BLACK, name_rect, 2)
+        
+        name_surface = name_font.render(self.name + ("_" if self.name_active else ""), True, BLACK)
+        screen.blit(name_surface, (name_rect.x + 5, name_rect.y + 2))
+        
+        # 绘制发型选择
+        hairstyle_text = name_font.render(f"发型: {HAIRSTYLES[self.hairstyle_index]}", True, BLACK)
+        screen.blit(hairstyle_text, (self.rect.x + 50, self.rect.y + 100))
+        self.hairstyle_prev.draw(screen)
+        self.hairstyle_next.draw(screen)
+        
+        # 绘制体型选择
+        body_text = name_font.render(f"体型: {BODY_TYPES[self.body_type_index]}", True, BLACK)
+        screen.blit(body_text, (self.rect.x + 50, self.rect.y + 140))
+        self.body_prev.draw(screen)
+        self.body_next.draw(screen)
+        
+        # 绘制职业选择
+        class_text = name_font.render(f"职业: {CLASSES[self.class_index]}", True, BLACK)
+        screen.blit(class_text, (self.rect.x + 50, self.rect.y + 180))
+        self.class_prev.draw(screen)
+        self.class_next.draw(screen)
+        
+        # 绘制肤色滑动条
+        for slider in self.color_sliders:
+            slider.draw(screen)
+            
+        # 绘制角色预览
+        preview_rect = pygame.Rect(self.rect.right - 250, self.rect.y + 50, 200, 300)
+        
+        # 创建一个临时的Player对象来预览角色
+        preview_player = Player(
+            preview_rect.centerx - 16,  # 角色宽度的一半
+            preview_rect.centery - 24,  # 角色高度的一半
+            {
+                "name": self.name,
+                "hairstyle": HAIRSTYLES[self.hairstyle_index],
+                "body_type": BODY_TYPES[self.body_type_index],
+                "class": CLASSES[self.class_index],
+                "skin_color": [int(s.value) for s in self.color_sliders]
+            }
+        )
+        
+        # 绘制预览区域背景
+        pygame.draw.rect(screen, (200, 200, 200), preview_rect)
+        pygame.draw.rect(screen, BLACK, preview_rect, 2)
+        
+        # 绘制角色预览
+        preview_player.preview_mode = True  # 设置预览模式，使角色呈45度角
+        preview_player.draw_character()  # 重新绘制角色
+        screen.blit(preview_player.image, preview_player.rect)
+        
+        # 绘制确认和取消按钮
+        self.confirm_button.draw(screen)
+        self.cancel_button.draw(screen)
+
 class Game:
     def __init__(self):
         pygame.init()
@@ -98,7 +322,7 @@ class Game:
         self.player_path, self.world_path = ensure_game_directories()
         
         # 游戏状态
-        self.game_state = "menu"  # "menu", "character_select", "map_select", "playing", "keybinds", "save_menu", "settings"
+        self.game_state = "menu"  # "menu", "character_select", "character_create", "map_select", "playing", "keybinds", "save_menu", "settings"
         self.game_paused = False
         self.show_keybinds = False
         self.waiting_for_key = None
@@ -163,6 +387,14 @@ class Game:
         
         # 初始化选择界面的按钮
         self.update_selection_buttons()
+        
+        # 创建角色创建器
+        self.character_creator = CharacterCreator(
+            WINDOW_WIDTH//2 - 400, 
+            WINDOW_HEIGHT//2 - 300, 
+            800, 
+            600
+        )
 
     def handle_menu_events(self):
         for event in pygame.event.get():
@@ -606,6 +838,8 @@ class Game:
             self.draw_menu()
         elif self.game_state == "character_select":
             self.draw_character_select()
+        elif self.game_state == "character_create":
+            self.draw_character_create()
         elif self.game_state == "map_select":
             self.draw_map_select()
         elif self.game_state == "save_menu":
@@ -621,6 +855,8 @@ class Game:
                 self.handle_menu_events()
             elif self.game_state == "character_select":
                 self.handle_character_select_events()
+            elif self.game_state == "character_create":
+                self.handle_character_create_events()
             elif self.game_state == "map_select":
                 self.handle_map_select_events()
             else:
@@ -637,17 +873,18 @@ class Game:
         pygame.quit()
         sys.exit()
 
-    def save_character(self, character_name):
+    def save_character(self, character_name, character_data=None):
         """保存角色数据"""
-        character_data = {
-            'name': character_name,
-            'health': self.player.health,
-            'mana': self.player.mana,
-            'inventory': [
-                {'item': slot.item} if slot.item else None
-                for slot in self.inventory.slots
-            ]
-        }
+        if character_data is None:
+            character_data = {
+                'name': character_name,
+                'health': self.player.health,
+                'mana': self.player.mana,
+                'inventory': [
+                    {'item': slot.item} if slot.item else None
+                    for slot in self.inventory.slots
+                ]
+            }
         
         file_path = os.path.join(self.player_path, f"{character_name}.json")
         with open(file_path, 'w', encoding='utf-8') as f:
@@ -699,18 +936,7 @@ class Game:
                 
             # 处理新建角色按钮
             if self.new_character_button.handle_event(event):
-                # 创建新角色
-                new_char = f"角色{len(self.characters) + 1}"
-                self.characters.append(new_char)
-                # 初始化并保存新角色
-                self.player = Player(0, 0)  # 临时位置
-                self.inventory = Inventory(10, 10)
-                self.save_character(new_char)
-                self.update_selection_buttons()
-                # 如果这是第一个角色，直接选择它并进入地图选择
-                if len(self.characters) == 1:
-                    self.selected_character = new_char
-                    self.game_state = "map_select"
+                self.game_state = "character_create"
                 return
                 
             # 处理角色选择按钮
@@ -719,7 +945,24 @@ class Game:
                     self.selected_character = self.characters[i]
                     self.game_state = "map_select"
                     return
-                    
+
+    def handle_character_create_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.running = False
+                return
+                
+            result = self.character_creator.handle_event(event)
+            if result == "confirm":
+                # 获取角色数据并保存
+                character_data = self.character_creator.get_character_data()
+                self.characters.append(character_data["name"])
+                self.save_character(character_data["name"], character_data)
+                self.update_selection_buttons()
+                self.game_state = "character_select"
+            elif result == "cancel":
+                self.game_state = "character_select"
+
     def handle_map_select_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -768,8 +1011,16 @@ class Game:
                 spawn_y = y * TILE_SIZE - TILE_SIZE  # 将玩家放在地面方块上方
                 break
         
+        # 加载角色数据
+        character_data = None
+        if self.selected_character:
+            file_path = os.path.join(self.player_path, f"{self.selected_character}.json")
+            if os.path.exists(file_path):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    character_data = json.load(f)
+        
         # 初始化玩家在地图中央的地面上
-        self.player = Player(center_x - TILE_SIZE // 2, spawn_y)  # 调整水平位置以确保居中
+        self.player = Player(center_x - TILE_SIZE // 2, spawn_y, character_data)
         self.all_sprites = pygame.sprite.Group()
         self.all_sprites.add(self.player)
         
@@ -779,6 +1030,10 @@ class Game:
         
         # 创建背包
         self.inventory = Inventory(10, 10)  # 位于左上角
+        if character_data and 'inventory' in character_data:
+            for i, item_data in enumerate(character_data['inventory']):
+                if item_data:
+                    self.inventory.slots[i].item = item_data['item']
         
         # 切换到游戏状态
         self.game_state = "playing"
@@ -899,6 +1154,12 @@ class Game:
             "返回",
             get_font(24)
         )
+
+    def draw_character_create(self):
+        """绘制角色创建界面"""
+        self.screen.fill(SKY_BLUE)
+        self.character_creator.draw(self.screen)
+        pygame.display.flip()
 
 if __name__ == "__main__":
     game = Game()
