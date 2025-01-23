@@ -4,12 +4,12 @@ import math
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y, character_data=None):
         super().__init__()
-        self.width = 32
-        self.height = 48
+        # 调整角色大小为1.5x2.5个方块
+        self.width = int(32 * 1.5)  # 1.5个方块宽
+        self.height = int(32 * 2.5)  # 2.5个方块高
         
-        # 创建一个简单的矩形作为玩家图像
-        self.image = pygame.Surface([self.width, self.height])
-        self.image.fill((0, 255, 0))  # 绿色
+        # 创建一个透明的surface作为玩家图像
+        self.image = pygame.Surface([self.width, self.height], pygame.SRCALPHA)
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
@@ -86,97 +86,55 @@ class Player(pygame.sprite.Sprite):
             leg_offset = math.sin(self.animation_frame * 0.1) * 2
             arm_offset = math.sin(self.animation_frame * 0.1) * 2
         
-        # 如果是预览模式，调整偏移量以呈现45度角效果
-        if self.preview_mode:
-            leg_offset = 0
-            arm_offset = 2
+        # 45度角效果的偏移量
+        offset_x = 8  # 向右偏移
         
         # 绘制腿部
         leg_width = self.width // 4
         leg_height = self.height // 3
-        # 左腿
-        if self.preview_mode:
-            # 45度角时，一条腿在前一条腿在后
-            pygame.draw.rect(self.image, (0, 255, 0), 
-                           (self.width//4 - leg_width//2 - 4, 
-                            self.height*2//3,
-                            leg_width, leg_height))  # 后腿
-            pygame.draw.rect(self.image, (0, 255, 0),
-                           (self.width*3//4 - leg_width//2 + 4,
-                            self.height*2//3,
-                            leg_width, leg_height))  # 前腿
-        else:
-            pygame.draw.rect(self.image, (0, 255, 0), 
-                           (self.width//4 - leg_width//2, 
-                            self.height*2//3 + leg_offset,
-                            leg_width, leg_height))
-            pygame.draw.rect(self.image, (0, 255, 0),
-                           (self.width*3//4 - leg_width//2,
-                            self.height*2//3 - leg_offset,
-                            leg_width, leg_height))
+        # 左腿（后腿）
+        pygame.draw.rect(self.image, (0, 255, 0), 
+                        (self.width//4 - leg_width//2 - offset_x, 
+                         self.height*2//3,
+                         leg_width, leg_height))
+        # 右腿（前腿）
+        pygame.draw.rect(self.image, (0, 255, 0),
+                        (self.width*3//4 - leg_width//2 + offset_x,
+                         self.height*2//3,
+                         leg_width, leg_height))
         
-        # 绘制躯干
+        # 绘制躯干（稍微倾斜）
         body_width = self.width // 2
         body_height = self.height // 2
-        if self.preview_mode:
-            # 45度角时躯干稍微倾斜
-            body_points = [
-                (self.width//2 - body_width//2 - 2, self.height//3),
-                (self.width//2 + body_width//2 + 2, self.height//3),
-                (self.width//2 + body_width//2 + 2, self.height//3 + body_height),
-                (self.width//2 - body_width//2 - 2, self.height//3 + body_height)
-            ]
-            pygame.draw.polygon(self.image, (0, 255, 0), body_points)
-        else:
-            pygame.draw.rect(self.image, (0, 255, 0),
-                           (self.width//2 - body_width//2,
-                            self.height//3,
-                            body_width, body_height))
+        body_points = [
+            (self.width//2 - body_width//2 - offset_x, self.height//3),
+            (self.width//2 + body_width//2 + offset_x, self.height//3),
+            (self.width//2 + body_width//2 + offset_x, self.height//3 + body_height),
+            (self.width//2 - body_width//2 - offset_x, self.height//3 + body_height)
+        ]
+        pygame.draw.polygon(self.image, (0, 255, 0), body_points)
         
         # 绘制手臂
         arm_width = self.width // 4
         arm_height = self.height // 2.5
-        if self.preview_mode:
-            # 45度角时，一只手臂在前一只在后
-            pygame.draw.rect(self.image, (0, 255, 0),
-                           (self.width//6 - arm_width//2 - 4,
-                            self.height//3 + 2,
-                            arm_width, arm_height))  # 后臂
-            pygame.draw.rect(self.image, (0, 255, 0),
-                           (self.width*5//6 - arm_width//2 + 4,
-                            self.height//3 - 2,
-                            arm_width, arm_height))  # 前臂
-        else:
-            if self.facing_right:
-                pygame.draw.rect(self.image, (0, 255, 0),
-                               (self.width//6 - arm_width//2,
-                                self.height//3 + arm_offset,
-                                arm_width, arm_height))
-                pygame.draw.rect(self.image, (0, 255, 0),
-                               (self.width*5//6 - arm_width//2,
-                                self.height//3 - arm_offset,
-                                arm_width, arm_height))
-            else:
-                pygame.draw.rect(self.image, (0, 255, 0),
-                               (self.width//6 - arm_width//2,
-                                self.height//3 - arm_offset,
-                                arm_width, arm_height))
-                pygame.draw.rect(self.image, (0, 255, 0),
-                               (self.width*5//6 - arm_width//2,
-                                self.height//3 + arm_offset,
-                                arm_width, arm_height))
+        # 左手臂（后臂）
+        pygame.draw.rect(self.image, (0, 255, 0),
+                        (self.width//6 - arm_width//2 - offset_x,
+                         self.height//3 + 2,
+                         arm_width, arm_height))
+        # 右手臂（前臂）
+        pygame.draw.rect(self.image, (0, 255, 0),
+                        (self.width*5//6 - arm_width//2 + offset_x,
+                         self.height//3 - 2,
+                         arm_width, arm_height))
         
-        # 绘制头部
+        # 绘制头部（稍微偏移）
         head_size = self.width * 0.7
-        if self.preview_mode:
-            # 45度角时头部稍微偏移
-            head_rect = pygame.Rect(self.width//2 - head_size//2 + 2,
-                                  0,
-                                  head_size, head_size)
-        else:
-            head_rect = pygame.Rect(self.width//2 - head_size//2,
-                                  0,
-                                  head_size, head_size)
+        head_rect = pygame.Rect(
+            self.width//2 - head_size//2 + offset_x,
+            0,
+            head_size, head_size
+        )
         pygame.draw.ellipse(self.image, (0, 255, 0), head_rect)
         
         # 绘制发型
@@ -184,8 +142,6 @@ class Player(pygame.sprite.Sprite):
         if self.hairstyle.startswith("发型"):
             style_num = int(self.hairstyle[2:])
             hair_rect = head_rect.copy()
-            if self.preview_mode:
-                hair_rect.x += 2  # 45度角时发型也要偏移
             
             if style_num == 1:  # 短发
                 pygame.draw.rect(self.image, hair_color, 
@@ -200,7 +156,7 @@ class Player(pygame.sprite.Sprite):
                                (hair_rect.x, 0,
                                 head_size, head_size//2))
                 pygame.draw.rect(self.image, hair_color,
-                               (hair_rect.centerx - 2,
+                               (hair_rect.centerx - 2 + offset_x,
                                 head_size//2,
                                 4, head_size))
             elif style_num == 4:  # 双马尾
@@ -284,24 +240,23 @@ class Player(pygame.sprite.Sprite):
                                 head_size//2 - 2,
                                 head_size*0.7))
         
-        # 绘制面部特征
+        # 绘制面部特征（跟随45度角）
         eye_color = (0, 0, 0, 255)
-        x_offset = 2 if self.preview_mode else 0
         # 左眼
         pygame.draw.circle(self.image, eye_color,
-                         (self.width//2 - head_size//6 + x_offset,
+                         (self.width//2 - head_size//6 + offset_x,
                           head_size//2),
                           2)
         # 右眼
         pygame.draw.circle(self.image, eye_color,
-                         (self.width//2 + head_size//6 + x_offset,
+                         (self.width//2 + head_size//6 + offset_x,
                           head_size//2),
                           2)
         
         # 绘制嘴巴
         pygame.draw.line(self.image, (150, 50, 50, 255),
-                        (self.width//2 - 4 + x_offset, head_size*0.7),
-                        (self.width//2 + 4 + x_offset, head_size*0.7),
+                        (self.width//2 - 4 + offset_x, head_size*0.7),
+                        (self.width//2 + 4 + offset_x, head_size*0.7),
                         2)
         
         # 如果面向左边且不是预览模式，翻转图像
