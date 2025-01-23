@@ -19,10 +19,27 @@ class InventorySlot:
                                   self.size - 4, self.size - 4)
             pygame.draw.rect(screen, self.item['color'], item_rect)
             
-            # 绘制物品名称
-            if self.is_hotbar:  # 只在物品栏显示名称
+            # 绘制物品名称（只在物品栏显示）
+            if self.is_hotbar:
                 text = font.render(self.item['name'][:4], True, (255, 255, 255))
                 screen.blit(text, (self.rect.x + 2, self.rect.y + self.size - 16))
+            
+            # 绘制物品数量
+            if 'count' not in self.item:
+                self.item['count'] = 1
+            if self.item['count'] > 1:
+                count_text = font.render(str(self.item['count']), True, (255, 255, 255))
+                count_rect = count_text.get_rect(bottomright=(self.rect.right - 2, self.rect.bottom - 2))
+                screen.blit(count_text, count_rect)
+    
+    def remove_one(self):
+        """移除一个物品，如果物品用完则返回True"""
+        if self.item:
+            self.item['count'] -= 1
+            if self.item['count'] <= 0:
+                self.item = None
+                return True
+        return False
 
 class Inventory:
     def __init__(self, x, y, cols=10, rows=5, slot_size=32, spacing=2):
@@ -53,9 +70,8 @@ class Inventory:
         
         # 测试物品（临时）
         test_items = [
-            {'name': '石头', 'color': (128, 128, 128)},
-            {'name': '泥土', 'color': (139, 69, 19)},
-            {'name': '草地', 'color': (34, 139, 34)}
+            {'name': '石头', 'color': (128, 128, 128), 'count': 1},
+            {'name': '泥土', 'color': (139, 69, 19), 'count': 1}
         ]
         for i, item in enumerate(test_items):
             if i < len(self.slots):
@@ -105,3 +121,50 @@ class Inventory:
                 
     def get_selected_item(self):
         return self.slots[self.selected_slot].item 
+
+    def add_item(self, block_type):
+        """向背包中添加物品"""
+        # 创建物品数据
+        item = {
+            'name': self.get_block_name(block_type),
+            'color': self.get_block_color(block_type),
+            'count': 1
+        }
+        
+        # 首先尝试找到相同类型的物品并堆叠
+        for slot in self.slots:
+            if slot.item and slot.item['name'] == item['name']:
+                slot.item['count'] += 1
+                return True
+        
+        # 如果没有找到相同类型的物品，找一个空槽位
+        for slot in self.slots:
+            if not slot.item:
+                slot.item = item
+                return True
+        
+        return False  # 背包已满
+        
+    def get_block_name(self, block_type):
+        """获取方块名称"""
+        block_names = {
+            1: "泥土",
+            2: "石头",
+            3: "草地"
+        }
+        return block_names.get(block_type, f"方块{block_type}")
+        
+    def get_block_color(self, block_type):
+        """获取方块颜色"""
+        block_colors = {
+            1: (139, 69, 19),   # 泥土 - 棕色
+            2: (128, 128, 128), # 石头 - 灰色
+            3: (34, 139, 34)    # 草地 - 绿色
+        }
+        return block_colors.get(block_type, (200, 200, 200))  # 默认为浅灰色 
+
+    def remove_grass_blocks(self):
+        """删除所有草方块"""
+        for slot in self.slots:
+            if slot.item and slot.item['name'] == "草地":
+                slot.item = None 

@@ -1,0 +1,14 @@
+{
+    "name": "J",
+    "hairstyle": "发型10",
+    "body_type": "普通",
+    "class": "战士",
+    "skin_color": [
+        197,
+        128,
+        128
+    ],
+    "health": 100,
+    "mana": 100,
+    "inventory": []
+}

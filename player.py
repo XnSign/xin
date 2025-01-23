@@ -1,270 +1,67 @@
 import pygame
 import math
 
-class Player(pygame.sprite.Sprite):
-    def __init__(self, x, y, character_data=None):
+class Player:
+    def __init__(self, x, y, data):
+        """初始化玩家"""
         super().__init__()
-        # 调整角色大小为1.5x2.5个方块
-        self.width = int(32 * 1.5)  # 1.5个方块宽
-        self.height = int(32 * 2.5)  # 2.5个方块高
         
-        # 创建一个透明的surface作为玩家图像
-        self.image = pygame.Surface([self.width, self.height], pygame.SRCALPHA)
-        self.rect = self.image.get_rect()
-        self.rect.x = x
-        self.rect.y = y
+        # 基本属性
+        self.name = data['name']
+        self.hairstyle = data['hairstyle']
+        self.body_type = data['body_type']
+        self.class_type = data['class']
+        self.skin_color = data['skin_color']
+        self.health = data['health']
+        self.mana = data['mana']
         
-        # 物理属性
-        self.dx = 0  # x方向速度
-        self.dy = 0  # y方向速度
-        self.speed = 8  # 移动速度
-        self.jump_power = -16  # 跳跃力度
-        self.gravity = 0.8  # 重力
-        self.max_fall_speed = 15  # 最大下落速度
-        self.air_control = 0.7  # 空中控制
-        self.on_ground = False  # 是否在地面上
-        self.max_jumps = 2  # 最大跳跃次数
-        self.jumps_left = self.max_jumps  # 剩余跳跃次数
+        # 位置和移动
+        self.rect = pygame.Rect(x, y, 48, 64)  # 玩家碰撞箱
+        self.x_speed = 0
+        self.y_speed = 0
+        self.dx = 0  # 水平速度
+        self.dy = 0  # 垂直速度
+        self.gravity = 0.8  # 重力加速度
+        self.max_fall_speed = 20  # 最大下落速度
+        self.move_speed = 5  # 移动速度
         
-        # 角色属性
-        self.health = 100
-        self.mana = 100
-        if character_data:
-            self.load_character_data(character_data)
+        # 跳跃相关
+        self.facing_right = True
+        self.is_jumping = False
+        self.on_ground = False
+        self.jump_pressed = False
+        self.jumps_left = 2  # 允许二段跳
+        self.jump_power = -15  # 跳跃力度
         
         # 动画相关
-        self.facing_right = True
+        self.animation_timer = pygame.time.get_ticks()
+        self.animation_speed = 100  # 每帧动画持续100毫秒
         self.animation_frame = 0
-        self.animation_timer = 0
-        self.animation_speed = 16  # 每16ms更新一次动画（约60fps）
-        self.state = "idle"  # idle, walk, jump
-        self.preview_mode = False  # 是否处于预览模式
-        self.last_state = None  # 用于检测状态变化
-        self.last_facing = True  # 用于检测朝向变化
+        self.state = "idle"
+        self.last_state = "idle"
+        self.last_facing = True
+        self.preview_mode = False
         
-        # 碰撞检测优化
-        self.collision_rects = []  # 存储附近的碰撞块
-        self.last_collision_check = 0
-        self.collision_check_interval = 16  # 每帧都更新碰撞检测
-        
-        # 游戏属性
-        self.max_health = 100
-        self.max_mana = 100
-        
-        # 职业相关属性
-        if character_data and "class" in character_data:
-            if character_data["class"] == "战士":
-                self.max_health = 120
-            elif character_data["class"] == "法师":
-                self.max_mana = 150
-            elif character_data["class"] == "弓箭手":
-                self.speed = 9
-                self.max_jumps = 3
-        
-        # 角色外观
-        self.hairstyle = character_data.get("hairstyle", "发型1") if character_data else "发型1"
+        # 创建玩家图像
+        self.image = pygame.Surface((48, 64), pygame.SRCALPHA)
         self.draw_character()
-        
-        self.jump_pressed = False  # 新增：跳跃键是否被按下
     
-    def load_character_data(self, data):
-        """从保存的数据中加载角色属性"""
-        if isinstance(data, dict):
-            self.health = data.get('health', 100)
-            self.mana = data.get('mana', 100)
-    
-    def draw_character(self):
-        # 清空surface
+    def update_appearance(self):
+        """更新玩家外观"""
+        # 清空图像
         self.image.fill((0, 0, 0, 0))
         
-        # 计算肢体位置的偏移量（基于动画帧）
-        if self.state == "walk":
-            leg_offset = math.sin(self.animation_frame * 0.3) * 6  # 增加腿部摆动幅度
-            arm_offset = -math.sin(self.animation_frame * 0.3) * 6  # 增加手臂摆动幅度
-        elif self.state == "jump":
-            leg_offset = 4  # 跳跃时腿部稍微分开
-            arm_offset = -6  # 跳跃时手臂上举
-        else:  # idle
-            leg_offset = math.sin(self.animation_frame * 0.1) * 2  # 待机时轻微摆动
-            arm_offset = math.sin(self.animation_frame * 0.1) * 2
-        
-        # 45度角效果的偏移量
-        offset_x = 8  # 向右偏移
-        
-        # 绘制腿部
-        leg_width = self.width // 4
-        leg_height = self.height // 3
-        # 左腿（后腿）
-        pygame.draw.rect(self.image, (0, 255, 0), 
-                        (self.width//4 - leg_width//2 - offset_x, 
-                         self.height*2//3 + leg_offset,  # 添加腿部动画偏移
-                         leg_width, leg_height))
-        # 右腿（前腿）
-        pygame.draw.rect(self.image, (0, 255, 0),
-                        (self.width*3//4 - leg_width//2 + offset_x,
-                         self.height*2//3 - leg_offset,  # 添加腿部动画偏移
-                         leg_width, leg_height))
-        
-        # 绘制躯干（稍微倾斜）
-        body_width = self.width // 2
-        body_height = self.height // 2
-        body_points = [
-            (self.width//2 - body_width//2 - offset_x, self.height//3),
-            (self.width//2 + body_width//2 + offset_x, self.height//3),
-            (self.width//2 + body_width//2 + offset_x, self.height//3 + body_height),
-            (self.width//2 - body_width//2 - offset_x, self.height//3 + body_height)
-        ]
-        pygame.draw.polygon(self.image, (0, 255, 0), body_points)
-        
-        # 绘制手臂
-        arm_width = self.width // 4
-        arm_height = self.height // 2.5
-        # 左手臂（后臂）
-        pygame.draw.rect(self.image, (0, 255, 0),
-                        (self.width//6 - arm_width//2 - offset_x,
-                         self.height//3 + 2 + arm_offset,  # 添加手臂动画偏移
-                         arm_width, arm_height))
-        # 右手臂（前臂）
-        pygame.draw.rect(self.image, (0, 255, 0),
-                        (self.width*5//6 - arm_width//2 + offset_x,
-                         self.height//3 - 2 - arm_offset,  # 添加手臂动画偏移
-                         arm_width, arm_height))
-        
-        # 绘制头部（稍微偏移）
-        head_size = self.width * 0.7
-        head_rect = pygame.Rect(
-            self.width//2 - head_size//2 + offset_x,
-            0,
-            head_size, head_size
-        )
-        pygame.draw.ellipse(self.image, (0, 255, 0), head_rect)
-        
-        # 绘制发型
-        hair_color = (50, 50, 50, 255)  # 黑色头发
-        if self.hairstyle.startswith("发型"):
-            style_num = int(self.hairstyle[2:])
-            hair_rect = head_rect.copy()
-            
-            if style_num == 1:  # 短发
-                pygame.draw.rect(self.image, hair_color, 
-                               (hair_rect.x, 0,
-                                head_size, head_size//2))
-            elif style_num == 2:  # 长发
-                pygame.draw.rect(self.image, hair_color,
-                               (hair_rect.x, 0,
-                                head_size, head_size*0.8))
-            elif style_num == 3:  # 马尾
-                pygame.draw.rect(self.image, hair_color,
-                               (hair_rect.x, 0,
-                                head_size, head_size//2))
-                pygame.draw.rect(self.image, hair_color,
-                               (hair_rect.centerx - 2 + offset_x,
-                                head_size//2,
-                                4, head_size))
-            elif style_num == 4:  # 双马尾
-                pygame.draw.rect(self.image, hair_color,
-                               (hair_rect.x, 0,
-                                head_size, head_size//2))
-                if self.preview_mode:
-                    # 45度角时双马尾一前一后
-                    pygame.draw.rect(self.image, hair_color,
-                                   (hair_rect.x - 2,
-                                    head_size//2,
-                                    4, head_size))  # 后马尾
-                    pygame.draw.rect(self.image, hair_color,
-                                   (hair_rect.right - 2,
-                                    head_size//2,
-                                    4, head_size))  # 前马尾
-                else:
-                    pygame.draw.rect(self.image, hair_color,
-                                   (hair_rect.x,
-                                    head_size//2,
-                                    4, head_size))
-                    pygame.draw.rect(self.image, hair_color,
-                                   (hair_rect.right - 4,
-                                    head_size//2,
-                                    4, head_size))
-            elif style_num == 5:  # 蓬松短发
-                for i in range(4):
-                    angle = i * math.pi / 2
-                    offset_x = math.cos(angle) * 4
-                    offset_y = math.sin(angle) * 4
-                    if self.preview_mode:
-                        offset_x += 2
-                    pygame.draw.circle(self.image, hair_color,
-                                    (hair_rect.centerx + offset_x,
-                                     head_size//2 + offset_y),
-                                     head_size//3)
-            elif style_num == 6:  # 莫西干
-                pygame.draw.rect(self.image, hair_color,
-                               (hair_rect.centerx - head_size//6,
-                                0,
-                                head_size//3,
-                                head_size//2))
-            elif style_num == 7:  # 波浪长发
-                for i in range(4):
-                    y_offset = math.sin(i * 0.5) * 4
-                    x_offset = 2 if self.preview_mode else 0
-                    pygame.draw.rect(self.image, hair_color,
-                                   (hair_rect.x + i*head_size//4 + x_offset,
-                                    y_offset,
-                                    head_size//4,
-                                    head_size))
-            elif style_num == 8:  # 爆炸头
-                for i in range(8):
-                    angle = i * math.pi / 4
-                    x_offset = 2 if self.preview_mode else 0
-                    end_x = hair_rect.centerx + math.cos(angle) * head_size//2 + x_offset
-                    end_y = head_size//2 + math.sin(angle) * head_size//2
-                    pygame.draw.line(self.image, hair_color,
-                                   (hair_rect.centerx + x_offset, head_size//2),
-                                   (end_x, end_y), 3)
-            elif style_num == 9:  # 斜刘海
-                points = [
-                    (hair_rect.x, 0),
-                    (hair_rect.right, 0),
-                    (hair_rect.right, head_size//2),
-                    (hair_rect.x, head_size*0.7)
-                ]
-                if self.preview_mode:
-                    points = [(x + 2, y) for x, y in points]
-                pygame.draw.polygon(self.image, hair_color, points)
-            elif style_num == 10:  # 中分
-                x_offset = 2 if self.preview_mode else 0
-                pygame.draw.rect(self.image, hair_color,
-                               (hair_rect.x + x_offset,
-                                0,
-                                head_size//2 - 2,
-                                head_size*0.7))
-                pygame.draw.rect(self.image, hair_color,
-                               (hair_rect.centerx + 2 + x_offset,
-                                0,
-                                head_size//2 - 2,
-                                head_size*0.7))
-        
-        # 绘制面部特征（跟随45度角）
-        eye_color = (0, 0, 0, 255)
-        # 左眼
-        pygame.draw.circle(self.image, eye_color,
-                         (self.width//2 - head_size//6 + offset_x,
-                          head_size//2),
-                          2)
-        # 右眼
-        pygame.draw.circle(self.image, eye_color,
-                         (self.width//2 + head_size//6 + offset_x,
-                          head_size//2),
-                          2)
-        
-        # 绘制嘴巴
-        pygame.draw.line(self.image, (150, 50, 50, 255),
-                        (self.width//2 - 4 + offset_x, head_size*0.7),
-                        (self.width//2 + 4 + offset_x, head_size*0.7),
-                        2)
+        # 绘制身体
+        body_color = self.skin_color
+        pygame.draw.rect(self.image, body_color, (8, 16, 16, 32))  # 身体
+        pygame.draw.rect(self.image, body_color, (4, 48, 24, 16))  # 腿
+        pygame.draw.rect(self.image, body_color, (4, 16, 24, 8))   # 手臂
+        pygame.draw.circle(self.image, body_color, (16, 8), 8)     # 头
         
         # 根据朝向翻转图像
         if not self.facing_right:
             self.image = pygame.transform.flip(self.image, True, False)
-    
+
     def update(self, world, key_bindings):
         current_time = pygame.time.get_ticks()
         
@@ -314,7 +111,8 @@ class Player(pygame.sprite.Sprite):
         self.apply_gravity(world)
         
         # 检查是否需要重生
-        if self.rect.top > world.world_height:
+        world_height_pixels = world.height * world.grid_size
+        if self.rect.top > world_height_pixels:
             self.reset_position(world)
         
         # 只在状态或朝向改变时重新绘制角色
@@ -327,61 +125,37 @@ class Player(pygame.sprite.Sprite):
         self.last_facing = self.facing_right
     
     def move(self, dx, dy, world):
-        """处理移动，包括碰撞检测"""
-        # 更新朝向
-        if dx != 0:
-            self.facing_right = dx > 0
-            self.state = "walk"  # 设置为行走状态
-            # 更新动画帧
-            self.animation_frame += 1
-        else:
-            self.state = "idle"  # 设置为待机状态
-            
+        """移动玩家并处理碰撞"""
         # 水平移动
-        if self.on_ground:
-            # 在地面上时使用正常速度
-            self.dx = dx * self.speed
-        else:
-            # 在空中时使用降低的控制
-            self.dx = dx * self.speed * self.air_control
-            self.state = "jump"  # 设置为跳跃状态
-        
-        # 更新水平位置并检查碰撞
-        self.rect.x += int(self.dx)
-        
-        # 检查世界边界
-        if self.rect.left < 0:
-            self.rect.left = 0
-            self.dx = 0
-        elif self.rect.right > world.world_width:
-            self.rect.right = world.world_width
-            self.dx = 0
-        
-        # 检查水平碰撞
-        if world.check_collision(self):
-            # 如果发生碰撞，回退移动
-            if self.dx > 0:
-                self.rect.right = ((self.rect.right - 1) // world.tile_size) * world.tile_size
-            elif self.dx < 0:
-                self.rect.left = ((self.rect.left + world.tile_size) // world.tile_size) * world.tile_size
-            self.dx = 0
+        if dx != 0:
+            dx *= self.move_speed
+            self.rect.x += dx
+            # 检查水平碰撞
+            for rect in self.collision_rects:
+                if self.rect.colliderect(rect):
+                    if dx > 0:  # 向右移动
+                        self.rect.right = rect.left
+                    elif dx < 0:  # 向左移动
+                        self.rect.left = rect.right
         
         # 垂直移动
         if dy != 0:
-            self.dy = dy
+            self.rect.y += dy
+            # 检查垂直碰撞
+            for rect in self.collision_rects:
+                if self.rect.colliderect(rect):
+                    if dy > 0:  # 下落
+                        self.rect.bottom = rect.top
+                        self.dy = 0
+                        self.on_ground = True
+                        self.jumps_left = 2  # 着地时重置跳跃次数
+                    elif dy < 0:  # 上升
+                        self.rect.top = rect.bottom
+                        self.dy = 0
             
-        # 更新垂直位置并检查碰撞
-        self.rect.y += int(self.dy)
-        
-        # 检查垂直碰撞
-        if world.check_collision(self):
-            if self.dy > 0:  # 下落
-                self.rect.bottom = ((self.rect.bottom - 1) // world.tile_size) * world.tile_size
-                self.on_ground = True
-                self.jumps_left = self.max_jumps
-            else:  # 上升
-                self.rect.top = ((self.rect.top + world.tile_size) // world.tile_size) * world.tile_size
-            self.dy = 0
+            # 如果没有发生碰撞，说明在空中
+            if not any(self.rect.colliderect(rect) for rect in self.collision_rects):
+                self.on_ground = False
         
         # 重新绘制角色
         self.draw_character()
@@ -389,67 +163,42 @@ class Player(pygame.sprite.Sprite):
     def reset_position(self, world):
         """重置角色位置到世界中央的地面上"""
         # 计算世界中央的x坐标
-        center_x = world.world_width // 2
-        center_grid_x = center_x // world.tile_size
+        center_x = (world.width * world.grid_size) // 2
+        center_grid_x = center_x // world.grid_size
         
         # 从上往下找到第一个地面方块
         spawn_y = 0
-        for y in range(len(world.grid)):
+        for y in range(world.height):
             if world.grid[y][center_grid_x] != world.EMPTY:
-                spawn_y = y * world.tile_size - self.height
+                spawn_y = y * world.grid_size - self.rect.height
                 break
         
         # 设置新位置
         self.dx = 0
         self.dy = 0
-        self.rect.x = int(center_x - self.width // 2)
+        self.rect.x = int(center_x - self.rect.width // 2)
         self.rect.y = int(spawn_y)
         self.on_ground = False
-        self.jumps_left = self.max_jumps
+        self.jumps_left = 2  # 重置跳跃次数
     
     def apply_gravity(self, world):
-        """应用重力和垂直碰撞检测"""
-        if not self.on_ground:
-            self.dy += self.gravity
-            if self.dy > self.max_fall_speed:
-                self.dy = self.max_fall_speed
+        """应用重力并处理垂直移动"""
+        # 应用重力
+        self.dy += self.gravity
         
-        # 更新垂直位置并检查碰撞
-        self.rect.y += int(self.dy)
-        
-        # 检查世界边界
-        if self.rect.bottom > world.world_height:
-            self.rect.bottom = world.world_height
-            self.dy = 0
-            self.on_ground = True
-            self.jumps_left = self.max_jumps
-        elif self.rect.top < 0:
-            self.rect.top = 0
-            self.dy = 0
-        
-        # 检查垂直碰撞
-        if world.check_collision(self):
-            if self.dy > 0:  # 下落
-                self.rect.bottom = ((self.rect.bottom - 1) // world.tile_size) * world.tile_size
-                self.on_ground = True
-                self.jumps_left = self.max_jumps
-            else:  # 上升
-                self.rect.top = ((self.rect.top + world.tile_size) // world.tile_size) * world.tile_size
-            self.dy = 0
-        
-        # 检查是否离开地面
-        if self.on_ground:
-            self.rect.y += 1
-            if not world.check_collision(self):
-                self.on_ground = False
-            self.rect.y -= 1
+        # 限制最大下落速度
+        if self.dy > self.max_fall_speed:
+            self.dy = self.max_fall_speed
+            
+        # 应用垂直移动
+        self.move(0, self.dy, world)
     
     def update_collision_rects(self, world):
         """更新附近的碰撞块列表"""
         self.collision_rects = []
         # 计算玩家所在的网格位置
-        grid_x = int(self.rect.centerx // world.tile_size)
-        grid_y = int(self.rect.centery // world.tile_size)
+        grid_x = int(self.rect.centerx // world.grid_size)
+        grid_y = int(self.rect.centery // world.grid_size)
         
         # 扩大检查范围到7x7的网格以适应更大的角色
         check_range = 3
@@ -457,10 +206,10 @@ class Player(pygame.sprite.Sprite):
             for x in range(max(0, grid_x - check_range), min(len(world.grid[0]), grid_x + check_range + 1)):
                 if world.grid[y][x] != world.EMPTY:
                     self.collision_rects.append(
-                        pygame.Rect(x * world.tile_size, 
-                                  y * world.tile_size,
-                                  world.tile_size, 
-                                  world.tile_size)
+                        pygame.Rect(x * world.grid_size, 
+                                  y * world.grid_size,
+                                  world.grid_size, 
+                                  world.grid_size)
                     )
 
     def get_position(self):
@@ -486,3 +235,34 @@ class Player(pygame.sprite.Sprite):
             self.jumps_left -= 1
             self.on_ground = False
             print(f"跳跃！剩余跳跃次数：{self.jumps_left}")  # 调试输出 
+
+    def draw_character(self):
+        """绘制角色"""
+        # 清空图像
+        self.image.fill((0, 0, 0, 0))
+        
+        # 获取动画偏移量
+        leg_offset = math.sin(self.animation_frame * 0.2) * 4 if self.state == "walk" else 0
+        arm_offset = -math.sin(self.animation_frame * 0.2) * 4 if self.state == "walk" else 0
+        
+        # 绘制腿部
+        pygame.draw.rect(self.image, self.skin_color, (8, 48 + leg_offset, 8, 16))  # 左腿
+        pygame.draw.rect(self.image, self.skin_color, (32, 48 - leg_offset, 8, 16))  # 右腿
+        
+        # 绘制身体
+        pygame.draw.rect(self.image, self.skin_color, (16, 24, 16, 24))  # 躯干
+        
+        # 绘制手臂
+        pygame.draw.rect(self.image, self.skin_color, (4, 24 + arm_offset, 8, 20))   # 左臂
+        pygame.draw.rect(self.image, self.skin_color, (36, 24 - arm_offset, 8, 20))  # 右臂
+        
+        # 绘制头部
+        pygame.draw.circle(self.image, self.skin_color, (24, 12), 12)  # 头
+        
+        # 如果不是朝右，翻转图像
+        if not self.facing_right:
+            self.image = pygame.transform.flip(self.image, True, False)
+            
+        # 保存当前状态
+        self.last_state = self.state
+        self.last_facing = self.facing_right 
