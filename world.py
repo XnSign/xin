@@ -1,99 +1,107 @@
 import pygame
-import random
 import numpy as np
+import random
 
 class World:
-    def __init__(self, screen_width, screen_height, tile_size):
-        self.screen_width = screen_width
-        self.screen_height = screen_height
+    def __init__(self, width, height, tile_size):
         self.tile_size = tile_size
+        self.world_width = width
+        self.world_height = height
         
-        # 定义世界大小（10000个方块宽）
-        self.world_width = 10000 * tile_size
-        self.world_height = screen_height
+        # 计算网格大小
+        self.grid_width = width // tile_size
+        self.grid_height = height // tile_size
         
-        # 定义方块类型
+        # 初始化地形
         self.EMPTY = 0
-        self.DIRT = 1
-        self.GRASS = 2
-        self.STONE = 3
-        self.BARRIER = 4  # 边界墙
+        self.GROUND = 1
+        self.PLATFORM = 2
         
         # 颜色映射
         self.colors = {
             self.EMPTY: (135, 206, 235),  # 天空蓝
-            self.DIRT: (139, 69, 19),     # 泥土棕
-            self.GRASS: (34, 139, 34),    # 草地绿
-            self.STONE: (128, 128, 128),  # 石头灰
-            self.BARRIER: (64, 64, 64)    # 边界墙深灰
+            self.GROUND: (139, 69, 19),   # 深棕色
+            self.PLATFORM: (169, 169, 169) # 灰色
         }
         
-        # 创建世界网格
+        # 创建地形网格
         self.grid = self.generate_terrain()
         
     def generate_terrain(self):
-        # 创建空的世界网格
-        cols = self.world_width // self.tile_size
-        rows = self.world_height // self.tile_size
-        grid = np.zeros((rows, cols), dtype=int)
+        """生成基本地形"""
+        # 创建空网格
+        grid = np.zeros((self.grid_height, self.grid_width), dtype=int)
         
-        # 生成地形高度
-        surface_height = [rows // 2 for _ in range(cols)]
+        # 生成基本地面
+        ground_height = self.grid_height - 10  # 基本地面高度
+        grid[ground_height:] = self.GROUND
         
-        # 使用柏林噪声或更复杂的算法生成地形
-        for i in range(2, cols - 2):
-            surface_height[i] = (surface_height[i-2] + surface_height[i-1] + 
-                               surface_height[i] + surface_height[i+1] + 
-                               surface_height[i+2]) // 5
-            # 添加随机变化，使地形更有趣
-            surface_height[i] += random.randint(-2, 2)
-            # 确保地形不会太高或太低
-            surface_height[i] = max(rows // 3, min(2 * rows // 3, surface_height[i]))
-        
-        # 填充地形
-        for x in range(cols):
-            height = surface_height[x]
-            # 放置草块
-            grid[height][x] = self.GRASS
-            # 放置泥土
-            for y in range(height + 1, height + 4):
-                if y < rows:
-                    grid[y][x] = self.DIRT
-            # 放置石头
-            for y in range(height + 4, rows):
-                if y < rows:
-                    grid[y][x] = self.STONE
-                    
-        # 添加边界墙
-        grid[:, 0] = self.BARRIER  # 左边界
-        grid[:, -1] = self.BARRIER  # 右边界
+        # 添加一些随机的地形变化
+        for x in range(self.grid_width):
+            # 随机调整地面高度
+            if random.random() < 0.3:  # 30%的概率改变高度
+                height_change = random.choice([-1, 1])
+                ground_height = max(self.grid_height - 15, 
+                                  min(self.grid_height - 5, 
+                                      ground_height + height_change))
+                
+            # 设置地面
+            grid[ground_height:, x] = self.GROUND
+            
+            # 随机添加平台
+            if random.random() < 0.1:  # 10%的概率生成平台
+                platform_height = random.randint(ground_height - 8, ground_height - 4)
+                platform_width = random.randint(3, 6)
+                for px in range(x, min(x + platform_width, self.grid_width)):
+                    grid[platform_height, px] = self.PLATFORM
                     
         return grid
-    
-    def draw(self, screen, camera_x, camera_y):
-        # 计算可见区域的网格坐标
-        start_col = max(0, camera_x // self.tile_size)
-        end_col = min(len(self.grid[0]), (camera_x + self.screen_width) // self.tile_size + 1)
-        start_row = max(0, camera_y // self.tile_size)
-        end_row = min(len(self.grid), (camera_y + self.screen_height) // self.tile_size + 1)
         
-        # 只绘制可见区域的方块
-        for y in range(start_row, end_row):
-            for x in range(start_col, end_col):
+    def draw(self, surface, camera_x, camera_y):
+        """绘制可见的地形"""
+        # 计算可见区域的网格范围
+        start_x = max(0, camera_x // self.tile_size)
+        end_x = min(self.grid_width, (camera_x + surface.get_width()) // self.tile_size + 1)
+        start_y = max(0, camera_y // self.tile_size)
+        end_y = min(self.grid_height, (camera_y + surface.get_height()) // self.tile_size + 1)
+        
+        # 绘制可见的方块
+        for y in range(start_y, end_y):
+            for x in range(start_x, end_x):
                 if self.grid[y][x] != self.EMPTY:
-                    pygame.draw.rect(screen, 
-                                   self.colors[self.grid[y][x]],
-                                   (x * self.tile_size - camera_x, 
-                                    y * self.tile_size - camera_y,
-                                    self.tile_size, 
-                                    self.tile_size))
-    
-    def is_solid(self, x, y):
-        grid_x = x // self.tile_size
-        grid_y = y // self.tile_size
-        if 0 <= grid_x < len(self.grid[0]) and 0 <= grid_y < len(self.grid):
-            return self.grid[grid_y][grid_x] != self.EMPTY
-        return True  # 地图外的区域视为实心
-        
+                    rect = pygame.Rect(
+                        x * self.tile_size - camera_x,
+                        y * self.tile_size - camera_y,
+                        self.tile_size,
+                        self.tile_size
+                    )
+                    
+                    # 根据方块类型选择颜色
+                    color = self.colors[self.grid[y][x]]
+                    pygame.draw.rect(surface, color, rect)
+                    pygame.draw.rect(surface, (0, 0, 0), rect, 1)  # 黑色边框
+                    
     def get_world_size(self):
-        return self.world_width, self.world_height 
+        """返回世界的像素尺寸"""
+        return self.world_width, self.world_height
+        
+    def check_collision(self, entity):
+        """检查实体与地形的碰撞"""
+        # 计算实体所在的网格范围
+        grid_x = entity.rect.x // self.tile_size
+        grid_y = entity.rect.y // self.tile_size
+        grid_right = (entity.rect.right - 1) // self.tile_size
+        grid_bottom = (entity.rect.bottom - 1) // self.tile_size
+        
+        # 确保网格坐标在有效范围内
+        if (grid_x < 0 or grid_right >= self.grid_width or
+            grid_y < 0 or grid_bottom >= self.grid_height):
+            return False
+            
+        # 检查实体占据的所有网格是否有碰撞
+        for y in range(grid_y, grid_bottom + 1):
+            for x in range(grid_x, grid_right + 1):
+                if self.grid[y][x] != self.EMPTY:
+                    return True
+                    
+        return False 

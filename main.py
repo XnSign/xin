@@ -76,18 +76,23 @@ def ensure_game_directories():
     return player_path, world_path
 
 class SimpleButton:
-    def __init__(self, x, y, width, height, text, font=None, color=(0, 0, 255)):
+    def __init__(self, x, y, width, height, text, font=None, color=(100, 100, 100)):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
+        self.font = font or get_font(32)
         self.color = color
-        self.hover_color = (255, 0, 0)
         self.is_hovered = False
-        self.font = font if font else get_font(36)
         
     def draw(self, screen):
-        # 绘制按钮背景
-        color = self.hover_color if self.is_hovered else self.color
-        pygame.draw.rect(screen, color, self.rect, border_radius=15)
+        # 根据悬停状态确定颜色
+        if self.is_hovered:
+            bg_color = tuple(min(c + 30, 255) for c in self.color)
+        else:
+            bg_color = self.color
+            
+        # 绘制按钮背景（带圆角）
+        pygame.draw.rect(screen, bg_color, self.rect, border_radius=5)
+        pygame.draw.rect(screen, WHITE, self.rect, 2, border_radius=5)
         
         # 绘制文本
         text_surface = self.font.render(self.text, True, WHITE)
@@ -96,54 +101,72 @@ class SimpleButton:
         
     def handle_event(self, event):
         if event.type == pygame.MOUSEMOTION:
-            old_hovered = self.is_hovered
             self.is_hovered = self.rect.collidepoint(event.pos)
-            return old_hovered != self.is_hovered
+            return False
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            return self.rect.collidepoint(event.pos)
+            if self.rect.collidepoint(event.pos):
+                return True
         return False
 
 class Slider:
-    def __init__(self, x, y, width, height, min_val, max_val, initial_val, label):
+    def __init__(self, x, y, width, height, min_value, max_value, initial_value, label):
         self.rect = pygame.Rect(x, y, width, height)
-        self.min_val = min_val
-        self.max_val = max_val
-        self.value = initial_val
+        self.min_value = min_value
+        self.max_value = max_value
+        self.value = initial_value
         self.label = label
-        self.dragging = False
-        self.handle_rect = pygame.Rect(
-            self.get_handle_x(), y, 10, height
-        )
+        self.is_dragging = False
         
-    def get_handle_x(self):
-        return (self.rect.x + 
-                (self.value - self.min_val) / (self.max_val - self.min_val) * 
-                (self.rect.width - 10))
+    def draw(self, screen):
+        # 绘制滑动条标签
+        label_font = get_font(28)
+        label_text = label_font.render(f"{self.label}: {int(self.value)}", True, WHITE)
+        screen.blit(label_text, (self.rect.x, self.rect.y - 30))
+        
+        # 绘制滑动条背景
+        pygame.draw.rect(screen, (60, 60, 60), self.rect, border_radius=5)
+        pygame.draw.rect(screen, WHITE, self.rect, 2, border_radius=5)
+        
+        # 计算滑块位置
+        slider_x = self.rect.x + (self.value - self.min_value) / (self.max_value - self.min_value) * self.rect.width
+        slider_rect = pygame.Rect(slider_x - 10, self.rect.y - 5, 20, self.rect.height + 10)
+        
+        # 绘制滑块
+        if self.is_dragging:
+            pygame.draw.rect(screen, (200, 200, 200), slider_rect, border_radius=5)
+        else:
+            pygame.draw.rect(screen, WHITE, slider_rect, border_radius=5)
+        pygame.draw.rect(screen, (100, 100, 100), slider_rect, 2, border_radius=5)
         
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if self.handle_rect.collidepoint(event.pos):
-                self.dragging = True
+            if event.button == 1:  # 左键点击
+                # 检查是否点击了滑块区域
+                slider_x = self.rect.x + (self.value - self.min_value) / (self.max_value - self.min_value) * self.rect.width
+                slider_rect = pygame.Rect(slider_x - 10, self.rect.y - 5, 20, self.rect.height + 10)
+                if slider_rect.collidepoint(event.pos):
+                    self.is_dragging = True
+                    return True
+                # 检查是否点击了滑动条
+                elif self.rect.collidepoint(event.pos):
+                    self.update_value(event.pos[0])
+                    return True
         elif event.type == pygame.MOUSEBUTTONUP:
-            self.dragging = False
-        elif event.type == pygame.MOUSEMOTION and self.dragging:
-            rel_x = min(max(event.pos[0], self.rect.x), self.rect.right - 10)
-            self.value = (self.min_val + 
-                         (rel_x - self.rect.x) / self.rect.width * 
-                         (self.max_val - self.min_val))
-            self.handle_rect.x = rel_x
+            if event.button == 1 and self.is_dragging:  # 左键释放
+                self.is_dragging = False
+                return True
+        elif event.type == pygame.MOUSEMOTION and self.is_dragging:
+            self.update_value(event.pos[0])
             return True
         return False
         
-    def draw(self, screen):
-        # 绘制滑动条背景
-        pygame.draw.rect(screen, GRAY, self.rect)
-        # 绘制滑块
-        pygame.draw.rect(screen, BLUE, self.handle_rect)
-        # 绘制标签和数值
-        font = get_font(20)
-        label_text = font.render(f"{self.label}: {int(self.value)}", True, BLACK)
-        screen.blit(label_text, (self.rect.x, self.rect.y - 25))
+    def update_value(self, x_pos):
+        # 确保x_pos在滑动条范围内
+        x_pos = max(self.rect.left, min(x_pos, self.rect.right))
+        # 计算新的值
+        self.value = self.min_value + (x_pos - self.rect.x) / self.rect.width * (self.max_value - self.min_value)
+        # 确保值在范围内
+        self.value = max(self.min_value, min(self.value, self.max_value))
 
 class CharacterCreator:
     def __init__(self, x, y, width, height):
@@ -152,11 +175,11 @@ class CharacterCreator:
         self.name_active = False
         
         # 初始化滑动条
-        slider_width = 200
-        slider_height = 20
-        slider_x = x + 50
-        slider_y = y + 250  # 调整位置，为名称输入框留出空间
-        spacing = 50
+        slider_width = 250
+        slider_height = 30
+        slider_x = x + 80
+        slider_y = y + 300
+        spacing = 60
         
         self.color_sliders = [
             Slider(slider_x, slider_y, slider_width, slider_height, 0, 255, 128, "红色"),
@@ -165,29 +188,30 @@ class CharacterCreator:
         ]
         
         # 选择按钮
-        button_width = 30
-        button_height = 30
-        text_width = 120  # 文字显示区域宽度
-        button_spacing = 40
+        button_width = 40
+        button_height = 40
+        text_width = 150
+        button_spacing = 50
         
         # 发型选择按钮
         self.hairstyle_index = 0
-        self.hairstyle_prev = SimpleButton(x + 180, y + 100, button_width, button_height, "<")
-        self.hairstyle_next = SimpleButton(x + 180 + text_width + button_width, y + 100, button_width, button_height, ">")
+        self.hairstyle_prev = SimpleButton(x + 180, y + 160, button_width, button_height, "<", get_font(32))
+        self.hairstyle_next = SimpleButton(x + 180 + text_width + button_width, y + 160, button_width, button_height, ">", get_font(32))
         
         # 体型选择按钮
-        self.body_type_index = 1  # 默认普通体型
-        self.body_prev = SimpleButton(x + 180, y + 140, button_width, button_height, "<")
-        self.body_next = SimpleButton(x + 180 + text_width + button_width, y + 140, button_width, button_height, ">")
+        self.body_type_index = 1
+        self.body_prev = SimpleButton(x + 180, y + 160 + button_spacing, button_width, button_height, "<", get_font(32))
+        self.body_next = SimpleButton(x + 180 + text_width + button_width, y + 160 + button_spacing, button_width, button_height, ">", get_font(32))
         
         # 职业选择按钮
         self.class_index = 0
-        self.class_prev = SimpleButton(x + 180, y + 180, button_width, button_height, "<")
-        self.class_next = SimpleButton(x + 180 + text_width + button_width, y + 180, button_width, button_height, ">")
+        self.class_prev = SimpleButton(x + 180, y + 160 + button_spacing * 2, button_width, button_height, "<", get_font(32))
+        self.class_next = SimpleButton(x + 180 + text_width + button_width, y + 160 + button_spacing * 2, button_width, button_height, ">", get_font(32))
         
         # 确认和取消按钮
-        self.confirm_button = SimpleButton(x + width//4 - 50, y + height - 60, 100, 40, "确认")
-        self.cancel_button = SimpleButton(x + width*3//4 - 50, y + height - 60, 100, 40, "取消")
+        button_y = y + height - 80
+        self.confirm_button = SimpleButton(x + width//4 - 60, button_y, 120, 50, "确认", get_font(32), color=(0, 200, 0))
+        self.cancel_button = SimpleButton(x + width*3//4 - 60, button_y, 120, 50, "取消", get_font(32), color=(200, 0, 0))
         
     def handle_event(self, event):
         # 更新所有按钮的悬停状态
@@ -263,44 +287,46 @@ class CharacterCreator:
         return False
         
     def draw(self, screen):
-        # 绘制背景
-        pygame.draw.rect(screen, WHITE, self.rect)
-        pygame.draw.rect(screen, BLACK, self.rect, 2)
+        # 创建半透明背景
+        overlay = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
+        overlay.fill((50, 50, 50, 200))  # 深灰色半透明背景
+        screen.blit(overlay, self.rect)
         
         # 绘制标题
-        title_font = get_font(36)
-        title_text = title_font.render("创建角色", True, BLACK)
-        screen.blit(title_text, (self.rect.centerx - title_text.get_width()//2, self.rect.y + 10))
+        title_font = get_font(48)
+        title_text = title_font.render("创建角色", True, WHITE)
+        title_rect = title_text.get_rect(center=(self.rect.centerx, self.rect.y + 40))
+        screen.blit(title_text, title_rect)
         
         # 绘制名称输入框
-        name_font = get_font(24)
-        name_text = name_font.render("名称:", True, BLACK)
-        screen.blit(name_text, (self.rect.x + 50, self.rect.y + 50))
+        name_font = get_font(32)
+        name_text = name_font.render("名称:", True, WHITE)
+        screen.blit(name_text, (self.rect.x + 80, self.rect.y + 100))
         
-        name_rect = pygame.Rect(self.rect.x + 120, self.rect.y + 50, 200, 30)
-        pygame.draw.rect(screen, (240, 240, 240) if self.name_active else WHITE, name_rect)
-        pygame.draw.rect(screen, BLACK, name_rect, 2)
+        name_rect = pygame.Rect(self.rect.x + 180, self.rect.y + 100, 250, 40)
+        pygame.draw.rect(screen, (60, 60, 60) if self.name_active else (40, 40, 40), name_rect, border_radius=5)
+        pygame.draw.rect(screen, WHITE, name_rect, 2, border_radius=5)
         
-        name_surface = name_font.render(self.name + ("_" if self.name_active and pygame.time.get_ticks() % 1000 < 500 else ""), True, BLACK)
-        screen.blit(name_surface, (name_rect.x + 5, name_rect.y + 2))
+        name_surface = name_font.render(self.name + ("_" if self.name_active and pygame.time.get_ticks() % 1000 < 500 else ""), True, WHITE)
+        screen.blit(name_surface, (name_rect.x + 10, name_rect.y + 5))
         
         # 绘制发型选择
-        hairstyle_text = name_font.render(f"发型: {HAIRSTYLES[self.hairstyle_index]}", True, BLACK)
-        text_rect = hairstyle_text.get_rect(midright=(self.hairstyle_prev.rect.left - 10, self.hairstyle_prev.rect.centery))
+        hairstyle_text = name_font.render(f"发型: {HAIRSTYLES[self.hairstyle_index]}", True, WHITE)
+        text_rect = hairstyle_text.get_rect(midright=(self.hairstyle_prev.rect.left - 20, self.hairstyle_prev.rect.centery))
         screen.blit(hairstyle_text, text_rect)
         self.hairstyle_prev.draw(screen)
         self.hairstyle_next.draw(screen)
         
         # 绘制体型选择
-        body_text = name_font.render(f"体型: {BODY_TYPES[self.body_type_index]}", True, BLACK)
-        text_rect = body_text.get_rect(midright=(self.body_prev.rect.left - 10, self.body_prev.rect.centery))
+        body_text = name_font.render(f"体型: {BODY_TYPES[self.body_type_index]}", True, WHITE)
+        text_rect = body_text.get_rect(midright=(self.body_prev.rect.left - 20, self.body_prev.rect.centery))
         screen.blit(body_text, text_rect)
         self.body_prev.draw(screen)
         self.body_next.draw(screen)
         
         # 绘制职业选择
-        class_text = name_font.render(f"职业: {CLASSES[self.class_index]}", True, BLACK)
-        text_rect = class_text.get_rect(midright=(self.class_prev.rect.left - 10, self.class_prev.rect.centery))
+        class_text = name_font.render(f"职业: {CLASSES[self.class_index]}", True, WHITE)
+        text_rect = class_text.get_rect(midright=(self.class_prev.rect.left - 20, self.class_prev.rect.centery))
         screen.blit(class_text, text_rect)
         self.class_prev.draw(screen)
         self.class_next.draw(screen)
@@ -308,14 +334,16 @@ class CharacterCreator:
         # 绘制肤色滑动条
         for slider in self.color_sliders:
             slider.draw(screen)
-            
-        # 绘制角色预览
-        preview_rect = pygame.Rect(self.rect.right - 250, self.rect.y + 50, 200, 300)
+        
+        # 绘制角色预览区域
+        preview_rect = pygame.Rect(self.rect.right - 300, self.rect.y + 80, 250, 350)
+        pygame.draw.rect(screen, (60, 60, 60), preview_rect, border_radius=10)
+        pygame.draw.rect(screen, WHITE, preview_rect, 2, border_radius=10)
         
         # 创建一个临时的Player对象来预览角色
         preview_player = Player(
-            preview_rect.centerx - 16,  # 角色宽度的一半
-            preview_rect.centery - 24,  # 角色高度的一半
+            preview_rect.centerx - 16,
+            preview_rect.centery - 24,
             {
                 "name": self.name,
                 "hairstyle": HAIRSTYLES[self.hairstyle_index],
@@ -325,13 +353,9 @@ class CharacterCreator:
             }
         )
         
-        # 绘制预览区域背景
-        pygame.draw.rect(screen, (200, 200, 200), preview_rect)
-        pygame.draw.rect(screen, BLACK, preview_rect, 2)
-        
         # 绘制角色预览
-        preview_player.preview_mode = True  # 设置预览模式，使角色呈45度角
-        preview_player.draw_character()  # 重新绘制角色
+        preview_player.preview_mode = True
+        preview_player.draw_character()
         screen.blit(preview_player.image, preview_player.rect)
         
         # 绘制确认和取消按钮
@@ -375,11 +399,13 @@ class Game:
         self.fps = 60
         
         # 游戏状态
-        self.game_state = "menu"
+        self.game_state = "menu"  # 确保从菜单开始
         self.game_paused = False
         self.show_keybinds = False
         self.waiting_for_key = None
         self.needs_redraw = True
+        self.last_state_print = 0  # 添加状态打印计时器
+        self.state_print_interval = 1000  # 每秒打印一次状态
         
         # 初始化按键绑定
         self.key_bindings = {
@@ -447,12 +473,13 @@ class Game:
         
         # 创建设置按钮
         self.settings_button = SimpleButton(
-            self.screen_width - 200,
-            self.screen_height - 100,
-            150,
-            60,
+            self.screen_width - 150,  # 距离右边缘150像素
+            self.screen_height - 70,  # 距离底部70像素
+            120,  # 宽度120像素
+            50,   # 高度50像素
             "设置",
-            get_font(32)
+            get_font(32),  # 使用32号字体
+            color=(255, 0, 0)  # 红色
         )
         
         # 创建设置菜单按钮
@@ -632,14 +659,14 @@ class Game:
                     if self.handle_keybind_click(mouse_pos):
                         return
                 # 然后处理其他界面的点击
-                elif self.inventory.visible:
+                elif self.game_state == "playing":
                     # 检查是否点击了设置按钮
                     if self.settings_button.handle_event(event):
                         print("点击了设置按钮")
                         self.game_state = "settings"
                         self.game_paused = True
                         self.inventory.visible = False
-                    else:
+                    elif self.inventory.visible:
                         self.inventory.handle_click(mouse_pos)
                 elif self.game_state == "settings":
                     self.handle_settings_click(mouse_pos)
@@ -675,7 +702,9 @@ class Game:
         
         # 直接检查每个按钮的点击
         for i, button in enumerate(self.settings_buttons):
-            if button.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, {'pos': pos})):
+            # 创建一个模拟的鼠标点击事件
+            mouse_event = pygame.event.Event(pygame.MOUSEBUTTONDOWN, {'pos': pos})
+            if button.rect.collidepoint(pos):
                 print(f"点击了设置菜单按钮 {i}")  # 调试信息
                 if i == 0:  # 继续游戏
                     self.game_state = "playing"
@@ -698,20 +727,74 @@ class Game:
         return False
 
     def draw_settings(self):
-        # 清空缓冲区
-        self.buffer.fill(SKY_BLUE)
+        # 创建一个小一点的半透明设置界面
+        settings_width = 300
+        settings_height = 400
+        settings_x = self.screen_width//2 - settings_width//2
+        settings_y = self.screen_height//2 - settings_height//2
         
-        # 绘制半透明背景
-        overlay = pygame.Surface((self.screen_width, self.screen_height))
-        overlay.fill((0, 0, 0))
-        overlay.set_alpha(128)
-        self.buffer.blit(overlay, (0, 0))
+        # 创建半透明背景
+        settings_surface = pygame.Surface((settings_width, settings_height))
+        settings_surface.fill((50, 50, 50))  # 深灰色背景
+        settings_surface.set_alpha(200)  # 设置透明度 (0-255)
+        
+        # 绘制设置界面背景
+        self.buffer.blit(settings_surface, (settings_x, settings_y))
         
         # 绘制标题
-        title_font = get_font(48)
+        title_font = get_font(36)
         title_text = title_font.render("游戏设置", True, WHITE)
-        title_rect = title_text.get_rect(center=(self.screen_width//2, 150))
+        title_rect = title_text.get_rect(center=(self.screen_width//2, settings_y + 40))
         self.buffer.blit(title_text, title_rect)
+        
+        # 重新创建更小的设置按钮
+        settings_button_width = 200
+        settings_button_height = 40
+        settings_button_spacing = 20
+        settings_start_y = settings_y + 100
+        
+        self.settings_buttons = [
+            SimpleButton(
+                self.screen_width//2 - settings_button_width//2,
+                settings_start_y,
+                settings_button_width,
+                settings_button_height,
+                "继续游戏",
+                get_font(24)
+            ),
+            SimpleButton(
+                self.screen_width//2 - settings_button_width//2,
+                settings_start_y + settings_button_height + settings_button_spacing,
+                settings_button_width,
+                settings_button_height,
+                "按键设置",
+                get_font(24)
+            ),
+            SimpleButton(
+                self.screen_width//2 - settings_button_width//2,
+                settings_start_y + 2 * (settings_button_height + settings_button_spacing),
+                settings_button_width,
+                settings_button_height,
+                "保存游戏",
+                get_font(24)
+            ),
+            SimpleButton(
+                self.screen_width//2 - settings_button_width//2,
+                settings_start_y + 3 * (settings_button_height + settings_button_spacing),
+                settings_button_width,
+                settings_button_height,
+                "返回主菜单",
+                get_font(24)
+            ),
+            SimpleButton(
+                self.screen_width//2 - settings_button_width//2,
+                settings_start_y + 4 * (settings_button_height + settings_button_spacing),
+                settings_button_width,
+                settings_button_height,
+                "退出游戏",
+                get_font(24)
+            )
+        ]
         
         # 绘制按钮
         for button in self.settings_buttons:
@@ -745,13 +828,13 @@ class Game:
             
             # 更新摄像机位置（以玩家为中心）
             player_x, player_y = self.player.get_position()
-            self.camera_x = player_x - BASE_WIDTH // 2
-            self.camera_y = player_y - BASE_HEIGHT // 2
+            self.camera_x = player_x - self.screen_width // 2
+            self.camera_y = player_y - self.screen_height // 2
             
             # 确保摄像机不会超出世界边界
             world_width, world_height = self.world.get_world_size()
-            self.camera_x = max(0, min(self.camera_x, world_width - BASE_WIDTH))
-            self.camera_y = max(0, min(self.camera_y, world_height - BASE_HEIGHT))
+            self.camera_x = max(0, min(self.camera_x, world_width - self.screen_width))
+            self.camera_y = max(0, min(self.camera_y, world_height - self.screen_height))
             
             # 检查是否需要自动保存
             current_time = pygame.time.get_ticks()
@@ -831,7 +914,10 @@ class Game:
         self.buffer.fill(SKY_BLUE)
         
         # 根据游戏状态绘制不同界面
-        print(f"当前游戏状态: {self.game_state}")
+        # 只在状态改变或达到打印间隔时打印状态
+        if current_time - self.last_state_print >= self.state_print_interval:
+            print(f"当前游戏状态: {self.game_state}")
+            self.last_state_print = current_time
         if self.game_state == "menu":
             self.draw_menu()
             return  # 主菜单有自己的缓冲区处理
@@ -870,6 +956,10 @@ class Game:
         
         # 绘制小地图
         self.draw_minimap()
+        
+        # 绘制设置按钮（只在背包打开时显示）
+        if self.inventory.visible:
+            self.settings_button.draw(self.buffer)
         
         # 如果显示按键绑定界面
         if self.show_keybinds:
