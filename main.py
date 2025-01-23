@@ -486,6 +486,11 @@ class Game:
             get_font(32),  # 使用32号字体
             color=(255, 0, 0)  # 红色
         )
+        
+        # 地图创建相关
+        self.map_name_input = ""
+        self.map_name_active = False
+        self.map_name_error = False
 
     def run(self):
         """运行游戏主循环"""
@@ -546,13 +551,34 @@ class Game:
         self.buffer.blit(title, title_rect)
         
         if self.choosing_map_size:
+            # 绘制地图名称输入框
+            name_text = get_font(36).render("地图名称:", True, BLACK)
+            name_rect = name_text.get_rect(center=(self.screen_width//2, 180))
+            self.buffer.blit(name_text, name_rect)
+            
+            # 绘制输入框
+            input_rect = pygame.Rect(self.screen_width//2 - 150, 220, 300, 40)
+            pygame.draw.rect(self.buffer, (60, 60, 60) if self.map_name_active else (40, 40, 40), input_rect, border_radius=5)
+            pygame.draw.rect(self.buffer, WHITE, input_rect, 2, border_radius=5)
+            
+            # 绘制输入的文本
+            cursor = "_" if pygame.time.get_ticks() % 1000 < 500 and self.map_name_active else ""
+            input_text = get_font(32).render(self.map_name_input + cursor, True, WHITE)
+            self.buffer.blit(input_text, (input_rect.x + 10, input_rect.y + 5))
+            
+            # 如果有错误消息，显示它
+            if self.map_name_error:
+                error_text = get_font(24).render("请输入地图名称！", True, (255, 0, 0))
+                error_rect = error_text.get_rect(center=(self.screen_width//2, 280))
+                self.buffer.blit(error_text, error_rect)
+            
             # 绘制地图大小选择区域
             size_text = get_font(36).render("选择地图大小:", True, BLACK)
-            size_rect = size_text.get_rect(center=(self.screen_width//2, 180))
+            size_rect = size_text.get_rect(center=(self.screen_width//2, 320))
             self.buffer.blit(size_text, size_rect)
             
             # 绘制地图大小按钮
-            button_y = 240
+            button_y = 380
             for i, (size_name, size_data) in enumerate(self.map_sizes.items()):
                 button = SimpleButton(
                     self.screen_width//2 - 150,
@@ -634,6 +660,8 @@ class Game:
                 if self.back_button.handle_event(event):
                     if self.choosing_map_size:
                         self.choosing_map_size = False
+                        self.map_name_input = ""
+                        self.map_name_error = False
                     else:
                         self.game_state = "character_select"
                     self.needs_redraw = True
@@ -668,22 +696,49 @@ class Game:
                             self.needs_redraw = True
                             return
                 else:
+                    # 检查是否点击了输入框
+                    input_rect = pygame.Rect(self.screen_width//2 - 150, 220, 300, 40)
+                    self.map_name_active = input_rect.collidepoint(mouse_pos)
+                    
                     # 检查地图大小选择按钮
-                    for button in self.map_size_buttons:
-                        if button.handle_event(event):
-                            self.selected_map_size = button.text
-                            # 获取选中的地图大小参数
-                            size_params = self.map_sizes[self.selected_map_size]
+                    button_y = 380
+                    for i, (size_name, size_data) in enumerate(self.map_sizes.items()):
+                        button_rect = pygame.Rect(
+                            self.screen_width//2 - 150,
+                            button_y + i*80,
+                            300,
+                            60
+                        )
+                        if button_rect.collidepoint(mouse_pos):
+                            if not self.map_name_input.strip():
+                                self.map_name_error = True
+                                self.needs_redraw = True
+                                return
+                                
+                            self.map_name_error = False
+                            self.selected_map_size = size_name
                             # 创建新地图
                             new_map = self.create_new_map(
-                                size_params["width"],
-                                size_params["height"],
-                                size_params["grid_size"]
+                                size_data["width"],
+                                size_data["height"],
+                                size_data["grid_size"],
+                                self.map_name_input.strip()
                             )
                             self.maps.append(new_map)
                             self.selected_map = new_map
-                            self.initialize_game()  # 初始化游戏
+                            self.initialize_game()
                             return
+            elif event.type == pygame.KEYDOWN:
+                if self.choosing_map_size and self.map_name_active:
+                    if event.key == pygame.K_RETURN:
+                        self.map_name_active = False
+                    elif event.key == pygame.K_BACKSPACE:
+                        self.map_name_input = self.map_name_input[:-1]
+                        self.needs_redraw = True
+                    elif len(self.map_name_input) < 20:  # 限制名称长度
+                        if event.unicode.isprintable():
+                            self.map_name_input += event.unicode
+                            self.needs_redraw = True
 
     def handle_menu_events(self):
         """处理主菜单界面的事件"""
@@ -978,16 +1033,14 @@ class Game:
                     ) for i in range(len(self.maps))
                 ]
 
-    def create_new_map(self, width, height, grid_size):
+    def create_new_map(self, width, height, grid_size, map_name):
         """创建新地图"""
-        # 生成地图名称
-        map_number = len(self.maps) + 1
-        map_name = f"地图{map_number}"
-        
         # 确保地图名称唯一
+        base_name = map_name
+        counter = 1
         while map_name in self.maps:
-            map_number += 1
-            map_name = f"地图{map_number}"
+            map_name = f"{base_name}_{counter}"
+            counter += 1
         
         # 创建新的世界实例
         new_world = World(width, height, TILE_SIZE)
@@ -1111,6 +1164,9 @@ class Game:
             if current_time - self.last_autosave_time >= self.autosave_interval:
                 self.auto_save()
                 self.last_autosave_time = current_time
+            
+            # 设置需要重绘
+            self.needs_redraw = True
 
     def auto_save(self):
         """执行自动保存"""
