@@ -430,9 +430,20 @@ class Game:
         self.character_name = ""
         self.input_active = False
         self.selected_gender = '男'
-        self.selected_hairstyle = "黑色_短发"
+        self.selected_hairstyle = {'style': '1', 'color': (0, 0, 0)}  # 默认发型和发色
         self.selected_body_type = "普通"
         self.selected_class = "战士"
+        
+        # 初始化发色滑块
+        self.hair_color_sliders = {
+            'R': Slider(0, 0, 200, 20, "R", 255, 0),
+            'G': Slider(0, 0, 200, 20, "G", 255, 0),
+            'B': Slider(0, 0, 200, 20, "B", 255, 0)
+        }
+        
+        # 初始化发型预览状态
+        self.hairstyle_page = 0  # 当前发型页码
+        self.hairstyles_per_page = 8  # 每页显示的发型数量
         
         # 初始化地图创建相关属性
         self.map_name_input = ""
@@ -775,7 +786,7 @@ class Game:
         self.buffer.blit(title, title_rect)
         
         # 创建半透明面板
-        panel_width = 900  # 增加面板宽度以容纳预览区域
+        panel_width = 900
         panel_height = 500
         panel_x = (self.screen_width - panel_width) // 2
         panel_y = 100
@@ -817,13 +828,10 @@ class Game:
         for i, gender in enumerate(['男', '女']):
             button_x = input_x + i * (gender_button_width + gender_spacing)
             button_color = (100, 100, 200) if self.selected_gender == gender else (60, 60, 140)
-            # 绘制按钮背景
             pygame.draw.rect(self.buffer, button_color, 
                            (button_x, input_y, gender_button_width, 30), border_radius=5)
-            # 绘制按钮边框
             pygame.draw.rect(self.buffer, (255, 255, 255),
                            (button_x, input_y, gender_button_width, 30), 1, border_radius=5)
-            # 绘制按钮文本
             gender_text = self.font.render(gender, True, (255, 255, 255))
             text_rect = gender_text.get_rect(center=(button_x + gender_button_width//2, input_y + 15))
             self.buffer.blit(gender_text, text_rect)
@@ -833,24 +841,113 @@ class Game:
         hair_label = self.font.render("发型:", True, (255, 255, 255))
         self.buffer.blit(hair_label, (label_x, input_y))
         
-        # 发型按钮
-        hair_button_width = 100
-        hair_spacing = 10
-        hair_styles = ["金色_短发", "褐色_短发", "黑色_短发", "金色_长发", "褐色_长发", "黑色_长发"]
-        for i, style in enumerate(hair_styles):
-            row = i // 3
-            col = i % 3
-            button_x = input_x + col * (hair_button_width + hair_spacing)
-            button_y = input_y + row * 35
-            button_color = (100, 100, 200) if self.selected_hairstyle == style else (60, 60, 140)
-            pygame.draw.rect(self.buffer, button_color,
-                           (button_x, button_y, hair_button_width, 30), border_radius=5)
-            style_text = self.small_font.render(style.split('_')[0], True, (255, 255, 255))
-            text_rect = style_text.get_rect(center=(button_x + hair_button_width//2, button_y + 15))
-            self.buffer.blit(style_text, text_rect)
+        # 发型预览网格
+        preview_size = (60, 60)  # 更小的预览框
+        grid_spacing = 10
+        grid_cols = 4  # 每行4个发型
+        grid_rows = 2  # 每页2行
+        start_x = input_x
+        
+        # 计算当前页的发型范围
+        start_index = self.hairstyle_page * (grid_cols * grid_rows)
+        end_index = min(start_index + (grid_cols * grid_rows), 20)  # 最多20种发型
+        
+        # 绘制发型预览网格
+        for i in range(start_index, end_index):
+            row = (i - start_index) // grid_cols
+            col = (i - start_index) % grid_cols
+            x = start_x + col * (preview_size[0] + grid_spacing)
+            y = input_y + row * (preview_size[1] + grid_spacing)
+            
+            # 创建预览框背景
+            preview_bg = pygame.Surface(preview_size, pygame.SRCALPHA)
+            preview_bg.fill((50, 50, 50, 128))
+            if str(i + 1) == self.selected_hairstyle['style']:
+                pygame.draw.rect(preview_bg, (100, 100, 200, 128), (0, 0, preview_size[0], preview_size[1]), 3)
+            self.buffer.blit(preview_bg, (x, y))
+            
+            # 创建临时角色数据用于预览
+            preview_data = {
+                'name': "预览",
+                'gender': self.selected_gender,
+                'hairstyle': {'style': str(i + 1), 'color': self.selected_hairstyle['color']},
+                'body_type': "普通",
+                'class': "战士",
+                'skin_color': (255, 220, 180),
+                'health': 100,
+                'mana': 100
+            }
+            
+            # 绘制发型预览
+            preview_player = Player(preview_size[0]//2, preview_size[1]//2, preview_data)
+            preview_player.preview_mode = True
+            preview_player.update_appearance()
+            preview_rect = preview_player.image.get_rect(center=(x + preview_size[0]//2, y + preview_size[1]//2))
+            self.buffer.blit(preview_player.image, preview_rect)
+        
+        # 添加翻页按钮
+        button_width = 80
+        button_height = 30
+        button_y = input_y + (grid_rows * (preview_size[1] + grid_spacing)) + 10
+        
+        # 上一页按钮
+        if self.hairstyle_page > 0:
+            prev_btn = SimpleButton(
+                start_x,
+                button_y,
+                button_width,
+                button_height,
+                "上一页",
+                color=(100, 100, 200),
+                font_size=24
+            )
+            prev_btn.draw(self.buffer)
+        
+        # 下一页按钮
+        if (self.hairstyle_page + 1) * (grid_cols * grid_rows) < 20:
+            next_btn = SimpleButton(
+                start_x + (grid_cols - 1) * (preview_size[0] + grid_spacing),
+                button_y,
+                button_width,
+                button_height,
+                "下一页",
+                color=(100, 100, 200),
+                font_size=24
+            )
+            next_btn.draw(self.buffer)
+        
+        # 发色选择（RGB滑块）
+        input_y = button_y + button_height + spacing
+        color_label = self.font.render("发色:", True, (255, 255, 255))
+        self.buffer.blit(color_label, (label_x, input_y))
+        
+        # 更新滑块位置
+        slider_spacing = 40
+        for i, (key, slider) in enumerate(self.hair_color_sliders.items()):
+            slider.rect.x = input_x
+            slider.rect.y = input_y + i * slider_spacing
+            slider.draw(self.buffer)
+        
+        # 显示当前发色预览
+        color_preview_size = 40
+        color_preview_x = input_x + 250
+        color_preview_y = input_y + 20
+        pygame.draw.rect(self.buffer, self.selected_hairstyle['color'],
+                        (color_preview_x, color_preview_y,
+                         color_preview_size, color_preview_size))
+        pygame.draw.rect(self.buffer, (255, 255, 255),
+                        (color_preview_x, color_preview_y,
+                         color_preview_size, color_preview_size), 1)
+        
+        # 更新发色
+        self.selected_hairstyle['color'] = (
+            int(self.hair_color_sliders['R'].value),
+            int(self.hair_color_sliders['G'].value),
+            int(self.hair_color_sliders['B'].value)
+        )
         
         # 体型选择
-        input_y += spacing + 35
+        input_y += spacing
         body_label = self.font.render("体型:", True, (255, 255, 255))
         self.buffer.blit(body_label, (label_x, input_y))
         
@@ -985,26 +1082,114 @@ class Game:
                         self.needs_redraw = True
                     return
             
-            # 检查发型按钮
-            input_y += 60
-            hair_button_width = 100
-            hair_spacing = 10
-            hair_styles = ["金色_短发", "褐色_短发", "黑色_短发", "金色_长发", "褐色_长发", "黑色_长发"]
-            for i, style in enumerate(hair_styles):
-                row = i // 3
-                col = i % 3
-                button_x = input_x + col * (hair_button_width + hair_spacing)
-                button_y = input_y + row * 35
-                button_rect = pygame.Rect(button_x, button_y, hair_button_width, 30)
+            # 检查发色按钮
+            input_y += spacing
+            hair_color_width = 80
+            hair_color_spacing = 10
+            hair_colors = ["金色", "褐色", "黑色"]
+            for i, color in enumerate(hair_colors):
+                button_x = input_x + i * (hair_color_width + hair_color_spacing)
+                button_rect = pygame.Rect(button_x, input_y, hair_color_width, 30)
                 if button_rect.collidepoint(event.pos):
-                    self.selected_hairstyle = style
+                    # 保持当前长短发型，只改变颜色
+                    current_style = self.selected_hairstyle['style']
+                    self.selected_hairstyle = {'style': str(i + 1), 'color': self.selected_hairstyle['color']}
                     if self.click_sound:
                         self.click_sound.play()
                     self.needs_redraw = True
                     return
             
+            # 检查发型预览网格点击
+            preview_size = (60, 60)
+            grid_spacing = 10
+            grid_cols = 4
+            grid_rows = 2
+            start_x = input_x
+            
+            # 计算当前页的发型范围
+            start_index = self.hairstyle_page * (grid_cols * grid_rows)
+            end_index = min(start_index + (grid_cols * grid_rows), 20)
+            
+            for i in range(start_index, end_index):
+                row = (i - start_index) // grid_cols
+                col = (i - start_index) % grid_cols
+                x = start_x + col * (preview_size[0] + grid_spacing)
+                y = input_y + row * (preview_size[1] + grid_spacing)
+                
+                preview_rect = pygame.Rect(x, y, preview_size[0], preview_size[1])
+                if preview_rect.collidepoint(event.pos):
+                    self.selected_hairstyle = {'style': str(i + 1), 'color': self.selected_hairstyle['color']}
+                    if self.click_sound:
+                        self.click_sound.play()
+                    self.needs_redraw = True
+                    return
+            
+            # 检查翻页按钮
+            button_width = 80
+            button_height = 30
+            button_y = input_y + (grid_rows * (preview_size[1] + grid_spacing)) + 10
+            
+            # 上一页按钮
+            if self.hairstyle_page > 0:
+                prev_btn_rect = pygame.Rect(start_x, button_y, button_width, button_height)
+                if prev_btn_rect.collidepoint(event.pos):
+                    self.hairstyle_page -= 1
+                    if self.click_sound:
+                        self.click_sound.play()
+                    self.needs_redraw = True
+                    return
+            
+            # 下一页按钮
+            if (self.hairstyle_page + 1) * (grid_cols * grid_rows) < 20:
+                next_btn_rect = pygame.Rect(
+                    start_x + (grid_cols - 1) * (preview_size[0] + grid_spacing),
+                    button_y,
+                    button_width,
+                    button_height
+                )
+                if next_btn_rect.collidepoint(event.pos):
+                    self.hairstyle_page += 1
+                    if self.click_sound:
+                        self.click_sound.play()
+                    self.needs_redraw = True
+                    return
+            
+            # 检查颜色滑块
+            input_y = button_y + button_height + spacing
+            for slider in self.hair_color_sliders.values():
+                if slider.handle_event(event):
+                    self.needs_redraw = True
+                    return
+            
+            # 检查发型预览和按钮
+            preview_size = (120, 120)
+            preview_spacing = 20
+            preview_start_x = input_x
+            preview_y = input_y + 40
+            
+            # 短发按钮
+            short_btn_rect = pygame.Rect(preview_start_x, preview_y + preview_size[1] + 5, preview_size[0], 30)
+            if short_btn_rect.collidepoint(event.pos):
+                current_color = self.selected_hairstyle['color']
+                self.selected_hairstyle = {'style': '短发', 'color': current_color}
+                if self.click_sound:
+                    self.click_sound.play()
+                self.needs_redraw = True
+                return
+            
+            # 长发按钮
+            long_btn_rect = pygame.Rect(preview_start_x + preview_size[0] + preview_spacing,
+                                      preview_y + preview_size[1] + 5, preview_size[0], 30)
+            if long_btn_rect.collidepoint(event.pos):
+                current_color = self.selected_hairstyle['color']
+                self.selected_hairstyle = {'style': '长发', 'color': current_color}
+                if self.click_sound:
+                    self.click_sound.play()
+                self.needs_redraw = True
+                return
+            
             # 检查体型按钮
-            input_y += 95  # 60 + 35 (发型的两行)
+            input_y = preview_y + preview_size[1] + spacing
             body_button_width = 80
             body_spacing = 10
             body_types = ["瘦小", "普通", "魁梧"]
@@ -1019,7 +1204,7 @@ class Game:
                     return
             
             # 检查职业按钮
-            input_y += 60
+            input_y += spacing
             class_button_width = 80
             class_spacing = 10
             class_types = ["战士", "法师", "弓箭手"]
@@ -1072,7 +1257,7 @@ class Game:
                 # 重置选择
                 self.character_name = ""
                 self.selected_gender = '男'
-                self.selected_hairstyle = "黑色_短发"
+                self.selected_hairstyle = {'style': '短发', 'color': (0, 0, 0)}
                 self.selected_body_type = "普通"
                 self.selected_class = "战士"
                 
