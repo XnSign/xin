@@ -1626,11 +1626,34 @@ class Game:
         
         # 更新屏幕
         self.screen.blit(self.buffer, (0, 0))
+        
+        # 如果有确认对话框，绘制它
+        if hasattr(self, 'confirm_dialog') and self.confirm_dialog and self.confirm_dialog.visible:
+            self.buffer.blit(self.confirm_dialog.surface, self.confirm_dialog.rect)
+            self.screen.blit(self.buffer, (0, 0))
+        
         pygame.display.flip()
         self.needs_redraw = False
 
     def handle_character_select_events(self, event):
         """处理角色选择界面的事件"""
+        # 如果有确认对话框，优先处理它的事件
+        if hasattr(self, 'confirm_dialog') and self.confirm_dialog and self.confirm_dialog.visible:
+            if self.confirm_dialog.handle_event(event):
+                if self.confirm_dialog.result:
+                    # 用户确认删除
+                    char_name = self.confirm_dialog.char_name
+                    try:
+                        os.remove(os.path.join(self.player_path, f"{char_name}.plr"))
+                        self.characters.remove(char_name)
+                        if hasattr(self, 'click_sound') and self.click_sound:
+                            self.click_sound.play()
+                    except Exception as e:
+                        print(f"删除角色时出错: {e}")
+                self.needs_redraw = True
+                return True
+            return True
+        
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # 只响应左键点击
             mouse_pos = pygame.mouse.get_pos()
             
@@ -1662,21 +1685,29 @@ class Game:
             
             # 检查删除按钮点击
             if hasattr(self, 'delete_buttons'):
-                for char_name, delete_rect in self.delete_buttons.items():
-                    # 调整按钮位置以考虑滚动
-                    adjusted_rect = delete_rect.copy()
-                    adjusted_rect.y -= self.scroll_y
-                    if adjusted_rect.collidepoint(mouse_pos):
-                        if self.show_confirm_dialog(f"确定要删除角色 {char_name} 吗？"):
-                            try:
-                                os.remove(os.path.join(self.player_path, f"{char_name}.plr"))
-                                self.characters.remove(char_name)
-                                if hasattr(self, 'click_sound') and self.click_sound:
-                                    self.click_sound.play()
-                                self.needs_redraw = True
-                            except Exception as e:
-                                print(f"删除角色时出错: {e}")
-                            return True
+                panel_y = 100
+                start_y = panel_y + 30
+                char_spacing_y = 220
+                preview_size = (150, 200)
+                delete_btn_height = 30
+                
+                for i, (char_name, delete_rect) in enumerate(self.delete_buttons.items()):
+                    # 计算当前角色条目的实际Y坐标（考虑滚动）
+                    current_y = start_y + i * char_spacing_y - self.scroll_y
+                    
+                    # 创建一个新的矩形，使用当前实际位置
+                    current_rect = pygame.Rect(
+                        delete_rect.x,
+                        current_y + preview_size[1] - delete_btn_height - 10,
+                        delete_rect.width,
+                        delete_rect.height
+                    )
+                    
+                    if current_rect.collidepoint(mouse_pos):
+                        # 显示确认对话框
+                        self.show_confirm_dialog(f"确定要删除角色 {char_name} 吗？")
+                        self.confirm_dialog.char_name = char_name  # 保存要删除的角色名
+                        return True
             
             # 检查新建角色按钮点击
             if hasattr(self, 'new_char_button') and self.new_char_button.collidepoint(mouse_pos):
@@ -1693,15 +1724,13 @@ class Game:
             preview_size = (150, 200)
             char_spacing_y = 220
             start_x = panel_x + 20  # 与绘制时保持一致
-            start_y = panel_y + 30 - self.scroll_y
             
             for i, char_name in enumerate(self.characters):
                 x = start_x
-                y = start_y + i * char_spacing_y
+                y = panel_y + 30 + i * char_spacing_y - self.scroll_y
                 # 扩大点击区域以包含角色信息
                 char_rect = pygame.Rect(x, y, panel_width - 100, preview_size[1])
                 
-                # 调整点击区域以考虑滚动
                 if char_rect.collidepoint(mouse_pos):
                     self.selected_character = char_name
                     self.game_state = "map_select"
@@ -1746,6 +1775,7 @@ class Game:
         dialog_x = (self.screen_width - dialog_width) // 2
         dialog_y = (self.screen_height - dialog_height) // 2
         
+        # 创建一个带有透明度的表面
         dialog = pygame.Surface((dialog_width, dialog_height), pygame.SRCALPHA)
         dialog.fill((0, 0, 0, 230))
         
@@ -1754,54 +1784,76 @@ class Game:
         text_rect = text.get_rect(center=(dialog_width//2, dialog_height//3))
         dialog.blit(text, text_rect)
         
-        # 按钮
+        # 按钮尺寸和位置
         btn_width = 100
         btn_height = 40
         btn_y = dialog_height - 60
         
         # 确认按钮
-        confirm_btn = pygame.Surface((btn_width, btn_height), pygame.SRCALPHA)
-        confirm_btn.fill((0, 150, 0, 200))
-        confirm_rect = pygame.Rect(dialog_width//4 - btn_width//2, btn_y, btn_width, btn_height)
-        dialog.blit(confirm_btn, confirm_rect)
-        
-        confirm_text = self.font.render("确认", True, (255, 255, 255))
-        text_rect = confirm_text.get_rect(center=(dialog_width//4, btn_y + btn_height//2))
-        dialog.blit(confirm_text, text_rect)
+        confirm_btn = SimpleButton(
+            dialog_width//4 - btn_width//2,
+            btn_y,
+            btn_width,
+            btn_height,
+            "确认",
+            color=(0, 150, 0),
+            font_size=24
+        )
+        confirm_btn.draw(dialog)
         
         # 取消按钮
-        cancel_btn = pygame.Surface((btn_width, btn_height), pygame.SRCALPHA)
-        cancel_btn.fill((200, 50, 50, 200))
-        cancel_rect = pygame.Rect(3*dialog_width//4 - btn_width//2, btn_y, btn_width, btn_height)
-        dialog.blit(cancel_btn, cancel_rect)
+        cancel_btn = SimpleButton(
+            3*dialog_width//4 - btn_width//2,
+            btn_y,
+            btn_width,
+            btn_height,
+            "取消",
+            color=(200, 50, 50),
+            font_size=24
+        )
+        cancel_btn.draw(dialog)
         
-        cancel_text = self.font.render("取消", True, (255, 255, 255))
-        text_rect = cancel_text.get_rect(center=(3*dialog_width//4, btn_y + btn_height//2))
-        dialog.blit(cancel_text, text_rect)
-        
-        # 显示对话框
-        self.buffer.blit(dialog, (dialog_x, dialog_y))
-        pygame.display.flip()
-        
-        # 等待用户响应
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    mouse_pos = pygame.mouse.get_pos()
-                    # 调整按钮位置到屏幕坐标
-                    confirm_rect.move_ip(dialog_x, dialog_y)
-                    cancel_rect.move_ip(dialog_x, dialog_y)
-                    
-                    if confirm_rect.collidepoint(mouse_pos):
-                        if hasattr(self, 'click_sound'):
-                            self.click_sound.play()
+        # 创建确认对话框对象
+        class ConfirmDialog:
+            def __init__(self, surface, rect, confirm_rect, cancel_rect, message):
+                self.surface = surface
+                self.rect = rect
+                self.confirm_rect = confirm_rect
+                self.cancel_rect = cancel_rect
+                self.message = message
+                self.visible = True
+                self.result = None
+            
+            def handle_event(self, event):
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    mouse_pos = event.pos
+                    # 调整鼠标位置到对话框坐标系
+                    dialog_mouse_pos = (mouse_pos[0] - self.rect.x, mouse_pos[1] - self.rect.y)
+                    if self.confirm_rect.collidepoint(dialog_mouse_pos):
+                        self.result = True
+                        self.visible = False
                         return True
-                    elif cancel_rect.collidepoint(mouse_pos):
-                        if hasattr(self, 'click_sound'):
-                            self.click_sound.play()
-                        return False
-                elif event.type == pygame.QUIT:
-                    return False
+                    elif self.cancel_rect.collidepoint(dialog_mouse_pos):
+                        self.result = False
+                        self.visible = False
+                        return True
+                return False
+        
+        # 保存确认对话框的按钮位置
+        confirm_rect = pygame.Rect(dialog_width//4 - btn_width//2, btn_y, btn_width, btn_height)
+        cancel_rect = pygame.Rect(3*dialog_width//4 - btn_width//2, btn_y, btn_width, btn_height)
+        
+        # 创建并保存确认对话框
+        self.confirm_dialog = ConfirmDialog(
+            dialog,
+            pygame.Rect(dialog_x, dialog_y, dialog_width, dialog_height),
+            confirm_rect,
+            cancel_rect,
+            message
+        )
+        
+        # 强制重绘
+        self.needs_redraw = True
 
     def update_camera(self):
         """更新摄像机位置以跟随玩家"""
