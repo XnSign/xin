@@ -1,7 +1,14 @@
 {
-    "name": "J8",
+    "name": "JB",
     "gender": "男",
-    "hairstyle": "金色_短发",
+    "hairstyle": {
+        "style": "15",
+        "color": [
+            90,
+            225,
+            165
+        ]
+    },
     "body_type": "普通",
     "class": "战士",
     "skin_color": [

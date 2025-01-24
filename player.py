@@ -1,5 +1,6 @@
 import pygame
 import math
+import random
 
 class Player:
     def __init__(self, x, y, data):
@@ -161,40 +162,103 @@ class Player:
         ]
         pygame.draw.polygon(self.image, skin_color, head_points)
         
-        # 设置发色
-        if self.hairstyle.startswith("金色"):
-            hair_color = (255, 215, 0)
-            hair_shadow = (218, 165, 32)
-        elif self.hairstyle.startswith("褐色"):
-            hair_color = (139, 69, 19)
-            hair_shadow = (101, 67, 33)
-        else:  # 黑色
-            hair_color = (30, 30, 30)
-            hair_shadow = (10, 10, 10)
+        # 使用传入的发色
+        hair_color = self.hairstyle.get('color', (0, 0, 0))  # 默认黑色
+        hair_shadow = tuple(max(0, c - 30) for c in hair_color)  # 阴影色
         
-        # 绘制发型（侧面视角）
-        if self.hairstyle.endswith("短发"):
-            # 短发（侧面）
-            hair_points = [
-                (center_x - head_size//2 - 2, face_y + head_size//2),  # 后脑
-                (center_x - head_size//4, face_y - head_size//4),  # 头顶后部
-                (center_x + head_size//4, face_y - head_size//4),  # 头顶前部
-                (center_x + head_size//2, face_y + head_size//4),  # 前额
-                (center_x + head_size//3, face_y + head_size//2),  # 耳朵位置
+        # 根据发型编号绘制不同发型
+        hairstyle_num = self.hairstyle.get('style', '1')
+        
+        if hairstyle_num == '1':  # 短直发
+            points = [
+                (center_x - head_size//2 - 2, face_y + head_size//2),
+                (center_x - head_size//4, face_y - head_size//4),
+                (center_x + head_size//4, face_y - head_size//4),
+                (center_x + head_size//2, face_y + head_size//4),
             ]
-            pygame.draw.polygon(self.image, hair_color, hair_points)
-        else:
-            # 长发（侧面）
-            hair_points = [
-                (center_x - head_size//2 - 4, face_y + head_size),  # 后脑底部
-                (center_x - head_size//2 - 2, face_y),  # 后脑顶部
-                (center_x, face_y - head_size//4),  # 头顶
-                (center_x + head_size//2, face_y + head_size//4),  # 前额
-                (center_x + head_size//3, face_y + head_size//2),  # 耳朵位置
-                (center_x + head_size//4, face_y + head_size + 10),  # 发尾前部
-                (center_x - head_size//4, face_y + head_size + 10)   # 发尾后部
+            pygame.draw.polygon(self.image, hair_color, points)
+            
+        elif hairstyle_num == '2':  # 长直发
+            points = [
+                (center_x - head_size//2 - 4, face_y + head_size + 10),
+                (center_x - head_size//2 - 2, face_y),
+                (center_x, face_y - head_size//4),
+                (center_x + head_size//2, face_y + head_size//4),
+                (center_x + head_size//3, face_y + head_size + 10),
             ]
-            pygame.draw.polygon(self.image, hair_color, hair_points)
+            pygame.draw.polygon(self.image, hair_color, points)
+            
+        elif hairstyle_num == '3':  # 蓬松短发
+            for i in range(5):
+                offset = i * 4
+                pygame.draw.circle(self.image, hair_color,
+                                 (center_x - head_size//4 + offset,
+                                  face_y + head_size//4), 6)
+                                  
+        elif hairstyle_num == '4':  # 双马尾
+            # 后面的马尾
+            points1 = [
+                (center_x - head_size//2 - 4, face_y + head_size//2),
+                (center_x - head_size//2 - 8, face_y + head_size),
+                (center_x - head_size//2, face_y + head_size + 15),
+            ]
+            # 前面的马尾
+            points2 = [
+                (center_x + head_size//2 + 4, face_y + head_size//2),
+                (center_x + head_size//2 + 8, face_y + head_size),
+                (center_x + head_size//2, face_y + head_size + 15),
+            ]
+            pygame.draw.polygon(self.image, hair_color, points1)
+            pygame.draw.polygon(self.image, hair_color, points2)
+            
+        elif hairstyle_num == '5':  # 莫西干
+            for i in range(7):
+                height = 10 - abs(i - 3) * 2
+                pygame.draw.line(self.image, hair_color,
+                               (center_x - 6 + i * 2, face_y),
+                               (center_x - 6 + i * 2, face_y - height), 2)
+                               
+        elif hairstyle_num == '6':  # 波浪长发
+            for i in range(8):
+                y_offset = math.sin(i * 0.5) * 4
+                pygame.draw.line(self.image, hair_color,
+                               (center_x - head_size//2 + i * 4, face_y + y_offset),
+                               (center_x - head_size//2 + i * 4, face_y + head_size + 10), 3)
+                               
+        elif hairstyle_num == '7':  # 庞克头
+            for i in range(-3, 4):
+                height = 15 - abs(i) * 3
+                x = center_x + i * 4
+                pygame.draw.line(self.image, hair_color,
+                               (x, face_y),
+                               (x + (i * 2), face_y - height), 2)
+                               
+        elif hairstyle_num == '8':  # 蘑菇头
+            pygame.draw.ellipse(self.image, hair_color,
+                              (center_x - head_size//2 - 2,
+                               face_y - head_size//4,
+                               head_size + 4,
+                               head_size//2 + 4))
+                               
+        elif hairstyle_num == '9':  # 卷发
+            for i in range(6):
+                radius = 4
+                x = center_x - head_size//2 + i * 6
+                y = face_y + head_size//2
+                pygame.draw.circle(self.image, hair_color, (int(x), int(y)), radius)
+                pygame.draw.circle(self.image, hair_color, (int(x), int(y - 6)), radius)
+                
+        elif hairstyle_num == '10':  # 爆炸头
+            for i in range(12):
+                angle = i * math.pi / 6
+                length = 10 + random.randint(0, 4)
+                end_x = center_x + math.cos(angle) * length
+                end_y = face_y + math.sin(angle) * length
+                pygame.draw.line(self.image, hair_color,
+                               (center_x, face_y),
+                               (end_x, end_y), 2)
+                               
+        # ... 继续添加更多发型 ...
         
         # 绘制眼睛（侧面）
         eye_y = face_y + head_size * 0.4
