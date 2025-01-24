@@ -4,19 +4,21 @@ import math
 class Player:
     def __init__(self, x, y, data):
         """初始化玩家"""
-        super().__init__()
-        
-        # 基本属性
-        self.name = data['name']
-        self.hairstyle = data['hairstyle']
-        self.body_type = data['body_type']
-        self.class_type = data['class']
-        self.skin_color = data['skin_color']
-        self.health = data['health']
-        self.mana = data['mana']
+        self.rect = pygame.Rect(x, y, 48, 64)  # 调整为更合适的大小
+        self.name = data.get("name", "Player")
+        self.hairstyle = data.get("hairstyle", "默认")
+        self.body_type = data.get("body_type", "普通")
+        self.class_type = data.get("class", "战士")
+        self.skin_color = data.get("skin_color", [255, 220, 177])  # 默认肤色
+        self.health = data.get("health", 100)
+        self.mana = data.get("mana", 100)
+        self.inventory = data.get("inventory", [])
+        self.preview_mode = False
+        self.facing_right = True  # 朝向标志
+        self.image = None
+        self.update_appearance()
         
         # 位置和移动
-        self.rect = pygame.Rect(x, y, 48, 64)  # 玩家碰撞箱
         self.x_speed = 0
         self.y_speed = 0
         self.dx = 0  # 水平速度
@@ -26,7 +28,6 @@ class Player:
         self.move_speed = 5  # 移动速度
         
         # 跳跃相关
-        self.facing_right = True
         self.is_jumping = False
         self.on_ground = False
         self.jump_pressed = False
@@ -40,28 +41,133 @@ class Player:
         self.state = "idle"
         self.last_state = "idle"
         self.last_facing = True
-        self.preview_mode = False
-        
-        # 创建玩家图像
-        self.image = pygame.Surface((48, 64), pygame.SRCALPHA)
-        self.draw_character()
     
     def update_appearance(self):
-        """更新玩家外观"""
-        # 清空图像
-        self.image.fill((0, 0, 0, 0))
+        """更新角色外观"""
+        # 创建角色表面
+        self.image = pygame.Surface((48, 64), pygame.SRCALPHA)
         
-        # 绘制身体
-        body_color = self.skin_color
-        pygame.draw.rect(self.image, body_color, (8, 16, 16, 32))  # 身体
-        pygame.draw.rect(self.image, body_color, (4, 48, 24, 16))  # 腿
-        pygame.draw.rect(self.image, body_color, (4, 16, 24, 8))   # 手臂
-        pygame.draw.circle(self.image, body_color, (16, 8), 8)     # 头
+        # 基础颜色
+        skin_color = tuple(self.skin_color)
+        hair_colors = {
+            "金色": (255, 215, 0),
+            "褐色": (139, 69, 19),
+            "黑色": (30, 30, 30),
+            "灰色": (128, 128, 128)
+        }
+        hair_color = hair_colors.get(self.hairstyle.split('_')[0], (0, 0, 0))
         
-        # 根据朝向翻转图像
+        # 身体比例调整
+        if self.body_type == "瘦小":
+            body_width = 16
+            shoulder_width = 20
+        elif self.body_type == "魁梧":
+            body_width = 24
+            shoulder_width = 32
+        else:  # 普通体型
+            body_width = 20
+            shoulder_width = 26
+        
+        # 绘制身体（稍微倾斜以显示立体感）
+        body_points = [
+            (24 - body_width//2, 25),  # 左肩
+            (24 + body_width//2, 25),  # 右肩
+            (24 + body_width//2 - 2, 50),  # 右臀
+            (24 - body_width//2 - 2, 50)   # 左臀
+        ]
+        pygame.draw.polygon(self.image, skin_color, body_points)
+        
+        # 绘制头部（椭圆形以显示立体感）
+        head_rect = pygame.Rect(24 - 10, 8, 20, 24)
+        pygame.draw.ellipse(self.image, skin_color, head_rect)
+        
+        # 绘制面部特征
+        # 眼睛
+        eye_color = (50, 50, 50)
+        pygame.draw.ellipse(self.image, eye_color, (24 - 6, 15, 4, 6))
+        pygame.draw.ellipse(self.image, eye_color, (24 + 2, 15, 4, 6))
+        # 眉毛
+        pygame.draw.line(self.image, hair_color, (24 - 7, 13), (24 - 3, 13), 2)
+        pygame.draw.line(self.image, hair_color, (24 + 3, 13), (24 + 7, 13), 2)
+        # 嘴巴
+        pygame.draw.line(self.image, (200, 100, 100), (24 - 3, 25), (24 + 3, 25), 2)
+        
+        # 绘制发型
+        if self.hairstyle:
+            # 根据发型类型绘制不同的发型
+            if "短" in self.hairstyle:
+                # 短发
+                hair_points = [
+                    (24 - 12, 8),  # 左上
+                    (24 + 12, 8),  # 右上
+                    (24 + 14, 20), # 右下
+                    (24 - 14, 20)  # 左下
+                ]
+                pygame.draw.polygon(self.image, hair_color, hair_points)
+            elif "长" in self.hairstyle:
+                # 长发
+                hair_points = [
+                    (24 - 12, 8),   # 左上
+                    (24 + 12, 8),   # 右上
+                    (24 + 16, 35),  # 右下
+                    (24 - 16, 35)   # 左下
+                ]
+                pygame.draw.polygon(self.image, hair_color, hair_points)
+                # 添加发丝细节
+                for i in range(3):
+                    pygame.draw.line(self.image, hair_color,
+                                   (24 - 12 + i*8, 20),
+                                   (24 - 14 + i*8, 35), 2)
+        
+        # 绘制四肢
+        # 手臂
+        arm_color = skin_color
+        # 左臂
+        pygame.draw.line(self.image, arm_color, (24 - body_width//2, 25),
+                        (24 - body_width//2 - 8, 40), 4)
+        # 右臂
+        pygame.draw.line(self.image, arm_color, (24 + body_width//2, 25),
+                        (24 + body_width//2 + 8, 40), 4)
+        
+        # 腿部
+        leg_color = skin_color
+        # 左腿
+        pygame.draw.line(self.image, leg_color, (24 - body_width//4, 50),
+                        (24 - body_width//4 - 4, 62), 4)
+        # 右腿
+        pygame.draw.line(self.image, leg_color, (24 + body_width//4, 50),
+                        (24 + body_width//4 + 4, 62), 4)
+        
+        # 根据职业添加装备
+        if self.class_type == "战士":
+            # 添加盔甲轮廓
+            armor_color = (150, 150, 150)
+            pygame.draw.lines(self.image, armor_color, False, body_points, 2)
+            # 添加肩甲
+            pygame.draw.circle(self.image, armor_color, (24 - body_width//2, 25), 4)
+            pygame.draw.circle(self.image, armor_color, (24 + body_width//2, 25), 4)
+        elif self.class_type == "法师":
+            # 添加法师长袍
+            robe_color = (70, 0, 120)
+            robe_points = [
+                (24 - body_width//2 - 4, 25),  # 左肩
+                (24 + body_width//2 + 4, 25),  # 右肩
+                (24 + body_width//2 + 6, 60),  # 右下
+                (24 - body_width//2 - 6, 60)   # 左下
+            ]
+            pygame.draw.polygon(self.image, robe_color, robe_points)
+        elif self.class_type == "弓箭手":
+            # 添加轻甲和箭袋
+            leather_color = (139, 69, 19)
+            pygame.draw.lines(self.image, leather_color, False, body_points, 2)
+            # 箭袋
+            pygame.draw.rect(self.image, leather_color,
+                           (24 + body_width//2, 30, 6, 15))
+            
+        # 如果角色朝左，翻转图像
         if not self.facing_right:
             self.image = pygame.transform.flip(self.image, True, False)
-
+            
     def update(self, world, key_bindings):
         current_time = pygame.time.get_ticks()
         
@@ -266,3 +372,10 @@ class Player:
         # 保存当前状态
         self.last_state = self.state
         self.last_facing = self.facing_right 
+
+    def draw_shadow(self, surface):
+        """绘制角色阴影"""
+        shadow_color = (0, 0, 0, 100)
+        shadow_surface = pygame.Surface((30, 10), pygame.SRCALPHA)
+        pygame.draw.ellipse(shadow_surface, shadow_color, shadow_surface.get_rect())
+        surface.blit(shadow_surface, (self.rect.centerx - 15, self.rect.bottom - 5)) 
