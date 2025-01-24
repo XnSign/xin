@@ -1,0 +1,15 @@
+{
+    "name": "FS",
+    "gender": "女",
+    "hairstyle": "金色_长发",
+    "body_type": "瘦小",
+    "class": "法师",
+    "skin_color": [
+        255,
+        220,
+        180
+    ],
+    "health": 100,
+    "mana": 100,
+    "inventory": []
+}

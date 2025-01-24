@@ -1,0 +1,15 @@
+{
+    "name": "GG",
+    "gender": "男",
+    "hairstyle": "黑色_短发",
+    "body_type": "魁梧",
+    "class": "战士",
+    "skin_color": [
+        255,
+        220,
+        180
+    ],
+    "health": 100,
+    "mana": 100,
+    "inventory": []
+}

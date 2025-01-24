@@ -1,0 +1,15 @@
+{
+    "name": "HJ",
+    "gender": "女",
+    "hairstyle": "褐色_长发",
+    "body_type": "普通",
+    "class": "弓箭手",
+    "skin_color": [
+        255,
+        220,
+        180
+    ],
+    "health": 100,
+    "mana": 100,
+    "inventory": []
+}
