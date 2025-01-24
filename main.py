@@ -902,79 +902,24 @@ class Game:
         pygame.draw.rect(self.buffer, (100, 100, 150),
                         (preview_x, preview_y, preview_width, preview_height), 2)
         
-        # 绘制角色预览
-        character_x = preview_x + preview_width // 2
-        character_y = preview_y + preview_height // 2
+        # 创建临时角色数据用于预览
+        preview_data = {
+            'name': self.character_name or "预览",
+            'gender': self.selected_gender,
+            'hairstyle': self.selected_hairstyle,
+            'body_type': self.selected_body_type,
+            'class': self.selected_class,
+            'skin_color': (255, 220, 180),
+            'health': 100,
+            'mana': 100
+        }
         
-        # 根据选择的体型调整大小
-        if self.selected_body_type == "瘦小":
-            body_width, body_height = 30, 60
-        elif self.selected_body_type == "普通":
-            body_width, body_height = 40, 70
-        else:  # 魁梧
-            body_width, body_height = 50, 80
-        
-        # 绘制身体
-        body_color = (255, 220, 180)  # 肤色
-        pygame.draw.ellipse(self.buffer, body_color,
-                          (character_x - body_width//2,
-                           character_y - body_height//2,
-                           body_width, body_height))
-        
-        # 绘制头部
-        head_size = body_width * 1.2
-        pygame.draw.circle(self.buffer, body_color,
-                         (character_x,
-                          character_y - body_height//2 - head_size//2),
-                         head_size//2)
-        
-        # 绘制发型
-        hair_color = {
-            "金色": (255, 215, 0),
-            "褐色": (139, 69, 19),
-            "黑色": (0, 0, 0)
-        }[self.selected_hairstyle.split('_')[0]]
-        
-        if self.selected_hairstyle.endswith("短发"):
-            pygame.draw.circle(self.buffer, hair_color,
-                             (character_x,
-                              character_y - body_height//2 - head_size//2),
-                             head_size//2 + 2)
-        else:  # 长发
-            pygame.draw.ellipse(self.buffer, hair_color,
-                              (character_x - head_size//2 - 5,
-                               character_y - body_height//2 - head_size//2 - 5,
-                               head_size + 10,
-                               head_size * 1.5))
-        
-        # 根据职业添加装备
-        if self.selected_class == "战士":
-            # 绘制剑和盾牌
-            pygame.draw.rect(self.buffer, (192, 192, 192),
-                           (character_x + body_width//2,
-                            character_y - body_height//4,
-                            40, 8))  # 剑
-            pygame.draw.circle(self.buffer, (139, 69, 19),
-                             (character_x - body_width//2 - 15,
-                              character_y),
-                             15)  # 盾
-        elif self.selected_class == "法师":
-            # 绘制法杖
-            pygame.draw.rect(self.buffer, (139, 69, 19),
-                           (character_x + body_width//2,
-                            character_y - body_height//2,
-                            8, 60))  # 法杖
-            pygame.draw.circle(self.buffer, (0, 191, 255),
-                             (character_x + body_width//2 + 4,
-                              character_y - body_height//2),
-                             8)  # 法杖顶端
-        else:  # 弓箭手
-            # 绘制弓
-            pygame.draw.arc(self.buffer, (139, 69, 19),
-                          (character_x + body_width//2,
-                           character_y - 30,
-                           20, 60),
-                          -1.57, 1.57, 3)
+        # 使用Player类的预览功能
+        preview_player = Player(preview_x + preview_width//2, preview_y + preview_height//2, preview_data)
+        preview_player.preview_mode = True
+        preview_player.update_appearance()
+        preview_rect = preview_player.image.get_rect(center=(preview_x + preview_width//2, preview_y + preview_height//2))
+        self.buffer.blit(preview_player.image, preview_rect)
         
         # 底部按钮
         button_y = panel_y + panel_height - 50
@@ -1121,6 +1066,9 @@ class Game:
                 # 保存角色数据
                 self.save_character(self.character_name, character_data)
                 
+                # 重新加载角色列表
+                self.load_characters_and_maps()
+                
                 # 重置选择
                 self.character_name = ""
                 self.selected_gender = '男'
@@ -1128,7 +1076,7 @@ class Game:
                 self.selected_body_type = "普通"
                 self.selected_class = "战士"
                 
-                # 返回角色选择界面
+                # 直接返回角色选择界面
                 self.game_state = "character_select"
                 if self.click_sound:
                     self.click_sound.play()
