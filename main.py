@@ -575,9 +575,24 @@ class Game:
         
         # 地图大小选项
         self.map_sizes = {
-            "小型": {"width": 1280, "height": 720, "grid_size": 32},
-            "中型": {"width": 2560, "height": 1440, "grid_size": 32},
-            "大型": {"width": 3840, "height": 2160, "grid_size": 32}
+            "小型": {
+                "width": 1280, 
+                "height": 720, 
+                "grid_size": 32,
+                "description": "小型地图 (40×23格) - 适合快速游戏和探索"
+            },
+            "中型": {
+                "width": 2560, 
+                "height": 1440, 
+                "grid_size": 32,
+                "description": "中型地图 (80×45格) - 平衡的游戏体验"
+            },
+            "大型": {
+                "width": 3840, 
+                "height": 2160, 
+                "grid_size": 32,
+                "description": "大型地图 (120×68格) - 史诗般的冒险之旅"
+            }
         }
         
         # 按键绑定
@@ -585,7 +600,7 @@ class Game:
             'left': pygame.K_a,
             'right': pygame.K_d,
             'jump': pygame.K_SPACE,
-            'exit': pygame.K_ESCAPE
+            'inventory': pygame.K_ESCAPE  # 使用ESC键打开背包
         }
         
         # 按键名称映射
@@ -593,7 +608,7 @@ class Game:
             'left': '向左移动',
             'right': '向右移动',
             'jump': '跳跃',
-            'exit': '退出/背包'
+            'inventory': '背包'
         }
         
         # 创建按钮
@@ -711,20 +726,26 @@ class Game:
             size_rect = size_text.get_rect(center=(self.screen_width//2, 320))
             self.buffer.blit(size_text, size_rect)
             
-            # 绘制地图大小按钮
-            button_y = 380
-            for i, (size_name, size_data) in enumerate(self.map_sizes.items()):
-                button = SimpleButton(
-                    self.screen_width//2 - 150,
-                    button_y + i*80,
-                    300,
+            # 绘制地图大小选项
+            y_pos = 380
+            for size_name, size_data in self.map_sizes.items():
+                # 创建地图大小按钮
+                size_button = SimpleButton(
+                    self.screen_width//2 - 300,  # 增加按钮宽度以容纳更多文本
+                    y_pos,
+                    600,  # 增加按钮宽度
                     60,
-                    size_name,
+                    size_data["description"],  # 使用详细描述
+                    color=(100, 100, 200),
                     font_size=32
                 )
-                button.draw(self.buffer)
-                if size_name == self.selected_map_size:
-                    pygame.draw.rect(self.buffer, (0, 255, 0), button.rect, 3)
+                size_button.draw(self.buffer)
+                
+                # 保存按钮引用
+                if len(self.map_size_buttons) < len(self.map_sizes):
+                    self.map_size_buttons.append(size_button)
+                
+                y_pos += 80  # 增加按钮间距
         else:
             # 绘制新建地图按钮
             self.new_map_button = SimpleButton(
@@ -753,16 +774,30 @@ class Game:
                         map_list_y + i*60,
                         300,
                         50,
-                        f"地图 {i+1}",
+                        map_name,  # 直接使用地图名称
                         color=(100, 100, 200),
                         font_size=32
                     )
                     map_button.draw(self.buffer)
                     
-                    # 绘制删除按钮
-                    if i < len(self.map_delete_buttons):
-                        self.map_delete_buttons[i].draw(self.buffer)
-        
+                    # 创建删除按钮
+                    delete_button = SimpleButton(
+                        self.screen_width//2 + 120,
+                        map_list_y + i*60,
+                        50,
+                        50,
+                        "×",
+                        color=(200, 0, 0),
+                        font_size=32
+                    )
+                    delete_button.draw(self.buffer)
+                    
+                    # 保存删除按钮引用
+                    if i >= len(self.map_delete_buttons):
+                        self.map_delete_buttons.append(delete_button)
+                    else:
+                        self.map_delete_buttons[i] = delete_button
+
         # 绘制返回按钮
         self.back_button = SimpleButton(
             50,
@@ -835,11 +870,11 @@ class Game:
                     self.map_name_active = input_rect.collidepoint(mouse_pos)
                     
                     # 检查地图大小选择按钮
-                    button_y = 380
+                    y_pos = 380
                     for i, (size_name, size_data) in enumerate(self.map_sizes.items()):
                         button_rect = pygame.Rect(
                             self.screen_width//2 - 150,
-                            button_y + i*80,
+                            y_pos + i*80,
                             300,
                             60
                         )
@@ -898,7 +933,7 @@ class Game:
             # 处理按键事件
             if event.type == pygame.KEYDOWN:
                 # ESC 键打开/关闭背包
-                if event.key == self.key_bindings['exit']:
+                if event.key == self.key_bindings['inventory']:
                     self.inventory.visible = not self.inventory.visible
                     self.needs_redraw = True
                     return
@@ -1073,41 +1108,118 @@ class Game:
         pygame.draw.rect(self.buffer, (200, 200, 200), 
                         (slider_x + self.volume * slider_width - 5, slider_y - 5, 10, 20))
         
-        # 绘制全屏按钮
-        fullscreen_text = "全屏: " + ("开" if self.is_fullscreen else "关")
-        fullscreen_color = (0, 255, 0) if self.is_fullscreen else (255, 0, 0)
-        fullscreen_surface = font.render(fullscreen_text, True, fullscreen_color)
-        self.settings_fullscreen_rect = fullscreen_surface.get_rect(
-            centerx=settings_x + settings_width//2,
-            centery=settings_y + 200
-        )
-        self.buffer.blit(fullscreen_surface, self.settings_fullscreen_rect)
+        # 创建按钮
+        button_width = 200
+        button_height = 40
+        button_x = settings_x + (settings_width - button_width) // 2
         
-        # 绘制退出游戏按钮
-        exit_text = "退出游戏"
-        exit_surface = font.render(exit_text, True, (255, 100, 100))
-        self.settings_exit_rect = exit_surface.get_rect(
-            centerx=settings_x + settings_width//2,
-            centery=settings_y + 250
+        # 全屏按钮
+        self.fullscreen_button = SimpleButton(
+            button_x,
+            settings_y + 200,
+            button_width,
+            button_height,
+            "全屏: " + ("开" if self.is_fullscreen else "关"),
+            color=(0, 255, 0) if self.is_fullscreen else (255, 0, 0),
+            font_size=32
         )
-        self.buffer.blit(exit_surface, self.settings_exit_rect)
+        self.fullscreen_button.draw(self.buffer)
         
-        # 绘制退出到主菜单按钮
-        menu_text = "返回主菜单"
-        menu_surface = font.render(menu_text, True, (255, 200, 100))
-        self.settings_menu_rect = menu_surface.get_rect(
-            centerx=settings_x + settings_width//2,
-            centery=settings_y + 300
+        # 返回主菜单按钮
+        self.menu_button = SimpleButton(
+            button_x,
+            settings_y + 250,
+            button_width,
+            button_height,
+            "返回主菜单",
+            color=(255, 200, 100),
+            font_size=32
         )
-        self.buffer.blit(menu_surface, self.settings_menu_rect)
+        self.menu_button.draw(self.buffer)
         
-        # 绘制关闭按钮
-        close_text = "×"
-        close_surface = font.render(close_text, True, (255, 255, 255))
-        self.settings_close_rect = close_surface.get_rect(
-            topright=(settings_x + settings_width - 10, settings_y + 10)
+        # 退出游戏按钮
+        self.exit_button = SimpleButton(
+            button_x,
+            settings_y + 300,
+            button_width,
+            button_height,
+            "退出游戏",
+            color=(255, 100, 100),
+            font_size=32
         )
-        self.buffer.blit(close_surface, self.settings_close_rect)
+        self.exit_button.draw(self.buffer)
+        
+        # 关闭按钮
+        self.close_button = SimpleButton(
+            settings_x + settings_width - 40,
+            settings_y + 10,
+            30,
+            30,
+            "×",
+            color=(200, 0, 0),
+            font_size=24
+        )
+        self.close_button.draw(self.buffer)
+
+    def handle_settings_events(self, event):
+        """处理设置界面的事件"""
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_pos = pygame.mouse.get_pos()
+            
+            # 检查是否点击了关闭按钮
+            if hasattr(self, 'close_button') and self.close_button.handle_event(event):
+                self.game_state = "playing"
+                self.needs_redraw = True
+                return
+            
+            # 检查是否点击了全屏按钮
+            if hasattr(self, 'fullscreen_button') and self.fullscreen_button.handle_event(event):
+                self.is_fullscreen = not self.is_fullscreen
+                if self.is_fullscreen:
+                    self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.FULLSCREEN)
+                else:
+                    self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
+                self.needs_redraw = True
+                return
+            
+            # 检查是否点击了返回主菜单按钮
+            if hasattr(self, 'menu_button') and self.menu_button.handle_event(event):
+                self.game_state = "main_menu"
+                self.needs_redraw = True
+                return
+            
+            # 检查是否点击了退出游戏按钮
+            if hasattr(self, 'exit_button') and self.exit_button.handle_event(event):
+                self.running = False
+                return
+            
+            # 检查是否点击了音量滑块区域
+            settings_width = 500
+            settings_height = 400
+            settings_x = (self.screen_width - settings_width) // 2
+            settings_y = (self.screen_height - settings_height) // 2
+            slider_width = 300
+            slider_rect = pygame.Rect(settings_x + 150, settings_y + 150, slider_width, 10)
+            if slider_rect.collidepoint(mouse_pos):
+                # 更新音量值
+                self.volume = (mouse_pos[0] - (settings_x + 150)) / slider_width
+                self.volume = max(0, min(1, self.volume))
+                self.needs_redraw = True
+                return
+        
+        elif event.type == pygame.MOUSEMOTION:
+            if event.buttons[0]:  # 左键拖动
+                mouse_pos = pygame.mouse.get_pos()
+                settings_x = (self.screen_width - 500) // 2
+                settings_y = (self.screen_height - 400) // 2
+                slider_width = 300
+                slider_rect = pygame.Rect(settings_x + 150, settings_y + 150, slider_width, 10)
+                if slider_rect.collidepoint(mouse_pos):
+                    # 更新音量值
+                    self.volume = (mouse_pos[0] - (settings_x + 150)) / slider_width
+                    self.volume = max(0, min(1, self.volume))
+                    self.needs_redraw = True
+                    return
 
     def load_characters_and_maps(self):
         """加载已有的角色和地图"""
@@ -1244,19 +1356,17 @@ class Game:
             self.player.rect.x = self.player.rect.x + self.camera_x
             self.player.rect.y = self.player.rect.y + self.camera_y
         
-        # 绘制设置按钮（只在背包打开时显示）
-        if hasattr(self, 'inventory') and self.inventory.visible:
-            self.settings_button.draw(self.buffer)
-        
-        # 如果在设置状态，绘制设置菜单
-        if self.game_state == "settings":
-            self.draw_settings()
-        
         # 绘制背包
         if hasattr(self, 'inventory'):
             if self.inventory.visible:
                 self.inventory.draw(self.buffer, get_font(20))
+                # 只在背包打开时显示设置按钮
+                self.settings_button.draw(self.buffer)
             self.inventory.draw_hotbar(self.buffer, get_font(20))  # 始终显示物品栏
+        
+        # 如果在设置状态，绘制设置菜单
+        if self.game_state == "settings":
+            self.draw_settings()
         
         # 将缓冲区内容复制到屏幕
         self.screen.blit(self.buffer, (0, 0))
@@ -1319,66 +1429,6 @@ class Game:
         pygame.display.flip()
         
         self.needs_redraw = False
-
-    def handle_settings_events(self, event):
-        """处理设置界面的事件"""
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            mouse_pos = pygame.mouse.get_pos()
-            
-            # 获取设置面板的位置
-            settings_width = 500
-            settings_height = 400
-            settings_x = (self.screen_width - settings_width) // 2
-            settings_y = (self.screen_height - settings_height) // 2
-            
-            # 检查是否点击了关闭按钮
-            if hasattr(self, 'settings_close_rect') and self.settings_close_rect.collidepoint(mouse_pos):
-                self.game_state = "playing"
-                self.needs_redraw = True
-                return
-            
-            # 检查是否点击了音量滑块
-            slider_width = 300
-            slider_rect = pygame.Rect(settings_x + 150, settings_y + 150, slider_width, 10)
-            if slider_rect.collidepoint(mouse_pos):
-                # 更新音量值
-                self.volume = (mouse_pos[0] - (settings_x + 150)) / slider_width
-                self.volume = max(0, min(1, self.volume))
-                self.needs_redraw = True
-                return
-            
-            # 检查是否点击了全屏按钮
-            if hasattr(self, 'settings_fullscreen_rect') and self.settings_fullscreen_rect.collidepoint(mouse_pos):
-                self.is_fullscreen = not self.is_fullscreen
-                if self.is_fullscreen:
-                    self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.FULLSCREEN)
-                else:
-                    self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
-                self.needs_redraw = True
-                return
-            
-            # 检查是否点击了退出游戏按钮
-            if hasattr(self, 'settings_exit_rect') and self.settings_exit_rect.collidepoint(mouse_pos):
-                self.running = False
-                return
-            
-            # 检查是否点击了返回主菜单按钮
-            if hasattr(self, 'settings_menu_rect') and self.settings_menu_rect.collidepoint(mouse_pos):
-                self.game_state = "main_menu"
-                self.needs_redraw = True
-                return
-        
-        elif event.type == pygame.MOUSEMOTION:
-            if event.buttons[0]:  # 左键拖动
-                mouse_pos = pygame.mouse.get_pos()
-                settings_x = (self.screen_width - 500) // 2
-                slider_width = 300
-                slider_rect = pygame.Rect(settings_x + 150, settings_y + 150, slider_width, 10)
-                if slider_rect.collidepoint(mouse_pos):
-                    # 更新音量值
-                    self.volume = (mouse_pos[0] - (settings_x + 150)) / slider_width
-                    self.volume = max(0, min(1, self.volume))
-                    self.needs_redraw = True
 
     def handle_character_select_events(self):
         """处理角色选择界面的事件"""
@@ -1539,9 +1589,9 @@ class Game:
         self.camera_x = 0
         self.camera_y = 0
         
-        # 创建物品栏
+        # 创建物品栏（位置改为左上方）
         inventory_x = 10  # 距离左边界10像素
-        inventory_y = self.screen_height - 50  # 距离底部50像素
+        inventory_y = 10  # 距离顶部10像素
         self.inventory = Inventory(inventory_x, inventory_y)
         
         self.game_state = "playing"
