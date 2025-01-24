@@ -740,7 +740,6 @@ class Player:
                 self.dy = self.jump_power
             self.jumps_left -= 1
             self.on_ground = False
-            print(f"跳跃！剩余跳跃次数：{self.jumps_left}")  # 调试输出 
 
     def draw_character(self):
         """绘制角色"""
