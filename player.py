@@ -56,7 +56,7 @@ class Player:
         center_x = 32
         center_y = 32
         
-        # 根据性别和体型调整身体比例（更真实的人体比例）
+        # 根据性别和体型调整身体比例
         if self.gender == '女':
             if self.body_type == "瘦小":
                 body_width = 14
@@ -95,96 +95,73 @@ class Player:
         body_bottom = center_y + body_height//2
         body_left = center_x - body_width//2
         body_right = center_x + body_width//2
-        waist_y = body_top + body_height * 0.4  # 更自然的腰部位置
+        waist_y = body_top + body_height * 0.4
         
-        # 根据性别设置肤色（更自然的肤色）
+        # 根据性别设置肤色
         if self.gender == '女':
-            skin_color = (255, 223, 196)  # 更自然的肤色
-            skin_shadow = (235, 203, 176)  # 阴影色
+            skin_color = (255, 223, 196)
+            skin_shadow = (235, 203, 176)
         else:
-            skin_color = (240, 200, 160)  # 更自然的肤色
-            skin_shadow = (220, 180, 140)  # 阴影色
+            skin_color = (240, 200, 160)
+            skin_shadow = (220, 180, 140)
         
-        # 绘制腿部（更自然的形状）
+        # 绘制腿部
         leg_width = 6 if self.gender == '女' else 8
-        leg_spacing = 4
+        leg_spacing = 2
         # 左腿
         pygame.draw.rect(self.image, skin_color,
-                        (center_x - leg_width - leg_spacing, waist_y,
+                        (center_x - leg_width - leg_spacing//2, waist_y,
                          leg_width, body_bottom - waist_y))
         # 右腿
         pygame.draw.rect(self.image, skin_color,
-                        (center_x + leg_spacing, waist_y,
+                        (center_x + leg_spacing//2, waist_y,
                          leg_width, body_bottom - waist_y))
         
-        # 绘制身体（考虑性别差异和更自然的形状）
-        if self.gender == '女':
-            # 女性身体（更自然的曲线）
-            waist_width = body_width * waist_ratio
-            # 上半身（带曲线）
-            pygame.draw.polygon(self.image, skin_color, [
-                (center_x - shoulder_width//2, body_top),  # 左肩
-                (center_x + shoulder_width//2, body_top),  # 右肩
-                (center_x + waist_width//2, waist_y),     # 右腰
-                (center_x - waist_width//2, waist_y)      # 左腰
-            ])
-            # 添加胸部轮廓（柔和的曲线）
-            chest_y = body_top + body_height * 0.2
-            pygame.draw.arc(self.image, skin_shadow,
-                           (center_x - waist_width//2 - 2, chest_y,
-                            waist_width + 4, 8), 0, math.pi, 2)
-        else:
-            # 男性身体（更强壮的轮廓）
-            pygame.draw.polygon(self.image, skin_color, [
-                (center_x - shoulder_width//2, body_top),      # 左肩
-                (center_x + shoulder_width//2, body_top),      # 右肩
-                (center_x + body_width//2, body_bottom - 4),   # 右臀
-                (center_x - body_width//2, body_bottom - 4)    # 左臀
-            ])
-            # 添加肌肉轮廓
-            if self.body_type in ["普通", "魁梧"]:
-                # 胸肌
-                chest_y = body_top + body_height * 0.2
-                pygame.draw.arc(self.image, skin_shadow,
-                              (center_x - shoulder_width//4, chest_y,
-                               shoulder_width//2, 10), 0, math.pi, 3)
-                # 腹肌
-                for i in range(2):
-                    y = chest_y + 8 + i * 6
-                    pygame.draw.line(self.image, skin_shadow,
-                                   (center_x - 6, y),
-                                   (center_x + 6, y), 2)
+        # 绘制身体（侧面视角）
+        body_points = [
+            (body_left, body_top),  # 左上
+            (body_right, body_top),  # 右上
+            (body_right - body_width//4, body_bottom),  # 右下
+            (body_left - body_width//4, body_bottom)   # 左下
+        ]
+        pygame.draw.polygon(self.image, skin_color, body_points)
         
-        # 绘制手臂（更自然的形状）
+        # 绘制手臂（侧面视角）
         arm_width = 5 if self.gender == '女' else 7
-        # 左手臂
+        # 后臂（稍微向后）
         pygame.draw.line(self.image, skin_color,
-                        (center_x - shoulder_width//2, body_top + 4),
-                        (center_x - shoulder_width//2 - 4, body_top + body_height//3),
+                        (body_left, body_top + 4),
+                        (body_left - 6, body_top + body_height//3),
                         arm_width)
-        # 右手臂
+        # 前臂（稍微向前）
         pygame.draw.line(self.image, skin_color,
-                        (center_x + shoulder_width//2, body_top + 4),
-                        (center_x + shoulder_width//2 + 4, body_top + body_height//3),
+                        (body_right, body_top + 4),
+                        (body_right + 4, body_top + body_height//3),
                         arm_width)
         
-        # 绘制头部（更自然的形状）
+        # 绘制头部（侧面视角）
         head_size = int(body_width * 1.2)
         face_y = body_top - head_size - 2
         
-        # 绘制脖子（更自然的形状）
+        # 绘制脖子
         neck_width = 6 if self.gender == '女' else 8
         neck_height = 6
         pygame.draw.rect(self.image, skin_color,
                         (center_x - neck_width//2, face_y + head_size,
                          neck_width, neck_height))
         
-        # 绘制头部轮廓
-        pygame.draw.ellipse(self.image, skin_color,
-                           (center_x - head_size//2, face_y,
-                            head_size, head_size))
+        # 绘制头部轮廓（侧面）
+        head_points = [
+            (center_x - head_size//2, face_y + head_size//2),  # 后脑
+            (center_x, face_y),  # 头顶
+            (center_x + head_size//2, face_y + head_size//4),  # 前额
+            (center_x + head_size//2, face_y + head_size//2),  # 鼻子
+            (center_x + head_size//3, face_y + head_size),  # 下巴
+            (center_x - head_size//3, face_y + head_size)   # 颈部连接点
+        ]
+        pygame.draw.polygon(self.image, skin_color, head_points)
         
-        # 设置发色（更自然的颜色）
+        # 设置发色
         if self.hairstyle.startswith("金色"):
             hair_color = (255, 215, 0)
             hair_shadow = (218, 165, 32)
@@ -195,378 +172,61 @@ class Player:
             hair_color = (30, 30, 30)
             hair_shadow = (10, 10, 10)
         
-        # 绘制发型（更自然的发型）
+        # 绘制发型（侧面视角）
         if self.hairstyle.endswith("短发"):
-            if self.gender == '女':
-                # 女性短发（更蓬松自然）
-                for i in range(5):
-                    y_offset = i * 2
-                    curve_points = []
-                    for t in range(0, 101, 5):
-                        t = t / 100
-                        x = center_x - 14 + t * 28
-                        y = face_y + y_offset + math.sin(t * math.pi) * 4
-                        curve_points.append((int(x), int(y)))
-                    if len(curve_points) > 1:
-                        pygame.draw.lines(self.image, hair_color, False, curve_points, 2)
-                        # 添加发丝效果
-                        if i % 2 == 0:
-                            pygame.draw.lines(self.image, hair_shadow, False, curve_points, 1)
-            else:
-                # 男性短发（更利落自然）
-                for i in range(4):
-                    y_offset = i * 2
-                    curve_points = []
-                    for t in range(0, 101, 5):
-                        t = t / 100
-                        x = center_x - 12 + t * 24
-                        y = face_y + y_offset + math.sin(t * math.pi) * 3
-                        curve_points.append((int(x), int(y)))
-                    if len(curve_points) > 1:
-                        pygame.draw.lines(self.image, hair_color, False, curve_points, 2)
-        else:  # 长发
-            if self.gender == '女':
-                # 女性长发（更飘逸自然）
-                for i in range(7):
-                    curve_points = []
-                    for t in range(0, 101, 4):
-                        t = t / 100
-                        x = center_x - 18 + i * 6 + math.sin(t * math.pi * 2) * 3
-                        y = face_y + t * 45
-                        curve_points.append((int(x), int(y)))
-                    if len(curve_points) > 1:
-                        pygame.draw.lines(self.image, hair_color, False, curve_points, 2)
-                        # 添加发丝效果
-                        if i % 2 == 0:
-                            pygame.draw.lines(self.image, hair_shadow, False, curve_points, 1)
-            else:
-                # 男性长发（更自然）
-                for i in range(6):
-                    curve_points = []
-                    for t in range(0, 101, 5):
-                        t = t / 100
-                        x = center_x - 15 + i * 6
-                        y = face_y + t * 40
-                        curve_points.append((int(x), int(y)))
-                    if len(curve_points) > 1:
-                        pygame.draw.lines(self.image, hair_color, False, curve_points, 2)
-        
-        # 眼睛（更自然的形状）
-        eye_y = face_y + head_size * 0.35
-        if self.gender == '女':
-            # 女性眼睛（更大更有神）
-            # 眼白
-            pygame.draw.ellipse(self.image, (255, 255, 255),
-                              (center_x - 9, eye_y, 7, 4))
-            pygame.draw.ellipse(self.image, (255, 255, 255),
-                              (center_x + 2, eye_y, 7, 4))
-            # 眼珠
-            pygame.draw.ellipse(self.image, (60, 60, 60),
-                              (center_x - 7, eye_y + 1, 3, 3))
-            pygame.draw.ellipse(self.image, (60, 60, 60),
-                              (center_x + 4, eye_y + 1, 3, 3))
-            # 眼睑
-            pygame.draw.arc(self.image, skin_shadow,
-                           (center_x - 9, eye_y - 1, 7, 4),
-                           0, math.pi, 1)
-            pygame.draw.arc(self.image, skin_shadow,
-                           (center_x + 2, eye_y - 1, 7, 4),
-                           0, math.pi, 1)
-            # 睫毛
-            for i in range(3):
-                offset = i * 2
-                pygame.draw.line(self.image, (0, 0, 0),
-                               (center_x - 8 + offset, eye_y),
-                               (center_x - 9 + offset, eye_y - 1), 1)
-                pygame.draw.line(self.image, (0, 0, 0),
-                               (center_x + 3 + offset, eye_y),
-                               (center_x + 2 + offset, eye_y - 1), 1)
+            # 短发（侧面）
+            hair_points = [
+                (center_x - head_size//2 - 2, face_y + head_size//2),  # 后脑
+                (center_x - head_size//4, face_y - head_size//4),  # 头顶后部
+                (center_x + head_size//4, face_y - head_size//4),  # 头顶前部
+                (center_x + head_size//2, face_y + head_size//4),  # 前额
+                (center_x + head_size//3, face_y + head_size//2),  # 耳朵位置
+            ]
+            pygame.draw.polygon(self.image, hair_color, hair_points)
         else:
-            # 男性眼睛（更有神）
-            # 眼白
-            pygame.draw.ellipse(self.image, (255, 255, 255),
-                              (center_x - 8, eye_y, 6, 3))
-            pygame.draw.ellipse(self.image, (255, 255, 255),
-                              (center_x + 2, eye_y, 6, 3))
-            # 眼珠
-            pygame.draw.ellipse(self.image, (40, 40, 40),
-                              (center_x - 6, eye_y, 2, 2))
-            pygame.draw.ellipse(self.image, (40, 40, 40),
-                              (center_x + 4, eye_y, 2, 2))
-            # 眼睑
-            pygame.draw.arc(self.image, skin_shadow,
-                           (center_x - 8, eye_y - 1, 6, 3),
-                           0, math.pi, 1)
-            pygame.draw.arc(self.image, skin_shadow,
-                           (center_x + 2, eye_y - 1, 6, 3),
-                           0, math.pi, 1)
+            # 长发（侧面）
+            hair_points = [
+                (center_x - head_size//2 - 4, face_y + head_size),  # 后脑底部
+                (center_x - head_size//2 - 2, face_y),  # 后脑顶部
+                (center_x, face_y - head_size//4),  # 头顶
+                (center_x + head_size//2, face_y + head_size//4),  # 前额
+                (center_x + head_size//3, face_y + head_size//2),  # 耳朵位置
+                (center_x + head_size//4, face_y + head_size + 10),  # 发尾前部
+                (center_x - head_size//4, face_y + head_size + 10)   # 发尾后部
+            ]
+            pygame.draw.polygon(self.image, hair_color, hair_points)
         
-        # 眉毛（更自然的形状）
-        brow_y = eye_y - 5
-        if self.gender == '女':
-            # 女性眉毛（更细腻）
-            pygame.draw.arc(self.image, hair_color,
-                           (center_x - 8, brow_y, 10, 4),
-                           0, math.pi, 1)
-            pygame.draw.arc(self.image, hair_color,
-                           (center_x + 2, brow_y, 10, 4),
-                           0, math.pi, 1)
-        else:
-            # 男性眉毛（更浓重）
-            pygame.draw.arc(self.image, hair_color,
-                           (center_x - 7, brow_y, 8, 3),
-                           0, math.pi, 2)
-            pygame.draw.arc(self.image, hair_color,
-                           (center_x + 1, brow_y, 8, 3),
-                           0, math.pi, 2)
+        # 绘制眼睛（侧面）
+        eye_y = face_y + head_size * 0.4
+        pygame.draw.ellipse(self.image, (255, 255, 255),
+                          (center_x + head_size//6, eye_y, 4, 3))
+        pygame.draw.ellipse(self.image, (60, 60, 60),
+                          (center_x + head_size//6 + 1, eye_y + 1, 2, 2))
         
-        # 鼻子（更自然的形状）
-        nose_y = eye_y + 4
-        if self.gender == '女':
-            # 女性鼻子（更小巧）
-            pygame.draw.line(self.image, skin_shadow,
-                            (center_x, nose_y),
-                            (center_x, nose_y + 3), 1)
-        else:
-            # 男性鼻子（更挺拔）
-            pygame.draw.line(self.image, skin_shadow,
-                            (center_x, nose_y),
-                            (center_x, nose_y + 4), 2)
-        
-        # 嘴巴（更自然的形状）
-        mouth_y = nose_y + 6
-        if self.gender == '女':
-            # 女性嘴唇（更饱满）
-            lip_color = (200, 100, 100)
-            # 上唇
-            pygame.draw.arc(self.image, lip_color,
-                           (center_x - 3, mouth_y - 1, 6, 3),
-                           math.pi, 2*math.pi, 1)
-            # 下唇
-            pygame.draw.arc(self.image, lip_color,
-                           (center_x - 4, mouth_y - 1, 8, 4),
-                           0, math.pi, 2)
-        else:
-            # 男性嘴唇（更薄）
-            pygame.draw.arc(self.image, skin_shadow,
-                           (center_x - 3, mouth_y, 6, 2),
-                           0, math.pi, 1)
-        
-        # 根据职业添加装备（更真实的装备）
+        # 根据职业添加装备
         if self.class_type == "战士":
-            if self.gender == '女':
-                # 女性战士装备（更轻盈精致）
-                # 轻型护肩
-                shoulder_color = (192, 192, 192)
-                highlight_color = (220, 220, 220)
-                for i in range(2):
-                    x_offset = [-shoulder_width//2 - 2, shoulder_width//2 - 8][i]
-                    pygame.draw.ellipse(self.image, shoulder_color,
-                                      (center_x + x_offset, body_top - 4, 10, 8))
-                    pygame.draw.arc(self.image, highlight_color,
-                                  (center_x + x_offset, body_top - 4, 10, 8),
-                                  math.pi/4, 3*math.pi/4, 2)
-                
-                # 轻型护甲
-                armor_color = (180, 180, 180)
-                for i in range(3):
-                    y = body_top + i * 8
-                    pygame.draw.line(self.image, armor_color,
-                                   (body_left + 2, y),
-                                   (body_right - 2, y), 2)
-                    # 添加金属光泽
-                    pygame.draw.line(self.image, highlight_color,
-                                   (body_left + 4, y - 1),
-                                   (body_right - 4, y - 1), 1)
-            else:
-                # 男性战士装备（更厚重威武）
-                # 重型护肩
-                shoulder_color = (160, 160, 160)
-                highlight_color = (200, 200, 200)
-                shadow_color = (120, 120, 120)
-                for i in range(2):
-                    x_offset = [-shoulder_width//2 - 4, shoulder_width//2 - 10][i]
-                    # 主体
-                    pygame.draw.ellipse(self.image, shoulder_color,
-                                      (center_x + x_offset, body_top - 6, 14, 12))
-                    # 高光
-                    pygame.draw.arc(self.image, highlight_color,
-                                  (center_x + x_offset, body_top - 6, 14, 12),
-                                  math.pi/4, 3*math.pi/4, 2)
-                    # 装饰钉
-                    pygame.draw.circle(self.image, highlight_color,
-                                     (center_x + x_offset + 7, body_top), 2)
-                
-                # 重型护甲
-                armor_color = (140, 140, 140)
-                plate_height = 7
-                for i in range(4):
-                    y = body_top + i * plate_height
-                    # 主体装甲板
-                    pygame.draw.rect(self.image, armor_color,
-                                   (body_left, y, body_width, plate_height))
-                    # 高光
-                    pygame.draw.line(self.image, highlight_color,
-                                   (body_left + 2, y + 1),
-                                   (body_right - 2, y + 1), 1)
-                    # 阴影
-                    pygame.draw.line(self.image, shadow_color,
-                                   (body_left, y + plate_height - 1),
-                                   (body_right, y + plate_height - 1), 1)
-        
+            # 剑和盾（侧面视角）
+            pygame.draw.rect(self.image, (192, 192, 192),
+                           (body_right + 4, body_top + body_height//4, 20, 4))  # 剑
+            pygame.draw.ellipse(self.image, (139, 69, 19),
+                              (body_left - 12, body_top + body_height//4, 10, 15))  # 盾
+            
         elif self.class_type == "法师":
-            if self.gender == '女':
-                # 女性法师长袍（更飘逸华丽）
-                robe_color = (100, 50, 150)
-                highlight_color = (140, 90, 190)
-                # 绘制飘逸的长袍
-                for i in range(5):
-                    curve_points = []
-                    for t in range(0, 101, 4):
-                        t = t / 100
-                        x = body_left + body_width * t + math.sin(t * math.pi * 2 + i * 0.5) * 4
-                        y = body_top + body_height * t
-                        curve_points.append((int(x), int(y)))
-                    if len(curve_points) > 1:
-                        pygame.draw.lines(self.image, robe_color, False, curve_points, 2)
-                        if i % 2 == 0:  # 添加装饰线
-                            pygame.draw.lines(self.image, highlight_color, False, curve_points, 1)
-            else:
-                # 男性法师长袍（更庄重大气）
-                robe_color = (80, 30, 120)
-                highlight_color = (120, 70, 160)
-                # 主体长袍
-                robe_points = [
-                    (body_left - 4, body_top),
-                    (body_right + 4, body_top),
-                    (body_right + 8, body_bottom),
-                    (body_left - 8, body_bottom)
-                ]
-                pygame.draw.polygon(self.image, robe_color, robe_points)
-                # 添加褶皱效果
-                for i in range(3):
-                    y = body_top + i * 12
-                    pygame.draw.line(self.image, highlight_color,
-                                   (body_left - 4 + i * 2, y),
-                                   (body_right + 4 - i * 2, y), 2)
-        
+            # 法杖（侧面视角）
+            pygame.draw.rect(self.image, (139, 69, 19),
+                           (body_right + 4, body_top - 10, 4, 30))  # 法杖
+            pygame.draw.circle(self.image, (0, 191, 255),
+                             (body_right + 6, body_top - 10), 4)  # 法杖顶端
+            
         elif self.class_type == "弓箭手":
-            if self.gender == '女':
-                # 女性弓箭手装备（更轻巧灵活）
-                leather_color = (160, 82, 45)
-                highlight_color = (180, 102, 65)
-                
-                # 轻型皮甲
-                for i in range(4):
-                    y = body_top + i * 8
-                    pygame.draw.line(self.image, leather_color,
-                                   (body_left + 1, y),
-                                   (body_right - 1, y), 2)
-                    # 添加皮革纹理
-                    if i % 2 == 0:
-                        pygame.draw.line(self.image, highlight_color,
-                                       (body_left + 3, y - 1),
-                                       (body_right - 3, y - 1), 1)
-                
-                # 小型箭袋
-                quiver_color = (140, 70, 20)
-                quiver_points = [
-                    (body_right + 3, body_top),
-                    (body_right + 6, body_top),
-                    (body_right + 8, body_bottom - 5),
-                    (body_right + 5, body_bottom - 5)
-                ]
-                pygame.draw.polygon(self.image, quiver_color, quiver_points)
-                # 箭矢
-                arrow_color = (121, 85, 61)
-                arrow_head = (101, 67, 33)
-                for i in range(3):
-                    start_pos = (body_right + 5, body_top + 4 + i * 5)
-                    end_pos = (body_right + 6, body_top + 12 + i * 5)
-                    # 箭杆
-                    pygame.draw.line(self.image, arrow_color, start_pos, end_pos, 1)
-                    # 箭头
-                    pygame.draw.polygon(self.image, arrow_head, [
-                        end_pos,
-                        (end_pos[0] + 2, end_pos[1] - 1),
-                        (end_pos[0] + 2, end_pos[1] + 1)
-                    ])
-                    # 箭羽
-                    feather_color = (200, 200, 200)
-                    pygame.draw.line(self.image, feather_color,
-                                   start_pos,
-                                   (start_pos[0] + 1, start_pos[1] - 2), 1)
-            else:
-                # 男性弓箭手装备（更厚重实用）
-                leather_color = (139, 69, 19)
-                highlight_color = (169, 99, 49)
-                shadow_color = (109, 39, 0)
-                
-                # 重型皮甲
-                for i in range(5):
-                    y = body_top + i * 6
-                    # 主体皮甲
-                    pygame.draw.rect(self.image, leather_color,
-                                   (body_left - 2, y, body_width + 4, 5))
-                    # 添加皮革纹理
-                    pygame.draw.line(self.image, highlight_color,
-                                   (body_left, y + 1),
-                                   (body_right, y + 1), 1)
-                    pygame.draw.line(self.image, shadow_color,
-                                   (body_left, y + 4),
-                                   (body_right, y + 4), 1)
-                
-                # 大型箭袋
-                quiver_color = (120, 60, 20)
-                highlight_color = (150, 90, 50)
-                quiver_points = [
-                    (body_right + 4, body_top - 2),
-                    (body_right + 8, body_top - 2),
-                    (body_right + 12, body_bottom),
-                    (body_right + 6, body_bottom)
-                ]
-                pygame.draw.polygon(self.image, quiver_color, quiver_points)
-                # 添加皮革纹理
-                for i in range(3):
-                    y = body_top + i * 10
-                    pygame.draw.line(self.image, highlight_color,
-                                   (body_right + 6, y),
-                                   (body_right + 10, y), 1)
-                
-                # 箭矢
-                arrow_color = (101, 67, 33)
-                arrow_head = (81, 47, 13)
-                for i in range(4):
-                    start_pos = (body_right + 7, body_top + i * 6)
-                    end_pos = (body_right + 9, body_top + 10 + i * 6)
-                    # 箭杆
-                    pygame.draw.line(self.image, arrow_color, start_pos, end_pos, 2)
-                    # 箭头
-                    pygame.draw.polygon(self.image, arrow_head, [
-                        end_pos,
-                        (end_pos[0] + 3, end_pos[1] - 2),
-                        (end_pos[0] + 3, end_pos[1] + 2)
-                    ])
-                    # 箭羽
-                    feather_color = (180, 180, 180)
-                    pygame.draw.line(self.image, feather_color,
-                                   start_pos,
-                                   (start_pos[0] + 2, start_pos[1] - 3), 2)
-        
-        # 添加阴影和高光效果
-        # 身体阴影
-        shadow_color = tuple(max(c - 30, 0) for c in skin_color)
-        pygame.draw.line(self.image, shadow_color,
-                        (body_left, body_bottom - 2),
-                        (body_right, body_bottom - 2), 2)
-        
-        # 添加地面阴影
-        shadow_surface = pygame.Surface((30, 4), pygame.SRCALPHA)
-        shadow_color = (0, 0, 0, 100)  # 半透明黑色
-        pygame.draw.ellipse(shadow_surface, shadow_color,
-                           (0, 0, 30, 4))
-        self.image.blit(shadow_surface,
-                        (center_x - 15, body_bottom + 2))
+            # 弓（侧面视角）
+            pygame.draw.arc(self.image, (139, 69, 19),
+                          (body_right + 4, body_top, 10, 30),
+                          -0.5, 0.5, 2)  # 弓
+            
+        # 如果不是朝右，翻转图像
+        if not self.facing_right:
+            self.image = pygame.transform.flip(self.image, True, False)
 
     def update(self, world, key_bindings):
         current_time = pygame.time.get_ticks()
