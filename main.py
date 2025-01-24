@@ -1533,7 +1533,7 @@ class Game:
                         # 添加删除按钮（移到右下角）
                         delete_btn_width = 80
                         delete_btn_height = 30
-                        delete_btn_x = info_x + 300  # 调整位置
+                        delete_btn_x = panel_x + panel_width - delete_btn_width - 40  # 距离右边界40像素
                         delete_btn_y = y + preview_size[1] - delete_btn_height - 10  # 移到底部
                         
                         # 绘制删除按钮
