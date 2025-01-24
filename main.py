@@ -916,13 +916,13 @@ class Game:
         """处理角色选择界面的事件"""
         if event.type == pygame.MOUSEBUTTONDOWN:
             # 检查返回按钮
-            if self.back_button.handle_event(event):
+            if self.back_button.handle_event(event, self):  # 添加self参数
                 self.game_state = "main_menu"
                 self.needs_redraw = True
                 return
             
-            # 检查新建角色按钮
-            if self.new_character_button.handle_event(event):
+            # 检查新建按钮
+            if self.new_character_button.handle_event(event, self):  # 添加self参数
                 self.game_state = "character_create"
                 self.needs_redraw = True
                 return
@@ -940,9 +940,10 @@ class Game:
                 for i, character_name in enumerate(self.characters):
                     entry_height = 80
                     entry_y = panel_y + 20 + i * (entry_height + 10)
-                    entry_rect = pygame.Rect(panel_x, entry_y, panel_width, entry_height)
+                    entry_rect = pygame.Rect(panel_x + 20, entry_y, panel_width - 40, entry_height)
                     
                     if entry_rect.collidepoint(mouse_pos):
+                        self.click_sound.play()  # 添加点击音效
                         self.selected_character = character_name
                         self.game_state = "map_select"
                         self.needs_redraw = True
@@ -1323,13 +1324,13 @@ class Game:
             panel_y = 120
 
             # 检查返回按钮
-            if self.back_button.handle_event(event):
+            if self.back_button.handle_event(event, self):  # 添加self参数
                 self.game_state = "map_select"
                 self.needs_redraw = True
                 return
             
             # 检查创建按钮
-            if self.create_button.handle_event(event):
+            if self.create_button.handle_event(event, self):  # 添加self参数
                 if self.map_name_input:  # 只有在有名字的情况下才创建
                     # 根据选择的大小创建地图
                     if self.selected_map_size == "小型":
@@ -1355,6 +1356,8 @@ class Game:
                 300,
                 40
             )
+            if name_rect.collidepoint(event.pos):
+                self.click_sound.play()  # 添加点击音效
             self.map_name_active = name_rect.collidepoint(event.pos)
             
             # 检查大小选项按钮
@@ -1370,6 +1373,7 @@ class Game:
                     50
                 )
                 if button_rect.collidepoint(event.pos):
+                    self.click_sound.play()  # 添加点击音效
                     self.selected_map_size = size
                     self.needs_redraw = True
                     return
@@ -1595,13 +1599,13 @@ class Game:
         """处理地图选择界面的事件"""
         if event.type == pygame.MOUSEBUTTONDOWN:
             # 检查返回按钮
-            if self.back_button.handle_event(event):
+            if self.back_button.handle_event(event, self):  # 添加self参数
                 self.game_state = "character_select"
                 self.needs_redraw = True
                 return
             
             # 检查新建按钮
-            if self.new_map_button.handle_event(event):
+            if self.new_map_button.handle_event(event, self):  # 添加self参数
                 self.game_state = "map_create"  # 切换到地图创建状态
                 self.needs_redraw = True
                 return
@@ -1622,6 +1626,7 @@ class Game:
                     entry_rect = pygame.Rect(panel_x, entry_y, panel_width, entry_height)
                     
                     if entry_rect.collidepoint(mouse_pos):
+                        self.click_sound.play()  # 添加点击音效
                         self.selected_map = map_name
                         self.initialize_game()
                         return
