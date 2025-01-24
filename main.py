@@ -1421,7 +1421,7 @@ class Game:
         char_spacing_y = 220  # 垂直间距
         start_x = panel_x + 20  # 移到左边
         start_y = panel_y + 30 - self.scroll_y  # 应用滚动偏移
-        preview_size = (150, 200)
+        preview_size = (180, 180)  # 改为方形预览框
         
         # 初始化删除按钮字典
         self.delete_buttons = {}
@@ -1470,7 +1470,7 @@ class Game:
                         self.buffer.blit(hp_text, (info_x, info_y + info_spacing))
                         self.buffer.blit(mp_text, (info_x + 150, info_y + info_spacing))  # 减小偏移量
                         
-                        # 绘制游戏时间
+                        # 绘制游戏时间和删除按钮（同一行）
                         playtime = char_data.get('playtime', 0)
                         hours = playtime // 3600
                         minutes = (playtime % 3600) // 60
@@ -1478,11 +1478,11 @@ class Game:
                         time_text = self.font.render(f"游戏时间: {hours:02d}:{minutes:02d}:{seconds:02d}", True, (200, 200, 200))
                         self.buffer.blit(time_text, (info_x, info_y + info_spacing * 2))
                         
-                        # 添加删除按钮（移到右下角）
+                        # 添加删除按钮（与游戏时间同一行）
                         delete_btn_width = 80
                         delete_btn_height = 30
                         delete_btn_x = panel_x + panel_width - delete_btn_width - 40  # 距离右边界40像素
-                        delete_btn_y = y + preview_size[1] - delete_btn_height - 10  # 移到底部
+                        delete_btn_y = info_y + info_spacing * 2  # 与游戏时间同一行
                         
                         # 绘制删除按钮
                         delete_btn = SimpleButton(
