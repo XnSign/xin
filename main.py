@@ -923,6 +923,13 @@ class Game:
 
     def handle_menu_events(self, event):
         """处理主菜单事件"""
+        # 如果有消息框，优先处理消息框事件
+        if hasattr(self, 'message_box') and self.message_box and self.message_box.visible:
+            if self.message_box.handle_event(event):
+                self.needs_redraw = True
+            return True
+            
+        # 处理按钮事件
         for button in self.menu_buttons.values():
             if button.handle_event(event):
                 button_text = button.text
@@ -936,9 +943,9 @@ class Game:
                 elif button_text == '创意工坊':
                     self.show_message("创意工坊正在开发中...")
                 elif button_text == '设置':
-                    self.game_state = "settings"
+                    self.show_message("设置功能正在开发中...")
                 elif button_text == '制作人员':
-                    self.game_state = "credits"
+                    self.show_message("制作人员名单正在整理中...")
                 elif button_text == '退出':
                     self.running = False
                 
@@ -1593,6 +1600,10 @@ class Game:
         for button in self.menu_buttons.values():
             button.draw(self.buffer)
         
+        # 如果有消息框，绘制消息框
+        if hasattr(self, 'message_box') and self.message_box and self.message_box.visible:
+            self.buffer.blit(self.message_box.surface, self.message_box.rect)
+        
         # 将缓冲区内容复制到屏幕
         self.screen.blit(self.buffer, (0, 0))
         pygame.display.flip()
@@ -2244,23 +2255,59 @@ class Game:
         
         # 创建一个带有透明度的表面
         message_surface = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
-        message_surface.fill((0, 0, 0, 200))  # 半透明黑色背景
+        message_surface.fill((0, 0, 0, 180))  # 更透明的黑色背景
+        
+        # 绘制边框
+        pygame.draw.rect(message_surface, (100, 100, 200), (0, 0, box_width, box_height), 2)
         
         # 渲染消息文本
         text = self.font.render(message, True, (255, 255, 255))
-        text_rect = text.get_rect(center=(box_width//2, box_height//2))
+        text_rect = text.get_rect(center=(box_width//2, box_height//2 - 20))
         message_surface.blit(text, text_rect)
+        
+        # 添加"确定"按钮
+        button_width = 100
+        button_height = 40
+        button_x = (box_width - button_width) // 2
+        button_y = box_height - 60
+        
+        pygame.draw.rect(message_surface, (60, 60, 140), 
+                        (button_x, button_y, button_width, button_height), 
+                        border_radius=5)
+        pygame.draw.rect(message_surface, (255, 255, 255), 
+                        (button_x, button_y, button_width, button_height), 
+                        2, border_radius=5)
+        
+        ok_text = self.font.render("确定", True, (255, 255, 255))
+        ok_rect = ok_text.get_rect(center=(box_width//2, box_height - 40))
+        message_surface.blit(ok_text, ok_rect)
         
         # 创建一个简单的消息框对象
         class MessageBox:
-            def __init__(self, surface, rect):
+            def __init__(self, surface, rect, button_rect):
                 self.surface = surface
                 self.rect = rect
+                self.button_rect = pygame.Rect(
+                    rect.x + button_x,
+                    rect.y + button_y,
+                    button_width,
+                    button_height
+                )
                 self.visible = True
+            
+            def handle_event(self, event):
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if self.button_rect.collidepoint(event.pos):
+                        self.visible = False
+                        return True
+                return False
         
         # 保存消息框
-        self.message_box = MessageBox(message_surface, pygame.Rect(box_x, box_y, box_width, box_height))
-        self.needs_redraw = True
+        self.message_box = MessageBox(
+            message_surface,
+            pygame.Rect(box_x, box_y, box_width, box_height),
+            pygame.Rect(box_x + button_x, box_y + button_y, button_width, button_height)
+        )
 
     def place_block(self, pos):
         """在指定位置放置方块"""
