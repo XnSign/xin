@@ -88,14 +88,19 @@ class SimpleButton:
             current_color = tuple(max(0, c - 30) for c in self.color)
         elif self.is_hovered:
             # 悬停时颜色变亮
-            current_color = tuple(min(255, c + 30) for c in self.color)
+            current_color = tuple(min(255, c + 60) for c in self.color)  # 增加亮度变化
             
         # 绘制按钮背景（带圆角）
         pygame.draw.rect(screen, current_color, self.rect, border_radius=5)
-        pygame.draw.rect(screen, (255, 255, 255), self.rect, 2, border_radius=5)  # 白色边框
+        
+        # 绘制边框（悬停时加粗并且更亮）
+        border_color = (255, 255, 255) if self.is_hovered else (200, 200, 200)
+        border_width = 3 if self.is_hovered else 2
+        pygame.draw.rect(screen, border_color, self.rect, border_width, border_radius=5)
         
         # 绘制文本
-        text_surface = self.font.render(self.text, True, (255, 255, 255))
+        text_color = (255, 255, 255) if self.is_hovered else (230, 230, 230)
+        text_surface = self.font.render(self.text, True, text_color)
         text_rect = text_surface.get_rect(center=self.rect.center)
         screen.blit(text_surface, text_rect)
         
@@ -689,6 +694,13 @@ class Game:
                     self.handle_settings_events(event)
                 elif self.game_state == "credits":
                     self.handle_credits_events(event)
+                
+                # 处理鼠标移动事件，更新按钮悬停状态
+                if event.type == pygame.MOUSEMOTION:
+                    if self.game_state == "main_menu":
+                        for button in self.menu_buttons.values():
+                            button.handle_event(event)
+                        self.needs_redraw = True
             
             # 根据游戏状态更新和绘制
             if self.needs_redraw:
