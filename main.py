@@ -705,7 +705,6 @@ class Game:
             '单人模式': (200, 200, 220),  # 银白色
             '多人模式': (200, 200, 220),
             '成就': (200, 200, 220),
-            '创意工坊': (200, 200, 220),
             '设置': (200, 200, 220),
             '制作人员': (200, 200, 220),
             '退出': (200, 200, 220)  # 保持一致的颜色主题
@@ -993,8 +992,6 @@ class Game:
                     self.show_message("多人模式正在开发中...")
                 elif button_text == '成就':
                     self.show_message("成就系统正在开发中...")
-                elif button_text == '创意工坊':
-                    self.show_message("创意工坊正在开发中...")
                 elif button_text == '设置':
                     self.show_message("设置功能正在开发中...")
                 elif button_text == '制作人员':
