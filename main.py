@@ -565,7 +565,7 @@ class Game:
         
         # 加载背景图片
         try:
-            self.menu_background = pygame.image.load("assets/backgrounds/035DEFE2F0D1A44FF3924A3B0BF7581B.png").convert_alpha()
+            self.menu_background = pygame.image.load("assets/backgrounds/menu_background.png").convert_alpha()
             # 调整背景图片大小以适应屏幕
             self.menu_background = pygame.transform.scale(self.menu_background, (self.screen_width, self.screen_height))
         except Exception as e:
