@@ -69,18 +69,21 @@ class Player:
                 shoulder_width = 16
                 waist_ratio = 0.75
                 head_offset = 0
+                head_scale = 1.0
             elif self.body_type == "普通":
                 body_width = 16
                 body_height = 30
-                shoulder_width = 18
+                shoulder_width = 20
                 waist_ratio = 0.8
                 head_offset = 2
+                head_scale = 1.1
             else:  # 魁梧
-                body_width = 18
-                body_height = 32
-                shoulder_width = 20
+                body_width = 20
+                body_height = 34
+                shoulder_width = 24
                 waist_ratio = 0.85
                 head_offset = 4
+                head_scale = 1.2
         else:  # 男性
             if self.body_type == "瘦小":
                 body_width = 16
@@ -88,18 +91,21 @@ class Player:
                 shoulder_width = 20
                 waist_ratio = 0.9
                 head_offset = 0
+                head_scale = 1.0
             elif self.body_type == "普通":
-                body_width = 18
-                body_height = 32
-                shoulder_width = 24
+                body_width = 20
+                body_height = 34
+                shoulder_width = 26
                 waist_ratio = 0.95
                 head_offset = 2
+                head_scale = 1.1
             else:  # 魁梧
-                body_width = 22
-                body_height = 34
-                shoulder_width = 28
+                body_width = 24
+                body_height = 38
+                shoulder_width = 32
                 waist_ratio = 1.0
                 head_offset = 4
+                head_scale = 1.2
         
         # 计算身体各部分的位置
         body_top = center_y - body_height//2
@@ -118,7 +124,10 @@ class Player:
         
         # 绘制腿部
         leg_width = 6 if self.gender == '女' else 8
-        leg_spacing = 2
+        if self.body_type == "魁梧":
+            leg_width += 2
+        leg_spacing = 2 + (shoulder_width - 20) // 4  # 根据肩宽调整腿间距
+        
         # 左腿
         pygame.draw.rect(self.image, skin_color,
                         (center_x - leg_width - leg_spacing//2, waist_y,
@@ -129,34 +138,39 @@ class Player:
                          leg_width, body_bottom - waist_y))
         
         # 绘制身体（侧面视角）
+        waist_width = int(body_width * waist_ratio)
         body_points = [
             (body_left, body_top),  # 左上
             (body_right, body_top),  # 右上
-            (body_right - body_width//4, body_bottom),  # 右下
-            (body_left - body_width//4, body_bottom)   # 左下
+            (center_x + waist_width//2, body_bottom),  # 右下
+            (center_x - waist_width//2, body_bottom)   # 左下
         ]
         pygame.draw.polygon(self.image, skin_color, body_points)
         
         # 绘制手臂（侧面视角）
         arm_width = 5 if self.gender == '女' else 7
+        if self.body_type == "魁梧":
+            arm_width += 2
         # 后臂（稍微向后）
         pygame.draw.line(self.image, skin_color,
                         (body_left, body_top + 4),
-                        (body_left - 6, body_top + body_height//3),
+                        (body_left - shoulder_width//3, body_top + body_height//3),
                         arm_width)
         # 前臂（稍微向前）
         pygame.draw.line(self.image, skin_color,
                         (body_right, body_top + 4),
-                        (body_right + 4, body_top + body_height//3),
+                        (body_right + shoulder_width//3, body_top + body_height//3),
                         arm_width)
         
         # 绘制头部（侧面视角）
-        head_size = int(body_width * 1.2)
-        face_y = body_top - head_size - 2 + head_offset  # 添加头部偏移
+        head_size = int(body_width * head_scale)  # 使用head_scale调整头部大小
+        face_y = body_top - head_size - 2 + head_offset
         
         # 绘制脖子
         neck_width = 6 if self.gender == '女' else 8
-        neck_height = 6
+        if self.body_type == "魁梧":
+            neck_width += 2
+        neck_height = 6 + (shoulder_width - 20) // 4  # 根据体型调整脖子高度
         pygame.draw.rect(self.image, skin_color,
                         (center_x - neck_width//2, face_y + head_size,
                          neck_width, neck_height))
@@ -180,7 +194,7 @@ class Player:
         hairstyle_num = self.hairstyle.get('style', '1')
         
         # 调整发型位置以适应不同体型
-        hair_y_offset = head_offset  # 发型随头部位置调整
+        hair_y = face_y  # 直接使用face_y作为发型的基准位置
         
         if hairstyle_num == '1':  # 短直发
             points = [
@@ -278,26 +292,67 @@ class Player:
         pygame.draw.ellipse(self.image, (60, 60, 60),
                           (center_x + head_size//6 + 1, eye_y + 1, 2, 2))
         
-        # 根据职业添加装备
-        if self.class_type == "战士":
-            # 剑和盾（侧面视角）
-            pygame.draw.rect(self.image, (192, 192, 192),
-                           (body_right + 4, body_top + body_height//4, 20, 4))  # 剑
-            pygame.draw.ellipse(self.image, (139, 69, 19),
-                              (body_left - 12, body_top + body_height//4, 10, 15))  # 盾
+        # 根据装备系统中的已装备物品来显示装备外观
+        if hasattr(self, 'equipment_system'):
+            equipped_items = self.equipment_system.get_equipped_items()
             
-        elif self.class_type == "法师":
-            # 法杖（侧面视角）
-            pygame.draw.rect(self.image, (139, 69, 19),
-                           (body_right + 4, body_top - 10, 4, 30))  # 法杖
-            pygame.draw.circle(self.image, (0, 191, 255),
-                             (body_right + 6, body_top - 10), 4)  # 法杖顶端
+            # 绘制武器（如果有）
+            if 'weapon' in equipped_items:
+                weapon = equipped_items['weapon']
+                if weapon.name == "铁剑":
+                    # 绘制剑
+                    pygame.draw.rect(self.image, (192, 192, 192),
+                                   (body_right + 4, body_top + body_height//4, 20, 4))
+                elif weapon.name == "法杖":
+                    # 绘制法杖
+                    pygame.draw.rect(self.image, (139, 69, 19),
+                                   (body_right + 4, body_top - 10, 4, 30))
+                    pygame.draw.circle(self.image, (0, 191, 255),
+                                     (body_right + 6, body_top - 10), 4)
+                elif weapon.name == "猎弓":
+                    # 绘制弓
+                    pygame.draw.arc(self.image, (139, 69, 19),
+                                  (body_right + 4, body_top, 10, 30),
+                                  -0.5, 0.5, 2)
             
-        elif self.class_type == "弓箭手":
-            # 弓（侧面视角）
-            pygame.draw.arc(self.image, (139, 69, 19),
-                          (body_right + 4, body_top, 10, 30),
-                          -0.5, 0.5, 2)  # 弓
+            # 绘制盾牌（如果有）
+            if 'shield' in equipped_items:
+                shield = equipped_items['shield']
+                if shield.name == "木盾":
+                    pygame.draw.ellipse(self.image, (139, 69, 19),
+                                      (body_left - 12, body_top + body_height//4, 10, 15))
+                elif shield.name == "铁盾":
+                    pygame.draw.ellipse(self.image, (192, 192, 192),
+                                      (body_left - 12, body_top + body_height//4, 10, 15))
+            
+            # 绘制头盔（如果有）
+            if 'helmet' in equipped_items:
+                helmet = equipped_items['helmet']
+                helmet_color = (192, 192, 192)  # 默认铁盔颜色
+                if helmet.name == "布帽":
+                    helmet_color = (139, 69, 19)
+                elif helmet.name == "法师帽":
+                    helmet_color = (0, 0, 139)
+                pygame.draw.ellipse(self.image, helmet_color,
+                                  (center_x - head_size//3, face_y - 2,
+                                   head_size * 2//3, head_size//4))
+            
+            # 绘制胸甲（如果有）
+            if 'chest' in equipped_items:
+                chest = equipped_items['chest']
+                armor_color = (192, 192, 192)  # 默认铁甲颜色
+                if chest.name == "布衣":
+                    armor_color = (139, 69, 19)
+                elif chest.name == "法袍":
+                    armor_color = (0, 0, 139)
+                # 在身体上方绘制装甲轮廓
+                armor_points = [
+                    (body_left - 2, body_top),
+                    (body_right + 2, body_top),
+                    (center_x + waist_width//2 + 2, waist_y),
+                    (center_x - waist_width//2 - 2, waist_y)
+                ]
+                pygame.draw.polygon(self.image, armor_color, armor_points)
         
         # 如果不是朝右，翻转图像
         if not self.facing_right:

@@ -1,4 +1,5 @@
 import pygame
+import os
 from utils import get_font
 
 class Equipment:
@@ -9,76 +10,98 @@ class Equipment:
         self.image = None
         if image_path:
             try:
-                self.image = pygame.image.load(image_path)
-            except:
-                print(f"无法加载装备图片: {image_path}")
-                self.image = pygame.Surface((32, 32))
-                self.image.fill((100, 100, 100))
+                self.image = pygame.image.load(image_path).convert_alpha()
+                self.image = pygame.transform.scale(self.image, (32, 32))  # 统一缩放到32x32
+            except pygame.error:
+                print(f"Warning: Could not load image {image_path}")
+                # 创建默认图像
+                self.image = pygame.Surface((32, 32), pygame.SRCALPHA)
+                pygame.draw.rect(self.image, (100, 100, 100), (0, 0, 32, 32))
+                pygame.draw.rect(self.image, (150, 150, 150), (2, 2, 28, 28))
         else:
             self.image = pygame.Surface((32, 32))
             self.image.fill((100, 100, 100))
 
 class EquipmentSlot:
-    def __init__(self, x, y, slot_type, size=40):
-        self.rect = pygame.Rect(x, y, size, size)
+    def __init__(self, slot_type, x, y):
         self.slot_type = slot_type
+        self.x = x
+        self.y = y
         self.equipment = None
-        self.size = size
-        self.is_hovered = False
+        self.rect = pygame.Rect(x, y, 40, 40)
+        # 创建默认的空槽位图像
+        self.empty_image = pygame.Surface((40, 40), pygame.SRCALPHA)
+        pygame.draw.rect(self.empty_image, (100, 100, 100, 100), (0, 0, 40, 40), 2)
+        
+        # 加载槽位类型图标
+        icon_path = os.path.join('assets', 'equipment', f'{slot_type}_icon.png')
+        self.icon = None
+        try:
+            self.icon = pygame.image.load(icon_path).convert_alpha()
+            self.icon = pygame.transform.scale(self.icon, (16, 16))
+        except pygame.error:
+            # 如果图标不存在，创建一个简单的标识
+            self.icon = pygame.Surface((16, 16), pygame.SRCALPHA)
+            pygame.draw.rect(self.icon, (150, 150, 150, 100), (0, 0, 16, 16))
 
-    def draw(self, surface, font):
+    def draw(self, surface):
         # 绘制槽位背景
-        color = (70, 70, 70) if self.is_hovered else (50, 50, 50)
-        pygame.draw.rect(surface, color, self.rect)
-        pygame.draw.rect(surface, (100, 100, 100), self.rect, 2)
+        surface.blit(self.empty_image, self.rect)
+        
+        # 绘制槽位图标（在右下角）
+        surface.blit(self.icon, (self.x + 24, self.y + 24))
+        
+        # 如果有装备，绘制装备图像
+        if self.equipment and self.equipment.image:
+            # 在槽位中央绘制装备图像
+            equipment_x = self.x + (40 - 32) // 2
+            equipment_y = self.y + (40 - 32) // 2
+            surface.blit(self.equipment.image, (equipment_x, equipment_y))
 
-        # 如果有装备，绘制装备图标
-        if self.equipment:
-            if self.equipment.image:
-                scaled_image = pygame.transform.scale(self.equipment.image, (self.size-8, self.size-8))
-                surface.blit(scaled_image, (self.rect.x+4, self.rect.y+4))
-
-            # 绘制装备名称提示
-            if self.is_hovered:
-                self.draw_tooltip(surface, font)
-
-    def draw_tooltip(self, surface, font):
-        if not self.equipment:
-            return
-
-        # 创建工具提示文本
-        lines = [
-            self.equipment.name,
-            f"类型: {self.equipment.slot_type}"
-        ]
-        for stat, value in self.equipment.stats.items():
-            lines.append(f"{stat}: {value}")
-
-        # 计算工具提示框大小
-        padding = 5
-        line_height = 20
-        tooltip_width = max(font.size(line)[0] for line in lines) + padding * 2
-        tooltip_height = len(lines) * line_height + padding * 2
-
-        # 创建工具提示框
-        tooltip_surface = pygame.Surface((tooltip_width, tooltip_height), pygame.SRCALPHA)
-        pygame.draw.rect(tooltip_surface, (0, 0, 0, 200), tooltip_surface.get_rect())
-
-        # 绘制文本
-        for i, line in enumerate(lines):
-            text = font.render(line, True, (255, 255, 255))
-            tooltip_surface.blit(text, (padding, padding + i * line_height))
-
-        # 计算工具提示位置
-        x = self.rect.right + 5
-        y = self.rect.y
-        if x + tooltip_width > surface.get_width():
-            x = self.rect.x - tooltip_width - 5
-        if y + tooltip_height > surface.get_height():
-            y = surface.get_height() - tooltip_height
-
-        # 绘制工具提示
-        surface.blit(tooltip_surface, (x, y))
+    def draw_tooltip(self, surface, mouse_pos):
+        if self.equipment and self.rect.collidepoint(mouse_pos):
+            # 创建工具提示背景
+            padding = 5
+            font = pygame.font.Font(None, 24)
+            
+            # 渲染装备名称
+            name_surface = font.render(self.equipment.name, True, (255, 255, 255))
+            
+            # 渲染装备属性
+            stat_lines = []
+            for stat, value in self.equipment.stats.items():
+                stat_text = f"{stat}: {value}"
+                stat_surface = font.render(stat_text, True, (200, 200, 200))
+                stat_lines.append(stat_surface)
+            
+            # 计算工具提示尺寸
+            tooltip_width = max(name_surface.get_width(),
+                              max(surface.get_width() for surface in stat_lines))
+            tooltip_height = name_surface.get_height() + \
+                           sum(surface.get_height() for surface in stat_lines) + \
+                           padding * (len(stat_lines) + 1)
+            
+            # 创建工具提示表面
+            tooltip = pygame.Surface((tooltip_width + padding * 2,
+                                   tooltip_height + padding * 2),
+                                  pygame.SRCALPHA)
+            pygame.draw.rect(tooltip, (0, 0, 0, 200), tooltip.get_rect())
+            
+            # 绘制装备名称
+            tooltip.blit(name_surface, (padding, padding))
+            
+            # 绘制装备属性
+            y = padding + name_surface.get_height() + padding
+            for stat_surface in stat_lines:
+                tooltip.blit(stat_surface, (padding, y))
+                y += stat_surface.get_height()
+            
+            # 在鼠标位置绘制工具提示
+            tooltip_x = mouse_pos[0]
+            tooltip_y = mouse_pos[1] - tooltip.get_height()
+            if tooltip_y < 0:
+                tooltip_y = mouse_pos[1] + 20
+            surface.blit(tooltip, (tooltip_x, tooltip_y))
 
 class EquipmentSystem:
     def __init__(self, x, y):
@@ -86,12 +109,12 @@ class EquipmentSystem:
         self.y = y
         self.visible = False
         self.slots = {
-            "头盔": EquipmentSlot(x + 60, y + 10, "头盔"),
-            "胸甲": EquipmentSlot(x + 60, y + 60, "胸甲"),
-            "护腿": EquipmentSlot(x + 60, y + 110, "护腿"),
-            "靴子": EquipmentSlot(x + 60, y + 160, "靴子"),
-            "武器": EquipmentSlot(x + 10, y + 60, "武器"),
-            "盾牌": EquipmentSlot(x + 110, y + 60, "盾牌")
+            "头盔": EquipmentSlot("头盔", x + 60, y + 10),
+            "胸甲": EquipmentSlot("胸甲", x + 60, y + 60),
+            "护腿": EquipmentSlot("护腿", x + 60, y + 110),
+            "靴子": EquipmentSlot("靴子", x + 60, y + 160),
+            "武器": EquipmentSlot("武器", x + 10, y + 60),
+            "盾牌": EquipmentSlot("盾牌", x + 110, y + 60)
         }
         self.dragging = None
         self.drag_offset = (0, 0)
@@ -115,7 +138,7 @@ class EquipmentSystem:
 
         # 绘制装备槽位
         for slot in self.slots.values():
-            slot.draw(surface, get_font(16))
+            slot.draw(surface)
 
         # 绘制正在拖动的装备
         if self.dragging:
@@ -203,4 +226,102 @@ class EquipmentSystem:
                         total_stats[stat] += value
                     else:
                         total_stats[stat] = value
-        return total_stats 
+        return total_stats
+
+    def get_equipped_items(self):
+        """返回所有已装备的物品"""
+        equipped_items = {}
+        for slot_name, slot in self.slots.items():
+            if slot.equipment:  # 使用equipment而不是item
+                equipped_items[slot_name] = slot.equipment
+        return equipped_items
+
+def create_default_equipment():
+    """创建默认装备"""
+    equipment_list = []
+    
+    # 武器
+    iron_sword = Equipment(
+        name="铁剑",
+        equipment_type="武器",
+        stats={"攻击力": 5},
+        image_path="assets/equipment/weapons/iron_sword.png"
+    )
+    equipment_list.append(iron_sword)
+    
+    magic_staff = Equipment(
+        name="法杖",
+        equipment_type="武器",
+        stats={"魔法攻击": 8, "魔法值": 20},
+        image_path="assets/equipment/weapons/magic_staff.png"
+    )
+    equipment_list.append(magic_staff)
+    
+    hunting_bow = Equipment(
+        name="猎弓",
+        equipment_type="武器",
+        stats={"攻击力": 4, "命中": 3},
+        image_path="assets/equipment/weapons/hunting_bow.png"
+    )
+    equipment_list.append(hunting_bow)
+    
+    # 防具
+    iron_helmet = Equipment(
+        name="铁盔",
+        equipment_type="头盔",
+        stats={"防御力": 3},
+        image_path="assets/equipment/armor/iron_helmet.png"
+    )
+    equipment_list.append(iron_helmet)
+    
+    iron_armor = Equipment(
+        name="铁甲",
+        equipment_type="胸甲",
+        stats={"防御力": 5},
+        image_path="assets/equipment/armor/iron_armor.png"
+    )
+    equipment_list.append(iron_armor)
+    
+    iron_boots = Equipment(
+        name="铁靴",
+        equipment_type="靴子",
+        stats={"防御力": 2, "移动速度": 1},
+        image_path="assets/equipment/armor/iron_boots.png"
+    )
+    equipment_list.append(iron_boots)
+    
+    # 法师装备
+    wizard_hat = Equipment(
+        name="法师帽",
+        equipment_type="头盔",
+        stats={"魔法值": 15, "魔法防御": 2},
+        image_path="assets/equipment/armor/wizard_hat.png"
+    )
+    equipment_list.append(wizard_hat)
+    
+    wizard_robe = Equipment(
+        name="法袍",
+        equipment_type="胸甲",
+        stats={"魔法值": 25, "魔法防御": 3},
+        image_path="assets/equipment/armor/wizard_robe.png"
+    )
+    equipment_list.append(wizard_robe)
+    
+    # 弓箭手装备
+    leather_cap = Equipment(
+        name="皮帽",
+        equipment_type="头盔",
+        stats={"防御力": 1, "敏捷": 2},
+        image_path="assets/equipment/armor/leather_cap.png"
+    )
+    equipment_list.append(leather_cap)
+    
+    leather_armor = Equipment(
+        name="皮甲",
+        equipment_type="胸甲",
+        stats={"防御力": 3, "敏捷": 3},
+        image_path="assets/equipment/armor/leather_armor.png"
+    )
+    equipment_list.append(leather_armor)
+    
+    return equipment_list
