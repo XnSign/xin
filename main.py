@@ -88,12 +88,12 @@ class SimpleButton:
         screen.blit(text_surface, text_rect)
         
     def handle_event(self, event):
-        # 只处理鼠标按下和抬起事件，忽略滚轮事件
+        # 只处理鼠标左键事件
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # 只响应左键点击
             if self.rect.collidepoint(event.pos):
                 self.is_clicked = True
                 return True
-        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:  # 只响应左键释放
             was_clicked = self.is_clicked
             self.is_clicked = False
             if self.rect.collidepoint(event.pos) and was_clicked:
@@ -103,14 +103,32 @@ class SimpleButton:
         return False
 
 class Slider:
-    def __init__(self, x, y, width, height, label, max_value, initial_value=128):
-        """初始化滑块"""
+    def __init__(self, x, y, width, height, label, max_value=255, initial_value=0):
         self.rect = pygame.Rect(x, y, width, height)
         self.label = label
-        self.max_value = max_value
         self.value = initial_value
+        self.max_value = max_value
         self.dragging = False
+        self.font = get_font(24)
+    
+    def draw(self, screen):
+        # 绘制滑块背景
+        pygame.draw.rect(screen, (100, 100, 100), self.rect)
+        pygame.draw.rect(screen, (150, 150, 150), self.rect, 2)
         
+        # 计算滑块位置
+        handle_x = self.rect.x + (self.value / self.max_value) * self.rect.width
+        handle_rect = pygame.Rect(handle_x - 5, self.rect.y - 5, 10, self.rect.height + 10)
+        
+        # 绘制滑块
+        pygame.draw.rect(screen, (200, 200, 200), handle_rect)
+        pygame.draw.rect(screen, (255, 255, 255), handle_rect, 2)
+        
+        # 绘制数值（移到滑块右边）
+        value_text = self.font.render(str(int(self.value)), True, (255, 255, 255))
+        value_rect = value_text.get_rect(midleft=(self.rect.right + 10, self.rect.centery))
+        screen.blit(value_text, value_rect)
+    
     def handle_event(self, event):
         """处理事件"""
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -131,28 +149,6 @@ class Slider:
                 self.value = max(0, min(self.max_value, self.value))
                 return True
         return False
-        
-    def draw(self, screen):
-        """绘制滑块"""
-        # 绘制滑块背景
-        pygame.draw.rect(screen, (100, 100, 100), self.rect)
-        
-        # 绘制滑块当前值
-        value_rect = pygame.Rect(
-            self.rect.x,
-            self.rect.y,
-            self.rect.width * (self.value / self.max_value),
-            self.rect.height
-        )
-        pygame.draw.rect(screen, (200, 200, 200), value_rect)
-        
-        # 绘制边框
-        pygame.draw.rect(screen, (150, 150, 150), self.rect, 2)
-        
-        # 绘制标签
-        font = get_font(24)
-        label = font.render(f"{self.label}: {int(self.value)}", True, (255, 255, 255))
-        screen.blit(label, (self.rect.x - 100, self.rect.y))
 
 class CharacterCreator:
     def __init__(self, x, y, width, height):
@@ -389,7 +385,7 @@ class Game:
         self.screen_width = 1280
         self.screen_height = 720
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
-        pygame.display.set_caption("TrFk")
+        pygame.display.set_caption("像素冒险")
         
         # 创建缓冲区
         self.buffer = pygame.Surface((self.screen_width, self.screen_height))
@@ -550,7 +546,7 @@ class Game:
             self.clock.tick(60)
             
             # 更新窗口标题显示FPS
-            pygame.display.set_caption(f"TrFk - FPS: {int(self.clock.get_fps())}")
+            pygame.display.set_caption(f"像素冒险 - FPS: {int(self.clock.get_fps())}")
 
     def draw_map_select(self):
         """绘制地图选择界面"""
@@ -896,6 +892,24 @@ class Game:
             text_rect = class_text.get_rect(center=(button_x + class_button_width//2, input_y + 15))
             self.buffer.blit(class_text, text_rect)
         
+        # 底部按钮
+        button_y = panel_y + panel_height - 50
+        button_height = 40
+        
+        # 返回按钮
+        pygame.draw.rect(self.buffer, (60, 60, 140),
+                        (panel_x + 50, button_y, 100, button_height), border_radius=5)
+        back_text = self.font.render("返回", True, (255, 255, 255))
+        back_rect = back_text.get_rect(center=(panel_x + 100, button_y + button_height//2))
+        self.buffer.blit(back_text, back_rect)
+        
+        # 创建按钮
+        pygame.draw.rect(self.buffer, (60, 140, 60),
+                        (panel_x + panel_width - 150, button_y, 100, button_height), border_radius=5)
+        create_text = self.font.render("创建", True, (255, 255, 255))
+        create_rect = create_text.get_rect(center=(panel_x + panel_width - 100, button_y + button_height//2))
+        self.buffer.blit(create_text, create_rect)
+        
         # 绘制角色预览
         preview_x = panel_x + 650  # 预览区域的x坐标
         preview_y = panel_y + 50   # 预览区域的y坐标
@@ -932,23 +946,6 @@ class Game:
         preview_rect = preview_player.image.get_rect(center=(preview_x + preview_width//2, preview_y + preview_height//2))
         self.buffer.blit(preview_player.image, preview_rect)
         
-        # 底部按钮
-        button_y = panel_y + panel_height - 50
-        
-        # 返回按钮
-        pygame.draw.rect(self.buffer, (60, 60, 140),
-                        (panel_x + 50, button_y, 100, 40), border_radius=5)
-        back_text = self.font.render("返回", True, (255, 255, 255))
-        back_rect = back_text.get_rect(center=(panel_x + 100, button_y + 20))
-        self.buffer.blit(back_text, back_rect)
-        
-        # 创建按钮
-        pygame.draw.rect(self.buffer, (60, 140, 60),
-                        (panel_x + panel_width - 150, button_y, 100, 40), border_radius=5)
-        create_text = self.font.render("创建", True, (255, 255, 255))
-        create_rect = create_text.get_rect(center=(panel_x + panel_width - 100, button_y + 20))
-        self.buffer.blit(create_text, create_rect)
-        
         # 如果有弹出框，绘制弹出框
         if hasattr(self, 'popup') and self.popup and self.popup.visible:
             if not self.popup.should_hide():
@@ -967,7 +964,22 @@ class Game:
         """处理角色创建界面的事件"""
         # 如果在发型选择界面，处理发型选择界面的事件
         if self.in_hairstyle_selection:
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            # 处理滑块拖动
+            if event.type == pygame.MOUSEMOTION and event.buttons[0]:  # 左键拖动
+                for key, slider in self.hair_color_sliders.items():
+                    if slider.dragging:  # 只有当滑块正在被拖动时才处理
+                        if slider.handle_event(event):
+                            # 更新发色
+                            self.selected_hairstyle['color'] = (
+                                int(self.hair_color_sliders['R'].value),
+                                int(self.hair_color_sliders['G'].value),
+                                int(self.hair_color_sliders['B'].value)
+                            )
+                            self.needs_redraw = True
+                            return
+            
+            # 处理鼠标点击
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # 只处理左键点击
                 mouse_pos = event.pos
                 
                 # 检查发型预览网格点击
@@ -975,7 +987,7 @@ class Game:
                 panel_height = 500
                 panel_x = (self.screen_width - panel_width) // 2
                 panel_y = 100
-                preview_size = (120, 120)
+                preview_size = (100, 100)
                 grid_spacing = 20
                 grid_cols = 4
                 grid_rows = 2
@@ -1002,14 +1014,20 @@ class Game:
                         return
                 
                 # 检查颜色滑块
-                color_y = start_y + (grid_rows * (preview_size[1] + grid_spacing)) + 20
-                for slider in self.hair_color_sliders.values():
+                color_y = start_y + (grid_rows * (preview_size[1] + grid_spacing)) + 10
+                for key, slider in self.hair_color_sliders.items():
                     if slider.handle_event(event):
+                        # 更新发色
+                        self.selected_hairstyle['color'] = (
+                            int(self.hair_color_sliders['R'].value),
+                            int(self.hair_color_sliders['G'].value),
+                            int(self.hair_color_sliders['B'].value)
+                        )
                         self.needs_redraw = True
                         return
                 
                 # 检查翻页按钮
-                if hasattr(self, 'prev_btn_rect') and self.prev_btn_rect and self.prev_btn_rect.collidepoint(mouse_pos):
+                if self.prev_btn_rect and self.prev_btn_rect.collidepoint(mouse_pos):
                     if self.hairstyle_page > 0:
                         self.hairstyle_page -= 1
                         if self.click_sound:
@@ -1017,7 +1035,7 @@ class Game:
                         self.needs_redraw = True
                         return
                 
-                if hasattr(self, 'next_btn_rect') and self.next_btn_rect and self.next_btn_rect.collidepoint(mouse_pos):
+                if self.next_btn_rect and self.next_btn_rect.collidepoint(mouse_pos):
                     if (self.hairstyle_page + 1) * (grid_cols * grid_rows) < 20:
                         self.hairstyle_page += 1
                         if self.click_sound:
@@ -1026,25 +1044,19 @@ class Game:
                         return
                 
                 # 检查确认按钮
-                if hasattr(self, 'confirm_btn_rect') and self.confirm_btn_rect.collidepoint(mouse_pos):
+                if self.confirm_btn_rect and self.confirm_btn_rect.collidepoint(mouse_pos):
                     self.in_hairstyle_selection = False
                     if self.click_sound:
                         self.click_sound.play()
                     self.needs_redraw = True
                     return
             
-            elif event.type == pygame.MOUSEMOTION:
-                # 处理滑块拖动
-                if event.buttons[0]:  # 左键拖动
-                    for slider in self.hair_color_sliders.values():
-                        if slider.handle_event(event):
-                            self.needs_redraw = True
-                            return
-            
             return
         
         # 以下是原有的角色创建界面事件处理代码
-        if event.type == pygame.MOUSEBUTTONDOWN:
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # 只处理左键点击
+            mouse_pos = event.pos
+            
             # 获取面板位置
             panel_width = 900
             panel_height = 500
@@ -1077,88 +1089,8 @@ class Game:
             
             # 检查发型选择按钮
             input_y += spacing
-            if hasattr(self, 'hair_button_rect') and self.hair_button_rect.collidepoint(event.pos):
+            if hasattr(self, 'hair_button_rect') and self.hair_button_rect.collidepoint(mouse_pos):
                 self.in_hairstyle_selection = True
-                if self.click_sound:
-                    self.click_sound.play()
-                self.needs_redraw = True
-                return
-            
-            # 检查体型按钮
-            input_y += spacing
-            body_button_width = 80
-            body_spacing = 10
-            body_types = ["瘦小", "普通", "魁梧"]
-            for i, body_type in enumerate(body_types):
-                button_x = input_x + i * (body_button_width + body_spacing)
-                button_rect = pygame.Rect(button_x, input_y, body_button_width, 30)
-                if button_rect.collidepoint(event.pos):
-                    self.selected_body_type = body_type
-                    if self.click_sound:
-                        self.click_sound.play()
-                    self.needs_redraw = True
-                    return
-            
-            # 检查职业按钮
-            input_y += spacing
-            class_button_width = 80
-            class_spacing = 10
-            class_types = ["战士", "法师", "弓箭手"]
-            for i, class_type in enumerate(class_types):
-                button_x = input_x + i * (class_button_width + class_spacing)
-                button_rect = pygame.Rect(button_x, input_y, class_button_width, 30)
-                if button_rect.collidepoint(event.pos):
-                    self.selected_class = class_type
-                    if self.click_sound:
-                        self.click_sound.play()
-                    self.needs_redraw = True
-                    return
-            
-            # 检查返回按钮
-            button_y = panel_y + panel_height - 50
-            back_button_rect = pygame.Rect(panel_x + 50, button_y, 100, 40)
-            if back_button_rect.collidepoint(event.pos):
-                self.game_state = "character_select"
-                if self.click_sound:
-                    self.click_sound.play()
-                self.needs_redraw = True
-                return
-            
-            # 检查创建按钮
-            create_button_rect = pygame.Rect(panel_x + panel_width - 150, button_y, 100, 40)
-            if create_button_rect.collidepoint(event.pos):
-                if not self.character_name:
-                    self.show_popup("请输入角色名称")
-                    return
-                    
-                # 创建角色数据
-                character_data = {
-                    'name': self.character_name,
-                    'gender': self.selected_gender,
-                    'hairstyle': self.selected_hairstyle,
-                    'body_type': self.selected_body_type,
-                    'class': self.selected_class,
-                    'skin_color': (255, 220, 180),  # 默认肤色
-                    'health': 100,
-                    'mana': 100,
-                    'inventory': []  # 初始化空背包
-                }
-                
-                # 保存角色数据
-                self.save_character(self.character_name, character_data)
-                
-                # 重新加载角色列表
-                self.load_characters_and_maps()
-                
-                # 重置选择
-                self.character_name = ""
-                self.selected_gender = '男'
-                self.selected_hairstyle = {'style': '短发', 'color': (0, 0, 0)}
-                self.selected_body_type = "普通"
-                self.selected_class = "战士"
-                
-                # 直接返回角色选择界面
-                self.game_state = "character_select"
                 if self.click_sound:
                     self.click_sound.play()
                 self.needs_redraw = True
@@ -1429,11 +1361,11 @@ class Game:
         # 绘制游戏标题（带阴影效果）
         title_font = get_font(72)
         # 阴影
-        title_shadow = title_font.render("TrFk", True, (100, 50, 0))
+        title_shadow = title_font.render("像素冒险", True, (100, 50, 0))
         title_shadow_rect = title_shadow.get_rect(centerx=self.screen_width//2 + 4, y=54)
         self.buffer.blit(title_shadow, title_shadow_rect)
         # 主标题
-        title = title_font.render("TrFk", True, (139, 69, 19))
+        title = title_font.render("像素冒险", True, (139, 69, 19))
         title_rect = title.get_rect(centerx=self.screen_width//2, y=50)
         self.buffer.blit(title, title_rect)
         
@@ -2397,7 +2329,7 @@ class Game:
         self.buffer.blit(panel, (panel_x, panel_y))
         
         # 发型预览网格
-        preview_size = (120, 120)  # 预览框大小
+        preview_size = (100, 100)  # 缩小预览框大小
         grid_spacing = 20
         grid_cols = 4  # 每行4个发型
         grid_rows = 2  # 每页2行
@@ -2442,21 +2374,14 @@ class Game:
             self.buffer.blit(preview_player.image, preview_rect)
         
         # 发色选择（RGB滑块）
-        color_y = start_y + (grid_rows * (preview_size[1] + grid_spacing)) + 20
-        color_label = self.font.render("发色:", True, (255, 255, 255))
-        self.buffer.blit(color_label, (start_x, color_y))
-        
-        # 更新滑块位置
-        slider_spacing = 40
-        for i, (key, slider) in enumerate(self.hair_color_sliders.items()):
-            slider.rect.x = start_x + 100
-            slider.rect.y = color_y + i * slider_spacing
-            slider.draw(self.buffer)
+        color_y = start_y + (grid_rows * (preview_size[1] + grid_spacing)) + 30  # 发色控制区域的起始y坐标
         
         # 显示当前发色预览
-        color_preview_size = 60
-        color_preview_x = start_x + 400
-        color_preview_y = color_y + 20
+        color_preview_size = 60  # 预览框大小
+        color_preview_x = start_x + 50  # 移到左边，稍微缩进
+        color_preview_y = color_y  # 设置到发型预览网格下方
+        
+        # 绘制发色预览框
         pygame.draw.rect(self.buffer, self.selected_hairstyle['color'],
                         (color_preview_x, color_preview_y,
                          color_preview_size, color_preview_size))
@@ -2464,17 +2389,24 @@ class Game:
                         (color_preview_x, color_preview_y,
                          color_preview_size, color_preview_size), 1)
         
-        # 更新发色
-        self.selected_hairstyle['color'] = (
-            int(self.hair_color_sliders['R'].value),
-            int(self.hair_color_sliders['G'].value),
-            int(self.hair_color_sliders['B'].value)
-        )
+        # 更新滑块位置
+        slider_spacing = 35  # 滑块间距
+        slider_width = 200
+        slider_x = color_preview_x + color_preview_size + 50  # 滑块的x坐标
         
-        # 添加翻页按钮
+        # 绘制滑块（不显示任何文字）
+        for i, (key, slider) in enumerate(self.hair_color_sliders.items()):
+            # 设置滑块位置
+            slider.rect.x = slider_x
+            slider.rect.y = color_preview_y + i * slider_spacing
+            
+            # 绘制滑块
+            slider.draw(self.buffer)
+        
+        # 添加翻页和确认按钮
         button_width = 100
         button_height = 40
-        button_y = panel_y + panel_height - 60
+        button_y = panel_y + panel_height - 60  # 保持按钮在底部
         
         # 上一页按钮
         if self.hairstyle_page > 0:
@@ -2489,6 +2421,8 @@ class Game:
             )
             prev_btn.draw(self.buffer)
             self.prev_btn_rect = prev_btn.rect
+        else:
+            self.prev_btn_rect = None
         
         # 下一页按钮
         if (self.hairstyle_page + 1) * (grid_cols * grid_rows) < 20:
@@ -2503,6 +2437,8 @@ class Game:
             )
             next_btn.draw(self.buffer)
             self.next_btn_rect = next_btn.rect
+        else:
+            self.next_btn_rect = None
         
         # 确认按钮
         confirm_btn = SimpleButton(
@@ -2516,12 +2452,6 @@ class Game:
         )
         confirm_btn.draw(self.buffer)
         self.confirm_btn_rect = confirm_btn.rect
-        
-        # 将缓冲区内容复制到屏幕
-        self.screen.blit(self.buffer, (0, 0))
-        pygame.display.flip()
-        
-        self.needs_redraw = False
 
 if __name__ == "__main__":
     game = Game()
