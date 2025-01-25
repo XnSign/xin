@@ -1,6 +1,7 @@
 import pygame
 import math
 import random
+from equipment import EquipmentSystem
 
 class Player:
     def __init__(self, x, y, data):
@@ -47,6 +48,9 @@ class Player:
         # 创建玩家图像
         self.image = pygame.Surface((48, 64), pygame.SRCALPHA)
         self.draw_character()
+        
+        # 初始化装备系统
+        self.equipment_system = EquipmentSystem(10, 50)  # 位置可以根据需要调整
     
     def update_appearance(self):
         """更新角色外观"""
@@ -495,3 +499,132 @@ class Player:
         # 保存当前状态
         self.last_state = self.state
         self.last_facing = self.facing_right 
+
+    def get_total_stats(self):
+        """获取包含装备加成的总属性"""
+        total_stats = {
+            'health': self.health,
+            'max_health': self.health,
+            'mana': self.mana,
+            'max_mana': self.mana,
+            'attack': self.attack,
+            'defense': self.defense,
+            'speed': self.speed
+        }
+        equipment_stats = self.equipment_system.get_total_stats()
+        
+        # 合并装备属性
+        for stat, value in equipment_stats.items():
+            if stat in total_stats:
+                total_stats[stat] += value
+            else:
+                total_stats[stat] = value
+        
+        return total_stats
+
+    def update(self, world):
+        """更新玩家状态"""
+        if self.preview_mode:
+            return
+            
+        # 应用重力
+        self.dy += 0.5
+        
+        # 限制最大下落速度
+        if self.dy > 10:
+            self.dy = 10
+        
+        # 更新位置
+        new_rect = self.rect.copy()
+        new_rect.x += self.x_speed
+        new_rect.y += self.dy
+        
+        # 检测与世界的碰撞
+        grid_size = world.grid_size
+        
+        # 获取玩家周围的网格坐标
+        left = new_rect.left // grid_size
+        right = new_rect.right // grid_size
+        top = new_rect.top // grid_size
+        bottom = new_rect.bottom // grid_size
+        
+        self.on_ground = False
+        
+        # 垂直碰撞检测
+        if self.dy > 0:  # 下落
+            for x in range(left, right + 1):
+                if 0 <= x < world.width and 0 <= bottom < world.height:
+                    if world.grid[bottom][x] != world.EMPTY:  # 非空方块
+                        new_rect.bottom = bottom * grid_size
+                        self.dy = 0
+                        self.on_ground = True
+                        break
+        elif self.dy < 0:  # 上升
+            for x in range(left, right + 1):
+                if 0 <= x < world.width and 0 <= top < world.height:
+                    if world.grid[top][x] != world.EMPTY:  # 非空方块
+                        new_rect.top = (top + 1) * grid_size
+                        self.dy = 0
+                        break
+        
+        # 水平碰撞检测
+        if self.x_speed > 0:  # 向右移动
+            for y in range(top, bottom + 1):
+                if 0 <= right < world.width and 0 <= y < world.height:
+                    if world.grid[y][right] != world.EMPTY:  # 非空方块
+                        new_rect.right = right * grid_size
+                        self.x_speed = 0
+                        break
+        elif self.x_speed < 0:  # 向左移动
+            for y in range(top, bottom + 1):
+                if 0 <= left < world.width and 0 <= y < world.height:
+                    if world.grid[y][left] != world.EMPTY:  # 非空方块
+                        new_rect.left = (left + 1) * grid_size
+                        self.x_speed = 0
+                        break
+        
+        # 更新位置
+        self.rect = new_rect
+    
+    def move_left(self):
+        """向左移动"""
+        self.x_speed = -5
+        self.facing_right = False
+    
+    def move_right(self):
+        """向右移动"""
+        self.x_speed = 5
+        self.facing_right = True
+    
+    def stop(self):
+        """停止移动"""
+        self.x_speed = 0
+    
+    def draw(self, surface, camera_x, camera_y):
+        """绘制玩家"""
+        # 计算屏幕位置
+        screen_x = self.rect.x - camera_x
+        screen_y = self.rect.y - camera_y
+        
+        # 如果玩家面向左边，翻转图像
+        image_to_draw = self.image
+        if not self.facing_right:
+            image_to_draw = pygame.transform.flip(self.image, True, False)
+        
+        # 绘制玩家
+        surface.blit(image_to_draw, (screen_x, screen_y))
+        
+        # 如果装备系统可见，绘制装备界面
+        if self.equipment_system.visible:
+            self.equipment_system.draw(surface)
+    
+    def handle_event(self, event):
+        """处理玩家相关的事件"""
+        # 处理装备系统事件
+        if self.equipment_system.visible:
+            return self.equipment_system.handle_event(event)
+        return False
+    
+    def toggle_equipment_system(self):
+        """切换装备系统显示状态"""
+        self.equipment_system.visible = not self.equipment_system.visible 

@@ -429,8 +429,8 @@ class Game:
         self.input_active = False
         self.selected_gender = '男'
         self.selected_hairstyle = {'style': '1', 'color': (0, 0, 0)}  # 默认发型和发色
-        self.selected_body_type = "普通"
-        self.selected_class = "战士"
+        self.selected_body_type = BODY_TYPES[1]  # 默认选择"普通"体型
+        self.selected_class = CLASSES[0]  # 默认选择"战士"职业
         self.in_hairstyle_selection = False  # 是否在发型选择界面
         
         # 初始化发色滑块
@@ -866,12 +866,13 @@ class Game:
         # 体型按钮
         body_button_width = 80
         body_spacing = 10
-        body_types = ["瘦小", "普通", "魁梧"]
-        for i, body_type in enumerate(body_types):
+        for i, body_type in enumerate(BODY_TYPES):
             button_x = input_x + i * (body_button_width + body_spacing)
             button_color = (100, 100, 200) if self.selected_body_type == body_type else (60, 60, 140)
             pygame.draw.rect(self.buffer, button_color,
                            (button_x, input_y, body_button_width, 30), border_radius=5)
+            pygame.draw.rect(self.buffer, (255, 255, 255),
+                           (button_x, input_y, body_button_width, 30), 1, border_radius=5)
             type_text = self.font.render(body_type, True, (255, 255, 255))
             text_rect = type_text.get_rect(center=(button_x + body_button_width//2, input_y + 15))
             self.buffer.blit(type_text, text_rect)
@@ -884,12 +885,13 @@ class Game:
         # 职业按钮
         class_button_width = 80
         class_spacing = 10
-        class_types = ["战士", "法师", "弓箭手"]
-        for i, class_type in enumerate(class_types):
+        for i, class_type in enumerate(CLASSES):
             button_x = input_x + i * (class_button_width + class_spacing)
             button_color = (100, 100, 200) if self.selected_class == class_type else (60, 60, 140)
             pygame.draw.rect(self.buffer, button_color,
                            (button_x, input_y, class_button_width, 30), border_radius=5)
+            pygame.draw.rect(self.buffer, (255, 255, 255),
+                           (button_x, input_y, class_button_width, 30), 1, border_radius=5)
             class_text = self.font.render(class_type, True, (255, 255, 255))
             text_rect = class_text.get_rect(center=(button_x + class_button_width//2, input_y + 15))
             self.buffer.blit(class_text, text_rect)
@@ -1091,6 +1093,71 @@ class Game:
             input_y += spacing
             if hasattr(self, 'hair_button_rect') and self.hair_button_rect.collidepoint(mouse_pos):
                 self.in_hairstyle_selection = True
+                if self.click_sound:
+                    self.click_sound.play()
+                self.needs_redraw = True
+                return
+        
+            # 检查体型按钮
+            input_y += spacing
+            body_button_width = 80
+            body_spacing = 10
+            for i, body_type in enumerate(BODY_TYPES):
+                button_x = input_x + i * (body_button_width + body_spacing)
+                button_rect = pygame.Rect(button_x, input_y, body_button_width, 30)
+                if button_rect.collidepoint(event.pos):
+                    if self.selected_body_type != body_type:  # 只在体型真正改变时更新
+                        self.selected_body_type = body_type
+                        if self.click_sound:
+                            self.click_sound.play()
+                        self.needs_redraw = True
+                    return
+
+            # 检查职业按钮
+            input_y += spacing
+            class_button_width = 80
+            class_spacing = 10
+            for i, class_type in enumerate(CLASSES):
+                button_x = input_x + i * (class_button_width + class_spacing)
+                button_rect = pygame.Rect(button_x, input_y, class_button_width, 30)
+                if button_rect.collidepoint(event.pos):
+                    if self.selected_class != class_type:  # 只在职业真正改变时更新
+                        self.selected_class = class_type
+                        if self.click_sound:
+                            self.click_sound.play()
+                        self.needs_redraw = True
+                    return
+
+            # 检查创建按钮
+            button_y = panel_y + panel_height - 50
+            create_button_rect = pygame.Rect(panel_x + panel_width - 150, button_y, 100, 40)
+            if create_button_rect.collidepoint(event.pos):
+                if self.character_name:  # 只在有名字的情况下创建角色
+                    # 创建角色数据
+                    character_data = {
+                        'name': self.character_name,
+                        'gender': self.selected_gender,
+                        'hairstyle': self.selected_hairstyle,
+                        'body_type': self.selected_body_type,
+                        'class': self.selected_class,
+                        'health': 100,
+                        'mana': 100,
+                        'inventory': []
+                    }
+                    # 保存角色
+                    self.save_character(self.character_name, character_data)
+                    # 返回角色选择界面
+                    self.game_state = "character_select"
+                    self.load_characters_and_maps()  # 重新加载角色列表
+                    if self.click_sound:
+                        self.click_sound.play()
+                    self.needs_redraw = True
+                return
+
+            # 检查返回按钮
+            back_button_rect = pygame.Rect(panel_x + 50, button_y, 100, 40)
+            if back_button_rect.collidepoint(event.pos):
+                self.game_state = "character_select"
                 if self.click_sound:
                     self.click_sound.play()
                 self.needs_redraw = True
@@ -1308,13 +1375,7 @@ class Game:
         
         # 绘制玩家
         if hasattr(self, 'player'):
-            player_screen_x = self.player.rect.x - self.camera_x
-            player_screen_y = self.player.rect.y - self.camera_y
-            self.player.rect.x = player_screen_x
-            self.player.rect.y = player_screen_y
-            self.buffer.blit(self.player.image, self.player.rect)
-            self.player.rect.x = self.player.rect.x + self.camera_x
-            self.player.rect.y = self.player.rect.y + self.camera_y
+            self.player.draw(self.buffer, self.camera_x, self.camera_y)
         
         # 绘制背包
         if hasattr(self, 'inventory'):
