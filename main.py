@@ -141,7 +141,9 @@ class Slider:
                     return True
         elif event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:  # 左键释放
+                was_dragging = self.dragging
                 self.dragging = False
+                return was_dragging
         elif event.type == pygame.MOUSEMOTION:
             if self.dragging and event.buttons[0]:  # 左键拖动
                 # 更新值
@@ -964,19 +966,17 @@ class Game:
         """处理角色创建界面的事件"""
         # 如果在发型选择界面，处理发型选择界面的事件
         if self.in_hairstyle_selection:
-            # 处理滑块拖动
-            if event.type == pygame.MOUSEMOTION and event.buttons[0]:  # 左键拖动
-                for key, slider in self.hair_color_sliders.items():
-                    if slider.dragging:  # 只有当滑块正在被拖动时才处理
-                        if slider.handle_event(event):
-                            # 更新发色
-                            self.selected_hairstyle['color'] = (
-                                int(self.hair_color_sliders['R'].value),
-                                int(self.hair_color_sliders['G'].value),
-                                int(self.hair_color_sliders['B'].value)
-                            )
-                            self.needs_redraw = True
-                            return
+            # 处理滑块事件
+            for key, slider in self.hair_color_sliders.items():
+                if slider.handle_event(event):
+                    # 更新发色
+                    self.selected_hairstyle['color'] = (
+                        int(self.hair_color_sliders['R'].value),
+                        int(self.hair_color_sliders['G'].value),
+                        int(self.hair_color_sliders['B'].value)
+                    )
+                    self.needs_redraw = True
+                    return True
             
             # 处理鼠标点击
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # 只处理左键点击
