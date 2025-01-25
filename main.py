@@ -60,7 +60,7 @@ TERRAIN_GROUND = 1
 TERRAIN_PLATFORM = 2
 
 class SimpleButton:
-    def __init__(self, x, y, width, height, text, color=(60, 60, 140), font_size=32):
+    def __init__(self, x, y, width, height, text, color=(200, 200, 220), font_size=32):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
         self.font = get_font(font_size)
@@ -73,41 +73,95 @@ class SimpleButton:
         self.click_sound = None
         try:
             self.hover_sound = pygame.mixer.Sound("assets/sounds/ui/hover.wav")
-            self.hover_sound.set_volume(0.15)  # 降低悬停音效音量
+            self.hover_sound.set_volume(0.15)
             
             self.click_sound = pygame.mixer.Sound("assets/sounds/ui/click.wav")
-            self.click_sound.set_volume(0.3)  # 保持点击音效音量
+            self.click_sound.set_volume(0.3)
         except Exception as e:
             print(f"Warning: Could not load button sounds: {e}")
         
     def draw(self, screen):
+        # 计算六边形的顶点
+        center_x = self.rect.centerx
+        center_y = self.rect.centery
+        width = self.rect.width
+        height = self.rect.height
+        
+        # 计算六边形的顶点（上边是横线的六边形）
+        points = []
+        # 上边的两个点
+        points.append((center_x - width/2, center_y - height/3))  # 左上
+        points.append((center_x + width/2, center_y - height/3))  # 右上
+        # 右边的点
+        points.append((center_x + width/2 + width/8, center_y))   # 右
+        # 下边的两个点
+        points.append((center_x + width/2, center_y + height/3))  # 右下
+        points.append((center_x - width/2, center_y + height/3))  # 左下
+        # 左边的点
+        points.append((center_x - width/2 - width/8, center_y))   # 左
+        
         # 根据悬停和点击状态确定颜色
         current_color = self.color
         if self.is_clicked:
-            # 点击时颜色变暗
             current_color = tuple(max(0, c - 30) for c in self.color)
         elif self.is_hovered:
-            # 悬停时颜色变亮
-            current_color = tuple(min(255, c + 60) for c in self.color)  # 增加亮度变化
-            
-        # 绘制按钮背景（带圆角）
-        pygame.draw.rect(screen, current_color, self.rect, border_radius=5)
+            current_color = tuple(min(255, c + 30) for c in self.color)
         
-        # 绘制边框（悬停时加粗并且更亮）
-        border_color = (255, 255, 255) if self.is_hovered else (200, 200, 200)
+        # 绘制填充的六边形（分上下两部分）
+        upper_color = tuple(min(255, c + 20) for c in current_color)
+        lower_color = tuple(max(0, c - 20) for c in current_color)
+        
+        # 绘制上半部分
+        upper_points = [
+            points[0],  # 左上
+            points[1],  # 右上
+            points[2],  # 右
+            (center_x, center_y),  # 中心
+            points[5]   # 左
+        ]
+        pygame.draw.polygon(screen, upper_color, upper_points)
+        
+        # 绘制下半部分
+        lower_points = [
+            points[2],  # 右
+            points[3],  # 右下
+            points[4],  # 左下
+            points[5],  # 左
+            (center_x, center_y)  # 中心
+        ]
+        pygame.draw.polygon(screen, lower_color, lower_points)
+        
+        # 绘制金色边框
+        border_color = (255, 215, 0) if self.is_hovered else (218, 165, 32)
         border_width = 3 if self.is_hovered else 2
-        pygame.draw.rect(screen, border_color, self.rect, border_width, border_radius=5)
+        pygame.draw.polygon(screen, border_color, points, border_width)
         
-        # 绘制文本
-        text_color = (255, 255, 255) if self.is_hovered else (230, 230, 230)
+        # 绘制文本（黑色）
+        text_color = (0, 0, 0)
         text_surface = self.font.render(self.text, True, text_color)
         text_rect = text_surface.get_rect(center=self.rect.center)
         screen.blit(text_surface, text_rect)
-        
+    
     def handle_event(self, event):
         mouse_pos = pygame.mouse.get_pos()
         previous_hover = self.is_hovered
-        self.is_hovered = self.rect.collidepoint(mouse_pos)
+        
+        # 检查点是否在六边形内
+        center_x = self.rect.centerx
+        center_y = self.rect.centery
+        width = self.rect.width
+        height = self.rect.height
+        
+        # 简化的六边形碰撞检测
+        dx = abs(mouse_pos[0] - center_x)
+        dy = abs(mouse_pos[1] - center_y)
+        
+        # 使用改进的碰撞检测来匹配六边形形状
+        if dy <= height/3:
+            max_dx = width/2 + (width/8) * (1 - dy/(height/3))
+            self.is_hovered = dx <= max_dx
+        else:
+            self.is_hovered = dx <= width/2 and dy <= height/3
         
         # 处理悬停音效
         if not previous_hover and self.is_hovered and self.hover_sound:
@@ -122,7 +176,6 @@ class SimpleButton:
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             was_clicked = self.is_clicked
             self.is_clicked = False
-            # 只有在按下和释放都在按钮区域内时才触发点击
             if was_clicked and self.is_hovered:
                 return True
                 
@@ -649,13 +702,13 @@ class Game:
         
         self.menu_buttons = {}
         button_colors = {
-            '单人模式': (60, 60, 140),  # 统一使用深蓝色主题
-            '多人模式': (60, 60, 140),
-            '成就': (60, 60, 140),
-            '创意工坊': (60, 60, 140),
-            '设置': (60, 60, 140),
-            '制作人员': (60, 60, 140),
-            '退出': (140, 60, 60)  # 退出按钮使用红色
+            '单人模式': (200, 200, 220),  # 银白色
+            '多人模式': (200, 200, 220),
+            '成就': (200, 200, 220),
+            '创意工坊': (200, 200, 220),
+            '设置': (200, 200, 220),
+            '制作人员': (200, 200, 220),
+            '退出': (200, 200, 220)  # 保持一致的颜色主题
         }
         
         for i, (key, color) in enumerate(button_colors.items()):
