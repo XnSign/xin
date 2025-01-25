@@ -1,37 +1,29 @@
-import wave
-import struct
-import math
-import os
+import numpy as np
+from scipy.io import wavfile
 
-def generate_click_sound(filename, duration=0.1, frequency=1000.0, volume=0.5):
-    """生成点击音效"""
-    # 音频参数
+def generate_click_sound():
+    # 设置音频参数
     sample_rate = 44100  # 采样率
-    num_samples = int(duration * sample_rate)
+    duration = 0.1      # 持续时间（秒）
+    t = np.linspace(0, duration, int(sample_rate * duration))
     
-    # 创建音频数据
-    audio_data = []
-    for i in range(num_samples):
-        t = float(i) / sample_rate  # 当前时间点
-        # 使用正弦波并添加指数衰减
-        decay = math.exp(-30.0 * t)  # 快速衰减
-        value = volume * math.sin(2.0 * math.pi * frequency * t) * decay
-        # 将浮点数转换为16位整数
-        packed_value = struct.pack('h', int(32767.0 * value))
-        audio_data.append(packed_value)
+    # 生成点击音效（使用正弦波和指数衰减）
+    frequency = 1000    # 基础频率
+    decay = 50         # 衰减速率
     
-    # 确保目录存在
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    # 创建基础波形
+    wave = np.sin(2 * np.pi * frequency * t)
     
-    # 写入WAV文件
-    with wave.open(filename, 'w') as wav_file:
-        # 设置参数
-        wav_file.setnchannels(1)  # 单声道
-        wav_file.setsampwidth(2)  # 2字节采样
-        wav_file.setframerate(sample_rate)
-        # 写入音频数据
-        wav_file.writeframes(b''.join(audio_data))
+    # 添加衰减
+    envelope = np.exp(-decay * t)
+    wave = wave * envelope
+    
+    # 标准化并转换为16位整数
+    wave = wave * 32767
+    wave = wave.astype(np.int16)
+    
+    # 保存为WAV文件
+    wavfile.write('assets/sounds/ui/click.wav', sample_rate, wave)
 
-if __name__ == '__main__':
-    # 生成点击音效
-    generate_click_sound("assets/sounds/click.wav") 
+if __name__ == "__main__":
+    generate_click_sound() 
