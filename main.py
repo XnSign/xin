@@ -540,13 +540,13 @@ class Game:
     def __init__(self):
         """初始化游戏"""
         pygame.init()
-        pygame.mixer.init()  # 初始化音频系统
+        pygame.mixer.init()
         
         # 设置窗口
         self.screen_width = 1280
         self.screen_height = 720
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
-        pygame.display.set_caption("像素冒险")
+        pygame.display.set_caption("方块游戏")
         
         # 创建缓冲区
         self.buffer = pygame.Surface((self.screen_width, self.screen_height))
@@ -554,15 +554,26 @@ class Game:
         # 初始化时钟
         self.clock = pygame.time.Clock()
         
+        # 加载字体
+        self.font = get_font(32)
+        self.title_font = get_font(48)
+        
         # 游戏状态
-        self.running = True
         self.game_state = "main_menu"
+        self.running = True
         self.needs_redraw = True
         
-        # 加载字体
-        self.title_font = get_font(48)
-        self.font = get_font(24)
-        self.small_font = get_font(16)
+        # 加载背景图片
+        try:
+            self.menu_background = pygame.image.load("assets/backgrounds/035DEFE2F0D1A44FF3924A3B0BF7581B.png").convert_alpha()
+            # 调整背景图片大小以适应屏幕
+            self.menu_background = pygame.transform.scale(self.menu_background, (self.screen_width, self.screen_height))
+        except Exception as e:
+            print(f"Warning: Could not load background image: {e}")
+            self.menu_background = None
+        
+        # 初始化按钮
+        self.initialize_buttons()
         
         # 设置路径
         self.player_path = "players"
@@ -706,7 +717,7 @@ class Game:
             self.clock.tick(60)
             
             # 更新窗口标题显示FPS
-            pygame.display.set_caption(f"像素冒险 - FPS: {int(self.clock.get_fps())}")
+            pygame.display.set_caption(f"方块游戏 - FPS: {int(self.clock.get_fps())}")
 
     def draw_map_select(self):
         """绘制地图选择界面"""
@@ -1551,6 +1562,15 @@ class Game:
         """绘制主菜单"""
         # 清空缓冲区
         self.buffer.fill((0, 0, 0))
+        
+        # 绘制背景图片
+        if hasattr(self, 'menu_background') and self.menu_background:
+            self.buffer.blit(self.menu_background, (0, 0))
+        
+        # 创建半透明遮罩使按钮文字更清晰
+        overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 128))  # 黑色半透明遮罩
+        self.buffer.blit(overlay, (0, 0))
         
         # 绘制标题
         title = self.title_font.render("方块游戏", True, (255, 255, 255))
