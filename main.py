@@ -345,15 +345,18 @@ class CharacterCreator:
 
     def draw(self, screen):
         """绘制角色创建界面"""
-        # 绘制背景
-        pygame.draw.rect(screen, (50, 50, 50), self.rect)
-        pygame.draw.rect(screen, (100, 100, 100), self.rect, 2)
+        # 清空并填充背景
+        self.buffer.fill((0, 20, 50))  # 深蓝色背景
+        
+        # 如果在发型选择界面，绘制发型选择界面
+        if self.in_hairstyle_selection:
+            self.draw_hairstyle_selection()
+            return
         
         # 绘制标题
-        title_font = get_font(48)
-        title = title_font.render("创建角色", True, (255, 255, 255))
+        title = self.title_font.render("创建角色", True, (255, 255, 255))
         title_rect = title.get_rect(center=(self.screen_width//2, 50))
-        screen.blit(title, title_rect)
+        self.buffer.blit(title, title_rect)
         
         # 创建半透明面板
         panel_width = 900
@@ -364,7 +367,7 @@ class CharacterCreator:
         # 绘制面板背景
         panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
         panel.fill((0, 0, 0, 128))
-        screen.blit(panel, (panel_x, panel_y))
+        self.buffer.blit(panel, (panel_x, panel_y))
         
         # 分割线
         pygame.draw.line(self.buffer, (100, 100, 150), 
@@ -379,13 +382,13 @@ class CharacterCreator:
         
         # 角色名称输入
         name_label = self.font.render("角色名称:", True, (255, 255, 255))
-        screen.blit(name_label, (label_x, input_y))
+        self.buffer.blit(name_label, (label_x, input_y))
         
         # 绘制输入框
-        pygame.draw.rect(panel, (255, 255, 255) if self.input_active else (150, 150, 150),
+        pygame.draw.rect(self.buffer, (255, 255, 255) if self.input_active else (150, 150, 150),
                         (input_x, input_y, 200, 30), 2)
         name_text = self.font.render(self.character_name, True, (255, 255, 255))
-        screen.blit(name_text, (input_x + 5, input_y))
+        self.buffer.blit(name_text, (input_x + 5, input_y))
         
         # 性别选择
         input_y += spacing
@@ -552,46 +555,97 @@ class MessageBox:
         self.message = message
         self.font = get_font(font_size)
         self.visible = True
-        self.close_button = SimpleButton(
-            x + width - 40,
-            y + 10,
-            30,
-            30,
-            "×",
-            color=(200, 0, 0),
-            font_size=24
+        
+        # 创建消息框的surface
+        self.surface = pygame.Surface((width, height), pygame.SRCALPHA)
+        
+        # 创建确认按钮
+        button_width = 100
+        button_height = 40
+        button_x = (width - button_width) // 2
+        button_y = height - 60
+        
+        self.confirm_button = SimpleButton(
+            button_x,
+            button_y,
+            button_width,
+            button_height,
+            "确定",
+            color=(200, 200, 220),  # 银白色
+            font_size=32
         )
+        
+        # 预渲染消息框
+        self.render()
+        
+    def render(self):
+        """渲染消息框到surface"""
+        # 清空surface
+        self.surface.fill((0, 0, 0, 0))
+        
+        # 绘制消息框背景
+        pygame.draw.rect(self.surface, (50, 50, 50, 240), (0, 0, self.rect.width, self.rect.height))
+        # 使用金色边框
+        border_color = (218, 165, 32)  # 暗金色
+        pygame.draw.rect(self.surface, border_color, (0, 0, self.rect.width, self.rect.height), 2)
+        
+        # 绘制消息文本
+        text = self.font.render(self.message, True, (255, 255, 255))
+        text_rect = text.get_rect(center=(self.rect.width//2, self.rect.height//2 - 20))
+        self.surface.blit(text, text_rect)
+        
+        # 绘制确认按钮
+        self.confirm_button.draw(self.surface)
         
     def draw(self, surface):
         if not self.visible:
             return
             
-        # 绘制半透明背景
-        overlay = pygame.Surface((surface.get_width(), surface.get_height()))
-        overlay.fill((0, 0, 0))
-        overlay.set_alpha(128)
+        # 绘制全屏半透明背景
+        overlay = pygame.Surface((surface.get_width(), surface.get_height()), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))  # 增加透明度，使背景更暗
         surface.blit(overlay, (0, 0))
         
-        # 绘制消息框背景
-        pygame.draw.rect(surface, (50, 50, 50), self.rect)
-        pygame.draw.rect(surface, (200, 200, 200), self.rect, 2)
+        # 绘制消息框
+        surface.blit(self.surface, self.rect)
         
-        # 绘制消息文本
-        text = self.font.render(self.message, True, (255, 255, 255))
-        text_rect = text.get_rect(center=self.rect.center)
-        surface.blit(text, text_rect)
-        
-        # 绘制关闭按钮
-        self.close_button.draw(surface)
-        
+        # 强制重绘
+        pygame.display.update()
+
     def handle_event(self, event):
         if not self.visible:
             return False
             
+        # 检查点击是否在消息框内
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if self.close_button.rect.collidepoint(event.pos):
+            if not self.rect.collidepoint(event.pos):
+                return False
+            
+            # 转换鼠标坐标到按钮的相对坐标系
+            relative_pos = (event.pos[0] - self.rect.x, event.pos[1] - self.rect.y)
+            
+            # 获取按钮的绝对位置
+            button_rect = pygame.Rect(
+                self.rect.x + self.confirm_button.rect.x,
+                self.rect.y + self.confirm_button.rect.y,
+                self.confirm_button.rect.width,
+                self.confirm_button.rect.height
+            )
+            
+            # 检查点击是否在按钮上
+            if button_rect.collidepoint(event.pos):
                 self.visible = False
                 return True
+        
+        # 处理鼠标移动事件，更新按钮悬停状态
+        elif event.type == pygame.MOUSEMOTION:
+            if self.rect.collidepoint(event.pos):
+                relative_pos = (event.pos[0] - self.rect.x, event.pos[1] - self.rect.y)
+                button_event = pygame.event.Event(event.type, {'pos': relative_pos, 'buttons': event.buttons})
+                self.confirm_button.handle_event(button_event)
+                self.needs_redraw = True
+                return True
+        
         return False
 
 class Game:
@@ -1002,6 +1056,11 @@ class Game:
                 if hasattr(self, 'click_sound') and self.click_sound:
                     self.click_sound.play()
                 self.needs_redraw = True
+                return True
+        
+        # 如果有消息框，阻止所有鼠标移动事件
+        if hasattr(self, 'message_box') and self.message_box and self.message_box.visible:
+            if event.type == pygame.MOUSEMOTION:
                 return True
         
         return False
@@ -1646,17 +1705,29 @@ class Game:
         title_rect = title.get_rect(center=(self.screen_width//2, 100))
         self.buffer.blit(title, title_rect)
         
-        # 绘制所有按钮
+        # 检查是否有消息框
+        has_message = hasattr(self, 'message_box') and self.message_box and self.message_box.visible
+        
+        # 绘制所有按钮，如果有消息框则禁用悬停效果
         for button in self.menu_buttons.values():
-            button.draw(self.buffer)
+            if has_message:
+                # 临时保存并清除悬停状态
+                was_hovered = button.is_hovered
+                button.is_hovered = False
+                button.draw(self.buffer)
+                button.is_hovered = was_hovered
+            else:
+                button.draw(self.buffer)
         
         # 如果有消息框，绘制消息框
-        if hasattr(self, 'message_box') and self.message_box and self.message_box.visible:
-            self.buffer.blit(self.message_box.surface, self.message_box.rect)
+        if has_message:
+            self.message_box.draw(self.buffer)
         
         # 将缓冲区内容复制到屏幕
         self.screen.blit(self.buffer, (0, 0))
         pygame.display.flip()
+        
+        self.needs_redraw = False
 
     def draw_character_preview(self, char_data, x, y, preview_size):
         """绘制角色预览"""
@@ -2303,61 +2374,8 @@ class Game:
         box_x = (self.screen_width - box_width) // 2
         box_y = (self.screen_height - box_height) // 2
         
-        # 创建一个带有透明度的表面
-        message_surface = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
-        message_surface.fill((0, 0, 0, 180))  # 更透明的黑色背景
-        
-        # 绘制边框
-        pygame.draw.rect(message_surface, (100, 100, 200), (0, 0, box_width, box_height), 2)
-        
-        # 渲染消息文本
-        text = self.font.render(message, True, (255, 255, 255))
-        text_rect = text.get_rect(center=(box_width//2, box_height//2 - 20))
-        message_surface.blit(text, text_rect)
-        
-        # 添加"确定"按钮
-        button_width = 100
-        button_height = 40
-        button_x = (box_width - button_width) // 2
-        button_y = box_height - 60
-        
-        pygame.draw.rect(message_surface, (60, 60, 140), 
-                        (button_x, button_y, button_width, button_height), 
-                        border_radius=5)
-        pygame.draw.rect(message_surface, (255, 255, 255), 
-                        (button_x, button_y, button_width, button_height), 
-                        2, border_radius=5)
-        
-        ok_text = self.font.render("确定", True, (255, 255, 255))
-        ok_rect = ok_text.get_rect(center=(box_width//2, box_height - 40))
-        message_surface.blit(ok_text, ok_rect)
-        
-        # 创建一个简单的消息框对象
-        class MessageBox:
-            def __init__(self, surface, rect, button_rect):
-                self.surface = surface
-                self.rect = rect
-                self.button_rect = pygame.Rect(
-                    rect.x + button_x,
-                    rect.y + button_y,
-                    button_width,
-                    button_height
-                )
-                self.visible = True
-            
-            def handle_event(self, event):
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if self.button_rect.collidepoint(event.pos):
-                        self.visible = False
-                        return True
-                return False
-        
-        # 保存消息框
-        self.message_box = MessageBox(
-            message_surface,
-            pygame.Rect(box_x, box_y, box_width, box_height),
-            pygame.Rect(box_x + button_x, box_y + button_y, button_width, button_height)
-        )
+        self.message_box = MessageBox(box_x, box_y, box_width, box_height, message)
+        self.needs_redraw = True
 
     def place_block(self, pos):
         """在指定位置放置方块"""
