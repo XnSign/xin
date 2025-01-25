@@ -68,32 +68,38 @@ class Player:
                 body_height = 28
                 shoulder_width = 16
                 waist_ratio = 0.75
+                head_offset = 0
             elif self.body_type == "普通":
                 body_width = 16
                 body_height = 30
                 shoulder_width = 18
                 waist_ratio = 0.8
+                head_offset = 2
             else:  # 魁梧
                 body_width = 18
                 body_height = 32
                 shoulder_width = 20
                 waist_ratio = 0.85
+                head_offset = 4
         else:  # 男性
             if self.body_type == "瘦小":
                 body_width = 16
                 body_height = 30
                 shoulder_width = 20
                 waist_ratio = 0.9
+                head_offset = 0
             elif self.body_type == "普通":
                 body_width = 18
                 body_height = 32
                 shoulder_width = 24
                 waist_ratio = 0.95
+                head_offset = 2
             else:  # 魁梧
                 body_width = 22
                 body_height = 34
                 shoulder_width = 28
                 waist_ratio = 1.0
+                head_offset = 4
         
         # 计算身体各部分的位置
         body_top = center_y - body_height//2
@@ -146,7 +152,7 @@ class Player:
         
         # 绘制头部（侧面视角）
         head_size = int(body_width * 1.2)
-        face_y = body_top - head_size - 2
+        face_y = body_top - head_size - 2 + head_offset  # 添加头部偏移
         
         # 绘制脖子
         neck_width = 6 if self.gender == '女' else 8
@@ -172,6 +178,9 @@ class Player:
         
         # 根据发型编号绘制不同发型
         hairstyle_num = self.hairstyle.get('style', '1')
+        
+        # 调整发型位置以适应不同体型
+        hair_y_offset = head_offset  # 发型随头部位置调整
         
         if hairstyle_num == '1':  # 短直发
             points = [
@@ -261,8 +270,6 @@ class Player:
                 pygame.draw.line(self.image, hair_color,
                                (center_x, face_y),
                                (end_x, end_y), 2)
-                               
-        # ... 继续添加更多发型 ...
         
         # 绘制眼睛（侧面）
         eye_y = face_y + head_size * 0.4
@@ -291,7 +298,7 @@ class Player:
             pygame.draw.arc(self.image, (139, 69, 19),
                           (body_right + 4, body_top, 10, 30),
                           -0.5, 0.5, 2)  # 弓
-            
+        
         # 如果不是朝右，翻转图像
         if not self.facing_right:
             self.image = pygame.transform.flip(self.image, True, False)
