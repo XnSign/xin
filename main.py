@@ -937,9 +937,10 @@ class Game:
         self.resolutions = [
             "1280x720",
             "1366x768",
+            "1440x900",
             "1600x900",
-            "1920x1080",
-            "2560x1440"
+            "1680x1050",
+            "1920x1080"
         ]
         
         # 添加显示模式
@@ -1885,17 +1886,27 @@ class Game:
         resolution_text = font.render(self.get_text("resolution"), True, (255, 255, 255))
         options_surface.blit(resolution_text, (option_x, option_y))
         
-        # 分辨率按钮
+        # 分辨率按钮 - 两行布局
         button_width = int(120 * self.scale_x)
         button_spacing = int(20 * self.scale_x)
-        total_width = len(self.resolutions) * button_width + (len(self.resolutions) - 1) * button_spacing
+        buttons_per_row = 3  # 每行3个按钮
+        row_spacing = int(40 * self.scale_y)  # 行间距
+        
+        # 计算每行的总宽度
+        total_width = buttons_per_row * button_width + (buttons_per_row - 1) * button_spacing
         start_x = (settings_width - total_width) // 2
         self.resolution_buttons = []
+        
         for i, res in enumerate(self.resolutions):
-            button_x = start_x + i * (button_width + button_spacing)
+            row = i // buttons_per_row  # 当前行号
+            col = i % buttons_per_row   # 当前列号
+            
+            button_x = start_x + col * (button_width + button_spacing)
+            button_y = option_y + int(40 * self.scale_y) + row * (int(30 * self.scale_y) + row_spacing)
+            
             button = SettingsButton(
                 button_x,
-                option_y + int(5 * self.scale_y),
+                button_y,
                 button_width,
                 int(30 * self.scale_y),
                 res,
@@ -1904,6 +1915,9 @@ class Game:
             )
             button.draw(options_surface)
             self.resolution_buttons.append(button)
+        
+        # 更新下一个选项的起始位置
+        option_y += int(150 * self.scale_y)  # 为两行按钮预留足够空间
         
         # 显示模式设置
         option_y += option_spacing
@@ -2085,7 +2099,20 @@ class Game:
                         if button.rect.collidepoint(adjusted_mouse_pos):
                             for btn in self.display_mode_buttons:
                                 btn.is_selected = (btn == button)
+                            old_mode = self.display_mode
                             self.display_mode = self.display_modes[i]
+                            
+                            # 如果切换到全屏或无边框模式，先保存当前分辨率
+                            if self.display_mode in ["fullscreen", "borderless"]:
+                                display_info = pygame.display.Info()
+                                max_width = display_info.current_w
+                                max_height = display_info.current_h
+                                current_width, current_height = map(int, self.current_resolution.split('x'))
+                                
+                                # 如果当前分辨率超过显示器支持的最大分辨率，使用最大分辨率
+                                if current_width > max_width or current_height > max_height:
+                                    self.current_resolution = f"{max_width}x{max_height}"
+                            
                             if hasattr(self, 'click_sound') and self.click_sound:
                                 self.click_sound.play()
                             self.apply_display_settings()
@@ -3359,17 +3386,18 @@ class Game:
         
         # 设置新的分辨率
         if self.display_mode in ["fullscreen", "borderless"]:
-            # 在全屏和无边框模式下使用显示器的最大分辨率
-            width = display_info.current_w
-            height = display_info.current_h
-            # 更新当前分辨率设置
-            self.current_resolution = f"{width}x{height}"
+            # 获取当前选择的分辨率
+            width, height = map(int, self.current_resolution.split('x'))
+            
+            # 如果是全屏或无边框模式，使用当前选择的分辨率
+            # 不再强制使用最大分辨率
+            self.screen_width = width
+            self.screen_height = height
         else:
             # 窗口模式使用选择的分辨率
             width, height = map(int, self.current_resolution.split('x'))
-        
-        self.screen_width = width
-        self.screen_height = height
+            self.screen_width = width
+            self.screen_height = height
         
         # 更新缩放比例
         self.scale_x = width / 1280  # 基准分辨率宽度
