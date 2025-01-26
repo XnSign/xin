@@ -1367,40 +1367,113 @@ class Game:
 
     def handle_menu_events(self, event):
         """处理主菜单事件"""
-        # 如果有消息框，优先处理消息框事件
-        if hasattr(self, 'message_box') and self.message_box and self.message_box.visible:
-            if self.message_box.handle_event(event):
-                self.needs_redraw = True
-            return True
-            
-        # 处理按钮事件
-        for button in self.menu_buttons:
-            if button.handle_event(event):
-                button_text = button.text
-                if button_text == self.get_text("start_game"):
-                    self.game_state = "character_select"
-                    self.load_characters_and_maps()
-                elif button_text == self.get_text("achievements"):  # 新增成就按钮处理
-                    self.show_message("成就系统正在开发中...")
-                elif button_text == self.get_text("settings"):
-                    self.previous_state = self.game_state
-                    self.game_state = "settings"
-                elif button_text == self.get_text("credits"):
-                    self.game_state = "credits"
-                elif button_text == self.get_text("quit"):
-                    self.running = False
-                
-                if hasattr(self, 'click_sound') and self.click_sound:
-                    self.click_sound.play()
-                self.needs_redraw = True
-                return True
-        
-        # 如果有消息框，阻止所有鼠标移动事件
-        if hasattr(self, 'message_box') and self.message_box and self.message_box.visible:
-            if event.type == pygame.MOUSEMOTION:
-                return True
-        
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for i, button in enumerate(self.menu_buttons):
+                if button.rect.collidepoint(event.pos):
+                    if hasattr(self, 'click_sound') and self.click_sound:
+                        self.click_sound.play()
+                    
+                    # 根据按钮索引处理不同的点击事件
+                    if i == 0:  # 开始游戏
+                        self.game_state = "character_select"
+                    elif i == 1:  # 成就按钮
+                        self.show_message_box("系统开发中", "成就系统正在开发中，敬请期待！")
+                    elif i == 2:  # 设置
+                        self.previous_state = "main_menu"
+                        self.game_state = "settings"
+                    elif i == 3:  # 制作人员
+                        self.show_message_box("系统开发中", "制作人员名单正在整理中，敬请期待！")
+                    elif i == 4:  # 退出
+                        self.running = False
+                    
+                    self.needs_redraw = True
+                    return True
         return False
+
+    def show_message_box(self, title, message):
+        """显示消息框"""
+        # 保存当前缓冲区
+        old_buffer = self.buffer.copy()
+        
+        # 创建消息框surface
+        box_width = int(400 * self.scale_x)
+        box_height = int(200 * self.scale_y)
+        box_x = (self.screen_width - box_width) // 2
+        box_y = (self.screen_height - box_height) // 2
+        
+        # 创建半透明背景
+        overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 128))  # 半透明黑色
+        
+        # 创建消息框
+        message_box = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+        pygame.draw.rect(message_box, (40, 40, 60, 255), (0, 0, box_width, box_height))
+        pygame.draw.rect(message_box, (184, 134, 11, 255), (0, 0, box_width, box_height), 2)  # 暗金色边框
+        
+        # 绘制标题
+        title_font = get_font(int(36 * min(self.scale_x, self.scale_y)))
+        title_surface = title_font.render(title, True, (255, 255, 255))
+        title_rect = title_surface.get_rect(centerx=box_width//2, y=int(20 * self.scale_y))
+        message_box.blit(title_surface, title_rect)
+        
+        # 绘制消息
+        message_font = get_font(int(24 * min(self.scale_x, self.scale_y)))
+        message_surface = message_font.render(message, True, (200, 200, 200))
+        message_rect = message_surface.get_rect(centerx=box_width//2, centery=box_height//2)
+        message_box.blit(message_surface, message_rect)
+        
+        # 创建关闭按钮（×）
+        close_size = int(30 * min(self.scale_x, self.scale_y))
+        close_x = box_width - close_size - int(10 * self.scale_x)
+        close_y = int(10 * self.scale_y)
+        
+        # 保存关闭按钮的位置（相对于屏幕）
+        self.message_box_close_rect = pygame.Rect(
+            box_x + close_x,
+            box_y + close_y,
+            close_size,
+            close_size
+        )
+        
+        def draw_message_box(hover=False):
+            # 重新绘制整个界面
+            self.buffer.blit(old_buffer, (0, 0))
+            self.buffer.blit(overlay, (0, 0))
+            
+            # 绘制关闭按钮
+            close_font = get_font(int(24 * min(self.scale_x, self.scale_y)))
+            close_text = close_font.render("×", True, (255, 255, 255) if hover else (200, 200, 200))
+            close_text_rect = close_text.get_rect(center=(close_x + close_size//2, close_y + close_size//2))
+            message_box.blit(close_text, close_text_rect)
+            
+            # 绘制消息框
+            self.buffer.blit(message_box, (box_x, box_y))
+            self.screen.blit(self.buffer, (0, 0))
+            pygame.display.flip()
+        
+        # 初始绘制
+        draw_message_box(False)
+        
+        # 等待用户点击关闭按钮
+        waiting = True
+        while waiting:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                    waiting = False
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if self.message_box_close_rect.collidepoint(event.pos):
+                        if hasattr(self, 'click_sound') and self.click_sound:
+                            self.click_sound.play()
+                        waiting = False
+                elif event.type == pygame.MOUSEMOTION:
+                    # 更新关闭按钮的悬停效果
+                    is_hovering = self.message_box_close_rect.collidepoint(event.pos)
+                    draw_message_box(is_hovering)
+        
+        # 恢复原始缓冲区
+        self.buffer = old_buffer
+        self.needs_redraw = True
 
     def draw_character_create(self):
         """绘制角色创建界面"""
