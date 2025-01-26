@@ -1503,6 +1503,23 @@ class Game:
         title_rect = title.get_rect(centerx=settings_x + settings_width//2, y=settings_y + 20)
         settings_surface.blit(title, title_rect)
         
+        # 如果有消息需要显示
+        if hasattr(self, 'settings_message') and self.settings_message:
+            current_time = pygame.time.get_ticks()
+            if current_time - self.settings_message_time < 500:  # 显示0.5秒
+                # 创建消息框
+                message_font = get_font(24)
+                message = message_font.render(self.settings_message, True, (255, 255, 255))
+                message_rect = message.get_rect(centerx=settings_x + settings_width//2, y=settings_y + settings_height - 30)
+                # 绘制半透明背景
+                msg_bg = pygame.Surface((message.get_width() + 20, message.get_height() + 10), pygame.SRCALPHA)
+                msg_bg.fill((0, 0, 0, 150))
+                settings_surface.blit(msg_bg, (message_rect.x - 10, message_rect.y - 5))
+                settings_surface.blit(message, message_rect)
+            else:
+                self.settings_message = None
+                self.needs_redraw = True  # 添加这一行，确保消息消失后重绘界面
+        
         # 设置选项的起始位置和间距
         option_x = settings_x + 50
         option_y = settings_y + 100
@@ -1628,11 +1645,11 @@ class Game:
             settings_x = (self.screen_width - settings_width) // 2
             settings_y = (self.screen_height - settings_height) // 2
             option_x = settings_x + 50
+            option_spacing = 80  # 选项之间的间距
             slider_x = option_x + 50
             
             # 检查音效音量滑块
             option_y = settings_y + 100  # 第一个选项的y坐标
-            option_spacing = 80  # 选项之间的间距
             slider_width = 300
             slider_rect = pygame.Rect(slider_x, option_y + 50, slider_width, 10)
             if slider_rect.collidepoint(mouse_pos):
@@ -1654,6 +1671,7 @@ class Game:
                 return True
             
             # 检查图形质量按钮
+            option_y += option_spacing
             if hasattr(self, 'quality_buttons'):
                 for button in self.quality_buttons:
                     if button.rect.collidepoint(mouse_pos):
@@ -1664,6 +1682,7 @@ class Game:
                         return True
             
             # 检查语言按钮
+            option_y += option_spacing
             if hasattr(self, 'language_buttons'):
                 for button in self.language_buttons:
                     if button.rect.collidepoint(mouse_pos):
@@ -1677,7 +1696,7 @@ class Game:
             if hasattr(self, 'save_button') and self.save_button.rect.collidepoint(mouse_pos):
                 # 保存设置到文件
                 self.save_settings()
-                self.show_message("设置已保存")
+                self.show_settings_message("设置已保存")
                 if hasattr(self, 'click_sound') and self.click_sound:
                     self.click_sound.play()
                 return True
@@ -1697,6 +1716,7 @@ class Game:
                 settings_x = (self.screen_width - 800) // 2
                 settings_y = (self.screen_height - 600) // 2
                 option_x = settings_x + 50
+                option_spacing = 80  # 选项之间的间距
                 slider_x = option_x + 50
                 slider_width = 300
                 
@@ -2903,6 +2923,12 @@ class Game:
         except Exception as e:
             print(f"加载设置时出错: {e}")
             # 使用默认设置
+
+    def show_settings_message(self, message):
+        """在设置界面显示消息"""
+        self.settings_message = message
+        self.settings_message_time = pygame.time.get_ticks()
+        self.needs_redraw = True
 
 class SettingsButton(SimpleButton):
     def __init__(self, x, y, width, height, text, color=(200, 200, 220), font_size=32, is_selected=False):
