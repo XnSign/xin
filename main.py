@@ -1070,27 +1070,38 @@ class Game:
         # 清除现有按钮
         self.menu_buttons = []
         
+        # 计算按钮布局
+        button_width = int(200 * self.scale_x)
+        button_height = int(50 * self.scale_y)
+        button_spacing = int(20 * self.scale_y)  # 按钮之间的垂直间距
+        
+        # 计算所有按钮加间距的总高度
+        total_height = len(menu_texts) * button_height + (len(menu_texts) - 1) * button_spacing
+        
+        # 计算第一个按钮的起始y坐标（垂直居中）
+        start_y = (self.screen_height - total_height) // 2
+        
         # 创建主菜单按钮
-        button_y = 200
-        for text in menu_texts:
-            button = SimpleButton(self.screen_width//2 - 100, button_y, 200, 50, text)
+        for i, text in enumerate(menu_texts):
+            # 计算每个按钮的y坐标
+            button_y = start_y + i * (button_height + button_spacing)
+            
+            # 创建按钮（水平居中）
+            button = SimpleButton(
+                self.screen_width//2 - button_width//2,  # 水平居中
+                button_y,
+                button_width,
+                button_height,
+                text
+            )
+            
+            # 设置按钮音效
             if hasattr(self, 'hover_sound'):
                 button.hover_sound = self.hover_sound
             if hasattr(self, 'click_sound'):
                 button.click_sound = self.click_sound
+            
             self.menu_buttons.append(button)
-            button_y += 70
-        
-        # 创建保存和返回按钮
-        self.save_button = SimpleButton(self.screen_width//2 - 160, self.screen_height - 100, 150, 40, "保存")
-        self.back_button = SimpleButton(self.screen_width//2 + 10, self.screen_height - 100, 150, 40, "返回")
-        
-        # 设置按钮的声音
-        for button in [self.save_button, self.back_button]:
-            if hasattr(self, 'hover_sound'):
-                button.hover_sound = self.hover_sound
-            if hasattr(self, 'click_sound'):
-                button.click_sound = self.click_sound
 
     def run(self):
         """游戏主循环"""
