@@ -654,6 +654,9 @@ class Game:
         pygame.init()
         pygame.mixer.init()
         
+        # 加载设置
+        self.load_settings()
+        
         # 设置窗口
         self.screen_width = 1280
         self.screen_height = 720
@@ -767,9 +770,9 @@ class Game:
             '单人模式': (200, 200, 220),  # 银白色
             '多人模式': (200, 200, 220),
             '成就': (200, 200, 220),
-            '设置': (200, 200, 220),
+            '设置': (100, 150, 200),  # 特殊的蓝色，让设置按钮更显眼
             '制作人员': (200, 200, 220),
-            '退出': (200, 200, 220)  # 保持一致的颜色主题
+            '退出': (200, 100, 100)  # 红色调，表示退出功能
         }
         
         for i, (key, color) in enumerate(button_colors.items()):
@@ -1055,9 +1058,10 @@ class Game:
                 elif button_text == '成就':
                     self.show_message("成就系统正在开发中...")
                 elif button_text == '设置':
-                    self.show_message("设置功能正在开发中...")
+                    self.previous_state = self.game_state  # 保存当前状态
+                    self.game_state = "settings"
                 elif button_text == '制作人员':
-                    self.show_message("制作人员名单正在整理中...")
+                    self.game_state = "credits"
                 elif button_text == '退出':
                     self.running = False
                 
@@ -1480,90 +1484,134 @@ class Game:
         settings_surface = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
         
         # 绘制半透明背景
-        pygame.draw.rect(settings_surface, (0, 0, 0, 128), (0, 0, self.screen_width, self.screen_height))
+        settings_surface.fill((0, 0, 0, 180))
         
         # 设置面板尺寸和位置
-        settings_width = 500
-        settings_height = 400
+        settings_width = 800
+        settings_height = 600
         settings_x = (self.screen_width - settings_width) // 2
         settings_y = (self.screen_height - settings_height) // 2
         
         # 绘制设置面板背景
         settings_rect = pygame.Rect(settings_x, settings_y, settings_width, settings_height)
-        pygame.draw.rect(settings_surface, (50, 50, 50, 255), settings_rect)
-        pygame.draw.rect(settings_surface, (100, 100, 100, 255), settings_rect, 2)
+        pygame.draw.rect(settings_surface, (40, 40, 60, 255), settings_rect)
+        pygame.draw.rect(settings_surface, (100, 100, 150, 255), settings_rect, 2)
         
         # 绘制标题
         title_font = get_font(48)
-        title = title_font.render("设置", True, (255, 255, 255))
+        title = title_font.render("游戏设置", True, (255, 255, 255))
         title_rect = title.get_rect(centerx=settings_x + settings_width//2, y=settings_y + 20)
         settings_surface.blit(title, title_rect)
         
-        # 绘制音量控制
+        # 设置选项的起始位置和间距
+        option_x = settings_x + 50
+        option_y = settings_y + 100
+        option_spacing = 80
+        
+        # 音效音量控制
         font = get_font(32)
-        volume_text = font.render(f"音量: {int(self.volume * 100)}%", True, (255, 255, 255))
-        settings_surface.blit(volume_text, (settings_x + 50, settings_y + 100))
+        sound_text = font.render(f"音效音量: {int(self.sound_volume * 100)}%", True, (255, 255, 255))
+        settings_surface.blit(sound_text, (option_x, option_y))
         
-        # 绘制音量滑块
+        # 音效音量滑块
         slider_width = 300
-        slider_x = settings_x + 150
-        slider_y = settings_y + 150
-        pygame.draw.rect(settings_surface, (100, 100, 100, 255), (slider_x, slider_y, slider_width, 10))
-        pygame.draw.rect(settings_surface, (200, 200, 200, 255), 
-                        (slider_x + self.volume * slider_width - 5, slider_y - 5, 10, 20))
+        slider_height = 10
+        slider_x = option_x + 50
+        slider_y = option_y + 50
+        pygame.draw.rect(settings_surface, (100, 100, 100), (slider_x, slider_y, slider_width, slider_height))
+        pygame.draw.rect(settings_surface, (200, 200, 200),
+                        (slider_x + self.sound_volume * slider_width - 5, slider_y - 5, 10, 20))
         
-        # 创建和更新按钮
+        # 音乐音量控制
+        option_y += option_spacing
+        music_text = font.render(f"音乐音量: {int(self.music_volume * 100)}%", True, (255, 255, 255))
+        settings_surface.blit(music_text, (option_x, option_y))
+        
+        # 音乐音量滑块
+        slider_y = option_y + 50
+        pygame.draw.rect(settings_surface, (100, 100, 100), (slider_x, slider_y, slider_width, slider_height))
+        pygame.draw.rect(settings_surface, (200, 200, 200),
+                        (slider_x + self.music_volume * slider_width - 5, slider_y - 5, 10, 20))
+        
+        # 图形质量设置
+        option_y += option_spacing
+        graphics_text = font.render("图形质量:", True, (255, 255, 255))
+        settings_surface.blit(graphics_text, (option_x, option_y))
+        
+        # 图形质量按钮
+        quality_options = ["低", "中", "高"]
+        button_width = 80
+        button_spacing = 20
+        total_width = len(quality_options) * button_width + (len(quality_options) - 1) * button_spacing
+        start_x = settings_x + (settings_width - total_width) // 2
+        self.quality_buttons = []
+        for i, quality in enumerate(quality_options):
+            button_x = start_x + i * (button_width + button_spacing)
+            button = SettingsButton(
+                button_x,
+                option_y + 5,
+                button_width,
+                30,
+                quality,
+                is_selected=(self.graphics_quality == quality)
+            )
+            button.draw(settings_surface)
+            self.quality_buttons.append(button)
+        
+        # 语言设置
+        option_y += option_spacing
+        language_text = font.render("语言:", True, (255, 255, 255))
+        settings_surface.blit(language_text, (option_x, option_y))
+        
+        # 语言选择按钮
+        languages = ["简体中文", "English"]
+        button_width = 120  # 增加语言按钮的宽度
+        total_width = len(languages) * button_width + (len(languages) - 1) * button_spacing
+        start_x = settings_x + (settings_width - total_width) // 2
+        self.language_buttons = []
+        for i, lang in enumerate(languages):
+            button_x = start_x + i * (button_width + button_spacing)
+            button = SettingsButton(
+                button_x,
+                option_y + 5,
+                button_width,
+                30,
+                lang,
+                is_selected=(self.language == lang)
+            )
+            button.draw(settings_surface)
+            self.language_buttons.append(button)
+        
+        # 创建底部按钮
         button_width = 200
-        button_height = 40
-        button_x = settings_x + (settings_width - button_width) // 2
+        button_height = 50
+        button_y = settings_y + settings_height - 80
         
-        # 全屏按钮
-        self.fullscreen_button = SimpleButton(
-            button_x,
-            settings_y + 200,
+        # 保存按钮
+        self.save_button = SimpleButton(
+            settings_x + settings_width//2 - button_width - 20,
+            button_y,
             button_width,
             button_height,
-            "全屏: " + ("开" if self.is_fullscreen else "关"),
-            color=(0, 200, 0) if self.is_fullscreen else (200, 0, 0),
+            "保存设置",
+            color=(0, 150, 0),
             font_size=32
         )
-        self.fullscreen_button.draw(settings_surface)
         
-        # 返回主菜单按钮
-        self.menu_button = SimpleButton(
-            button_x,
-            settings_y + 250,
+        # 返回按钮
+        self.back_button = SimpleButton(
+            settings_x + settings_width//2 + 20,
+            button_y,
             button_width,
             button_height,
-            "返回主菜单",
-            color=(200, 150, 0),
+            "返回",
+            color=(150, 0, 0),
             font_size=32
         )
-        self.menu_button.draw(settings_surface)
         
-        # 退出游戏按钮
-        self.exit_button = SimpleButton(
-            button_x,
-            settings_y + 300,
-            button_width,
-            button_height,
-            "退出游戏",
-            color=(200, 0, 0),
-            font_size=32
-        )
-        self.exit_button.draw(settings_surface)
-        
-        # 关闭按钮
-        self.close_button = SimpleButton(
-            settings_x + settings_width - 40,
-            settings_y + 10,
-            30,
-            30,
-            "×",
-            color=(200, 0, 0),
-            font_size=24
-        )
-        self.close_button.draw(settings_surface)
+        # 绘制按钮
+        self.save_button.draw(settings_surface)
+        self.back_button.draw(settings_surface)
         
         # 将设置界面绘制到屏幕上
         self.screen.blit(settings_surface, (0, 0))
@@ -1571,66 +1619,125 @@ class Game:
 
     def handle_settings_events(self, event):
         """处理设置界面的事件"""
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:  # ESC键关闭设置界面
-                self.game_state = "playing"
-                self.needs_redraw = True
-                return
-                
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            # 检查是否点击了关闭按钮
-            if hasattr(self, 'close_button') and self.close_button.handle_event(event):
-                self.game_state = "playing"
-                self.needs_redraw = True
-                return
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_pos = event.pos
             
-            # 检查是否点击了全屏按钮
-            if hasattr(self, 'fullscreen_button') and self.fullscreen_button.handle_event(event):
-                self.is_fullscreen = not self.is_fullscreen
-                if self.is_fullscreen:
-                    self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.FULLSCREEN)
-                else:
-                    self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
-                self.needs_redraw = True
-                return
-            
-            # 检查是否点击了返回主菜单按钮
-            if hasattr(self, 'menu_button') and self.menu_button.handle_event(event):
-                self.game_state = "main_menu"
-                self.needs_redraw = True
-                return
-            
-            # 检查是否点击了退出游戏按钮
-            if hasattr(self, 'exit_button') and self.exit_button.handle_event(event):
-                self.running = False
-                return
-            
-            # 检查是否点击了音量滑块区域
-            settings_width = 500
-            settings_height = 400
+            # 获取设置面板的位置和尺寸
+            settings_width = 800
+            settings_height = 600
             settings_x = (self.screen_width - settings_width) // 2
             settings_y = (self.screen_height - settings_height) // 2
+            option_x = settings_x + 50
+            slider_x = option_x + 50
+            
+            # 检查音效音量滑块
+            option_y = settings_y + 100  # 第一个选项的y坐标
+            option_spacing = 80  # 选项之间的间距
             slider_width = 300
-            slider_rect = pygame.Rect(settings_x + 150, settings_y + 150, slider_width, 10)
-            if slider_rect.collidepoint(event.pos):
-                # 更新音量值
-                self.volume = (event.pos[0] - (settings_x + 150)) / slider_width
-                self.volume = max(0, min(1, self.volume))
+            slider_rect = pygame.Rect(slider_x, option_y + 50, slider_width, 10)
+            if slider_rect.collidepoint(mouse_pos):
+                self.sound_volume = (mouse_pos[0] - slider_x) / slider_width
+                self.sound_volume = max(0, min(1, self.sound_volume))
+                if hasattr(self, 'click_sound'):
+                    self.click_sound.set_volume(self.sound_volume)
                 self.needs_redraw = True
-                return
+                return True
+            
+            # 检查音乐音量滑块
+            option_y += option_spacing
+            slider_rect = pygame.Rect(slider_x, option_y + 50, slider_width, 10)
+            if slider_rect.collidepoint(mouse_pos):
+                self.music_volume = (mouse_pos[0] - slider_x) / slider_width
+                self.music_volume = max(0, min(1, self.music_volume))
+                pygame.mixer.music.set_volume(self.music_volume)
+                self.needs_redraw = True
+                return True
+            
+            # 检查图形质量按钮
+            if hasattr(self, 'quality_buttons'):
+                for button in self.quality_buttons:
+                    if button.rect.collidepoint(mouse_pos):
+                        self.graphics_quality = button.text
+                        if hasattr(self, 'click_sound') and self.click_sound:
+                            self.click_sound.play()
+                        self.needs_redraw = True
+                        return True
+            
+            # 检查语言按钮
+            if hasattr(self, 'language_buttons'):
+                for button in self.language_buttons:
+                    if button.rect.collidepoint(mouse_pos):
+                        self.language = button.text
+                        if hasattr(self, 'click_sound') and self.click_sound:
+                            self.click_sound.play()
+                        self.needs_redraw = True
+                        return True
+            
+            # 检查保存按钮
+            if hasattr(self, 'save_button') and self.save_button.rect.collidepoint(mouse_pos):
+                # 保存设置到文件
+                self.save_settings()
+                self.show_message("设置已保存")
+                if hasattr(self, 'click_sound') and self.click_sound:
+                    self.click_sound.play()
+                return True
+            
+            # 检查返回按钮
+            if hasattr(self, 'back_button') and self.back_button.rect.collidepoint(mouse_pos):
+                # 返回到之前的状态
+                self.game_state = self.previous_state if hasattr(self, 'previous_state') else "main_menu"
+                if hasattr(self, 'click_sound') and self.click_sound:
+                    self.click_sound.play()
+                self.needs_redraw = True
+                return True
         
         elif event.type == pygame.MOUSEMOTION:
             if event.buttons[0]:  # 左键拖动
-                settings_x = (self.screen_width - 500) // 2
-                settings_y = (self.screen_height - 400) // 2
+                mouse_pos = event.pos
+                settings_x = (self.screen_width - 800) // 2
+                settings_y = (self.screen_height - 600) // 2
+                option_x = settings_x + 50
+                slider_x = option_x + 50
                 slider_width = 300
-                slider_rect = pygame.Rect(settings_x + 150, settings_y + 150, slider_width, 10)
-                if slider_rect.collidepoint(event.pos):
-                    # 更新音量值
-                    self.volume = (event.pos[0] - (settings_x + 150)) / slider_width
-                    self.volume = max(0, min(1, self.volume))
+                
+                # 检查音效音量滑块
+                option_y = settings_y + 100
+                slider_rect = pygame.Rect(slider_x, option_y + 50, slider_width, 10)
+                if slider_rect.collidepoint(mouse_pos):
+                    self.sound_volume = (mouse_pos[0] - slider_x) / slider_width
+                    self.sound_volume = max(0, min(1, self.sound_volume))
+                    if hasattr(self, 'click_sound'):
+                        self.click_sound.set_volume(self.sound_volume)
                     self.needs_redraw = True
-                    return
+                    return True
+                
+                # 检查音乐音量滑块
+                option_y += option_spacing
+                slider_rect = pygame.Rect(slider_x, option_y + 50, slider_width, 10)
+                if slider_rect.collidepoint(mouse_pos):
+                    self.music_volume = (mouse_pos[0] - slider_x) / slider_width
+                    self.music_volume = max(0, min(1, self.music_volume))
+                    pygame.mixer.music.set_volume(self.music_volume)
+                    self.needs_redraw = True
+                    return True
+        
+        return False
+
+    def save_settings(self):
+        """保存设置到文件"""
+        settings = {
+            'sound_volume': self.sound_volume,
+            'music_volume': self.music_volume,
+            'graphics_quality': self.graphics_quality,
+            'language': self.language
+        }
+        
+        try:
+            with open('settings.json', 'w', encoding='utf-8') as f:
+                json.dump(settings, f, ensure_ascii=False, indent=4)
+        except Exception as e:
+            print(f"保存设置时出错: {e}")
+            self.show_message("保存设置失败")
 
     def load_characters_and_maps(self):
         """加载角色和地图列表"""
@@ -2776,6 +2883,43 @@ class Game:
         )
         confirm_btn.draw(self.buffer)
         self.confirm_btn_rect = confirm_btn.rect
+
+    def load_settings(self):
+        """从文件加载设置"""
+        # 默认设置
+        self.sound_volume = 0.5
+        self.music_volume = 0.5
+        self.graphics_quality = "中"
+        self.language = "简体中文"
+        
+        try:
+            if os.path.exists('settings.json'):
+                with open('settings.json', 'r', encoding='utf-8') as f:
+                    settings = json.load(f)
+                    self.sound_volume = settings.get('sound_volume', 0.5)
+                    self.music_volume = settings.get('music_volume', 0.5)
+                    self.graphics_quality = settings.get('graphics_quality', "中")
+                    self.language = settings.get('language', "简体中文")
+        except Exception as e:
+            print(f"加载设置时出错: {e}")
+            # 使用默认设置
+
+class SettingsButton(SimpleButton):
+    def __init__(self, x, y, width, height, text, color=(200, 200, 220), font_size=32, is_selected=False):
+        super().__init__(x, y, width, height, text, color, font_size)
+        self.is_selected = is_selected
+    
+    def draw(self, screen):
+        # 根据选中状态决定颜色
+        current_color = (100, 150, 200) if self.is_selected else (60, 60, 140)
+        
+        # 绘制按钮背景
+        pygame.draw.rect(screen, current_color, self.rect, border_radius=5)
+        
+        # 绘制文本
+        text_surface = self.font.render(self.text, True, (255, 255, 255))
+        text_rect = text_surface.get_rect(center=self.rect.center)
+        screen.blit(text_surface, text_rect)
 
 if __name__ == "__main__":
     game = Game()
