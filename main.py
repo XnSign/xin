@@ -658,7 +658,7 @@ class Game:
         self.screen_width = 1280
         self.screen_height = 720
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
-        pygame.display.set_caption("方块游戏")
+        pygame.display.set_caption("幻境世界")
         
         # 创建缓冲区
         self.buffer = pygame.Surface((self.screen_width, self.screen_height))
@@ -843,7 +843,7 @@ class Game:
             self.clock.tick(60)
             
             # 更新窗口标题显示FPS
-            pygame.display.set_caption(f"方块游戏 - FPS: {int(self.clock.get_fps())}")
+            pygame.display.set_caption(f"幻境世界 - FPS: {int(self.clock.get_fps())}")
 
     def draw_map_select(self):
         """绘制地图选择界面"""
@@ -1709,7 +1709,7 @@ class Game:
         self.buffer.blit(overlay, (0, 0))
         
         # 绘制标题
-        title = self.title_font.render("方块游戏", True, (255, 255, 255))
+        title = self.title_font.render("幻境世界", True, (255, 255, 255))
         title_rect = title.get_rect(center=(self.screen_width//2, 100))
         self.buffer.blit(title, title_rect)
         
