@@ -684,6 +684,14 @@ class Game:
             print(f"Warning: Could not load background image: {e}")
             self.menu_background = None
         
+        # 加载背景音乐
+        try:
+            pygame.mixer.music.load("assets/music/menu/background_music.mp3")
+            pygame.mixer.music.set_volume(0.5)  # 设置音量为50%
+            pygame.mixer.music.play(-1)  # -1表示循环播放
+        except Exception as e:
+            print(f"Warning: Could not load background music: {e}")
+        
         # 初始化按钮
         self.initialize_buttons()
         
