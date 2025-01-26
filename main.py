@@ -788,6 +788,15 @@ class Game:
     def run(self):
         """游戏主循环"""
         while self.running:
+            current_time = pygame.time.get_ticks()
+            
+            # 检查设置消息是否应该消失
+            if hasattr(self, 'settings_message') and self.settings_message:
+                if current_time - self.settings_message_time >= 500:  # 0.5秒后消失
+                    self.settings_message = None
+                    self.settings_message_time = None
+                    self.needs_redraw = True
+            
             # 处理事件
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -1505,20 +1514,15 @@ class Game:
         
         # 如果有消息需要显示
         if hasattr(self, 'settings_message') and self.settings_message:
-            current_time = pygame.time.get_ticks()
-            if current_time - self.settings_message_time < 500:  # 显示0.5秒
-                # 创建消息框
-                message_font = get_font(24)
-                message = message_font.render(self.settings_message, True, (255, 255, 255))
-                message_rect = message.get_rect(centerx=settings_x + settings_width//2, y=settings_y + settings_height - 30)
-                # 绘制半透明背景
-                msg_bg = pygame.Surface((message.get_width() + 20, message.get_height() + 10), pygame.SRCALPHA)
-                msg_bg.fill((0, 0, 0, 150))
-                settings_surface.blit(msg_bg, (message_rect.x - 10, message_rect.y - 5))
-                settings_surface.blit(message, message_rect)
-            else:
-                self.settings_message = None
-                self.needs_redraw = True  # 添加这一行，确保消息消失后重绘界面
+            # 创建消息框
+            message_font = get_font(24)
+            message = message_font.render(self.settings_message, True, (255, 255, 255))
+            message_rect = message.get_rect(centerx=settings_x + settings_width//2, y=settings_y + settings_height - 30)
+            # 绘制半透明背景
+            msg_bg = pygame.Surface((message.get_width() + 20, message.get_height() + 10), pygame.SRCALPHA)
+            msg_bg.fill((0, 0, 0, 150))
+            settings_surface.blit(msg_bg, (message_rect.x - 10, message_rect.y - 5))
+            settings_surface.blit(message, message_rect)
         
         # 设置选项的起始位置和间距
         option_x = settings_x + 50
@@ -2934,18 +2938,165 @@ class SettingsButton(SimpleButton):
     def __init__(self, x, y, width, height, text, color=(200, 200, 220), font_size=32, is_selected=False):
         super().__init__(x, y, width, height, text, color, font_size)
         self.is_selected = is_selected
+        self.base_color = color
     
     def draw(self, screen):
         # 根据选中状态决定颜色
-        current_color = (100, 150, 200) if self.is_selected else (60, 60, 140)
+        if self.is_selected:
+            current_color = (100, 150, 200)  # 选中时的蓝色
+        else:
+            current_color = (60, 60, 140)  # 未选中时的深蓝色
+            if self.is_hovered:
+                current_color = tuple(min(255, c + 30) for c in current_color)  # 悬停时略微变亮
         
         # 绘制按钮背景
         pygame.draw.rect(screen, current_color, self.rect, border_radius=5)
+        pygame.draw.rect(screen, (255, 255, 255), self.rect, 2, border_radius=5)  # 添加白色边框
         
         # 绘制文本
         text_surface = self.font.render(self.text, True, (255, 255, 255))
         text_rect = text_surface.get_rect(center=self.rect.center)
         screen.blit(text_surface, text_rect)
+
+    def handle_event(self, event):
+        """处理按钮事件"""
+        if event.type == pygame.MOUSEMOTION:
+            previous_hover = self.is_hovered
+            self.is_hovered = self.rect.collidepoint(event.pos)
+            if not previous_hover and self.is_hovered and self.hover_sound:
+                self.hover_sound.play()
+        
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.rect.collidepoint(event.pos):
+                if self.click_sound:
+                    self.click_sound.play()
+                return True
+        
+        return False
+
+    def handle_settings_events(self, event):
+        """处理设置界面的事件"""
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_pos = event.pos
+            
+            # 获取设置面板的位置和尺寸
+            settings_width = 800
+            settings_height = 600
+            settings_x = (self.screen_width - settings_width) // 2
+            settings_y = (self.screen_height - settings_height) // 2
+            option_x = settings_x + 50
+            option_spacing = 80  # 选项之间的间距
+            slider_x = option_x + 50
+            
+            # 检查音效音量滑块
+            option_y = settings_y + 100  # 第一个选项的y坐标
+            slider_width = 300
+            slider_rect = pygame.Rect(slider_x, option_y + 50, slider_width, 10)
+            if slider_rect.collidepoint(mouse_pos):
+                self.sound_volume = (mouse_pos[0] - slider_x) / slider_width
+                self.sound_volume = max(0, min(1, self.sound_volume))
+                if hasattr(self, 'click_sound'):
+                    self.click_sound.set_volume(self.sound_volume)
+                self.needs_redraw = True
+                return True
+            
+            # 检查音乐音量滑块
+            option_y += option_spacing
+            slider_rect = pygame.Rect(slider_x, option_y + 50, slider_width, 10)
+            if slider_rect.collidepoint(mouse_pos):
+                self.music_volume = (mouse_pos[0] - slider_x) / slider_width
+                self.music_volume = max(0, min(1, self.music_volume))
+                pygame.mixer.music.set_volume(self.music_volume)
+                self.needs_redraw = True
+                return True
+            
+            # 检查图形质量按钮
+            option_y += option_spacing
+            if hasattr(self, 'quality_buttons'):
+                for button in self.quality_buttons:
+                    if button.rect.collidepoint(mouse_pos):
+                        # 更新所有按钮的选中状态
+                        for btn in self.quality_buttons:
+                            btn.is_selected = (btn == button)
+                        self.graphics_quality = button.text
+                        if hasattr(self, 'click_sound') and self.click_sound:
+                            self.click_sound.play()
+                        self.needs_redraw = True
+                        return True
+            
+            # 检查语言按钮
+            option_y += option_spacing
+            if hasattr(self, 'language_buttons'):
+                for button in self.language_buttons:
+                    if button.rect.collidepoint(mouse_pos):
+                        # 更新所有按钮的选中状态
+                        for btn in self.language_buttons:
+                            btn.is_selected = (btn == button)
+                        self.language = button.text
+                        if hasattr(self, 'click_sound') and self.click_sound:
+                            self.click_sound.play()
+                        self.needs_redraw = True
+                        return True
+            
+            # 检查保存按钮
+            if hasattr(self, 'save_button') and self.save_button.rect.collidepoint(mouse_pos):
+                # 保存设置到文件
+                self.save_settings()
+                self.show_settings_message("设置已保存")
+                if hasattr(self, 'click_sound') and self.click_sound:
+                    self.click_sound.play()
+                return True
+            
+            # 检查返回按钮
+            if hasattr(self, 'back_button') and self.back_button.rect.collidepoint(mouse_pos):
+                # 返回到之前的状态
+                self.game_state = self.previous_state if hasattr(self, 'previous_state') else "main_menu"
+                if hasattr(self, 'click_sound') and self.click_sound:
+                    self.click_sound.play()
+                self.needs_redraw = True
+                return True
+        
+        elif event.type == pygame.MOUSEMOTION:
+            # 处理按钮的悬停效果
+            if hasattr(self, 'quality_buttons'):
+                for button in self.quality_buttons:
+                    button.handle_event(event)
+            if hasattr(self, 'language_buttons'):
+                for button in self.language_buttons:
+                    button.handle_event(event)
+            
+            # 处理滑块拖动
+            if event.buttons[0]:  # 左键拖动
+                mouse_pos = event.pos
+                settings_x = (self.screen_width - 800) // 2
+                settings_y = (self.screen_height - 600) // 2
+                option_x = settings_x + 50
+                option_spacing = 80  # 选项之间的间距
+                slider_x = option_x + 50
+                slider_width = 300
+                
+                # 检查音效音量滑块
+                option_y = settings_y + 100
+                slider_rect = pygame.Rect(slider_x, option_y + 50, slider_width, 10)
+                if slider_rect.collidepoint(mouse_pos):
+                    self.sound_volume = (mouse_pos[0] - slider_x) / slider_width
+                    self.sound_volume = max(0, min(1, self.sound_volume))
+                    if hasattr(self, 'click_sound'):
+                        self.click_sound.set_volume(self.sound_volume)
+                    self.needs_redraw = True
+                    return True
+                
+                # 检查音乐音量滑块
+                option_y += option_spacing
+                slider_rect = pygame.Rect(slider_x, option_y + 50, slider_width, 10)
+                if slider_rect.collidepoint(mouse_pos):
+                    self.music_volume = (mouse_pos[0] - slider_x) / slider_width
+                    self.music_volume = max(0, min(1, self.music_volume))
+                    pygame.mixer.music.set_volume(self.music_volume)
+                    self.needs_redraw = True
+                    return True
+        
+        return False
 
 if __name__ == "__main__":
     game = Game()
