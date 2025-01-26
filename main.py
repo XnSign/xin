@@ -949,9 +949,14 @@ class Game:
         self.current_resolution = "1280x720"
         self.display_mode = "windowed"
         
-        # 添加设置界面的滚动位置
+        # 计算初始缩放比例（基于1280x720的基准分辨率）
+        width, height = map(int, self.current_resolution.split('x'))
+        self.scale_x = width / 1280
+        self.scale_y = height / 720
+        
+        # 初始化设置界面的滚动位置
         self.settings_scroll_y = 0
-        self.settings_max_scroll = 0  # 最大滚动距离，将在draw_settings中计算
+        self.settings_max_scroll = 0
         
         # 加载设置
         self.load_settings()
@@ -977,8 +982,6 @@ class Game:
         # 加载背景图片
         try:
             self.menu_background = pygame.image.load("assets/backgrounds/menu_background.png").convert_alpha()
-            # 调整背景图片大小以适应屏幕
-            self.menu_background = pygame.transform.scale(self.menu_background, (self.screen_width, self.screen_height))
         except Exception as e:
             print(f"Warning: Could not load background image: {e}")
             self.menu_background = None
@@ -1796,43 +1799,46 @@ class Game:
         # 绘制半透明背景
         settings_surface.fill((0, 0, 0, 180))
         
-        # 设置面板尺寸和位置
-        settings_width = 800
-        settings_height = 600
+        # 设置面板尺寸和位置（根据屏幕大小缩放）
+        settings_width = int(800 * self.scale_x)
+        settings_height = int(600 * self.scale_y)
         settings_x = (self.screen_width - settings_width) // 2
         settings_y = (self.screen_height - settings_height) // 2
         
         # 创建一个surface来绘制所有设置选项
-        options_surface = pygame.Surface((settings_width, 1000), pygame.SRCALPHA)  # 增加高度以容纳所有选项
+        options_surface = pygame.Surface((settings_width, int(1000 * self.scale_y)), pygame.SRCALPHA)
         
         # 绘制设置面板背景
-        pygame.draw.rect(options_surface, (40, 40, 60, 255), (0, 0, settings_width, 1000))
-        pygame.draw.rect(options_surface, (100, 100, 150, 255), (0, 0, settings_width, 1000), 2)
+        pygame.draw.rect(options_surface, (40, 40, 60, 255), (0, 0, settings_width, int(1000 * self.scale_y)))
+        pygame.draw.rect(options_surface, (100, 100, 150, 255), (0, 0, settings_width, int(1000 * self.scale_y)), 2)
         
         # 绘制标题
-        title_font = get_font(48)
+        title_font = get_font(int(48 * min(self.scale_x, self.scale_y)))
         title = title_font.render(self.get_text("settings"), True, (255, 255, 255))
-        title_rect = title.get_rect(centerx=settings_width//2, y=20)
+        title_rect = title.get_rect(centerx=settings_width//2, y=int(20 * self.scale_y))
         options_surface.blit(title, title_rect)
         
-        # 设置选项的起始位置和间距
-        option_x = 50
-        option_y = 100
-        option_spacing = 80
-        font = get_font(32)
+        # 设置选项的起始位置和间距（根据缩放调整）
+        option_x = int(50 * self.scale_x)
+        option_y = int(100 * self.scale_y)
+        option_spacing = int(80 * self.scale_y)
+        font = get_font(int(32 * min(self.scale_x, self.scale_y)))
         
         # 音效音量控制
         sound_text = font.render(f"{self.get_text('sound_volume')}: {int(self.sound_volume * 100)}%", True, (255, 255, 255))
         options_surface.blit(sound_text, (option_x, option_y))
         
         # 音效音量滑块
-        slider_width = 300
-        slider_height = 10
-        slider_x = option_x + 50
-        slider_y = option_y + 50
+        slider_width = int(300 * self.scale_x)
+        slider_height = int(10 * self.scale_y)
+        slider_x = option_x + int(50 * self.scale_x)
+        slider_y = option_y + int(50 * self.scale_y)
         pygame.draw.rect(options_surface, (100, 100, 100), (slider_x, slider_y, slider_width, slider_height))
         pygame.draw.rect(options_surface, (200, 200, 200),
-                        (slider_x + self.sound_volume * slider_width - 5, slider_y - 5, 10, 20))
+                        (slider_x + self.sound_volume * slider_width - int(5 * self.scale_x), 
+                         slider_y - int(5 * self.scale_y), 
+                         int(10 * self.scale_x), 
+                         int(20 * self.scale_y)))
         
         # 音乐音量控制
         option_y += option_spacing
@@ -1840,10 +1846,13 @@ class Game:
         options_surface.blit(music_text, (option_x, option_y))
         
         # 音乐音量滑块
-        slider_y = option_y + 50
+        slider_y = option_y + int(50 * self.scale_y)
         pygame.draw.rect(options_surface, (100, 100, 100), (slider_x, slider_y, slider_width, slider_height))
         pygame.draw.rect(options_surface, (200, 200, 200),
-                        (slider_x + self.music_volume * slider_width - 5, slider_y - 5, 10, 20))
+                        (slider_x + self.music_volume * slider_width - int(5 * self.scale_x), 
+                         slider_y - int(5 * self.scale_y), 
+                         int(10 * self.scale_x), 
+                         int(20 * self.scale_y)))
         
         # 图形质量设置
         option_y += option_spacing
@@ -1852,8 +1861,8 @@ class Game:
         
         # 图形质量按钮
         quality_options = ["低", "中", "高"]
-        button_width = 80
-        button_spacing = 20
+        button_width = int(80 * self.scale_x)
+        button_spacing = int(20 * self.scale_x)
         total_width = len(quality_options) * button_width + (len(quality_options) - 1) * button_spacing
         start_x = (settings_width - total_width) // 2
         self.quality_buttons = []
@@ -1861,11 +1870,12 @@ class Game:
             button_x = start_x + i * (button_width + button_spacing)
             button = SettingsButton(
                 button_x,
-                option_y + 5,
+                option_y + int(5 * self.scale_y),
                 button_width,
-                30,
+                int(30 * self.scale_y),
                 quality,
-                is_selected=(self.graphics_quality == quality)
+                is_selected=(self.graphics_quality == quality),
+                font_size=int(32 * min(self.scale_x, self.scale_y))
             )
             button.draw(options_surface)
             self.quality_buttons.append(button)
@@ -1876,8 +1886,8 @@ class Game:
         options_surface.blit(resolution_text, (option_x, option_y))
         
         # 分辨率按钮
-        button_width = 120
-        button_spacing = 20
+        button_width = int(120 * self.scale_x)
+        button_spacing = int(20 * self.scale_x)
         total_width = len(self.resolutions) * button_width + (len(self.resolutions) - 1) * button_spacing
         start_x = (settings_width - total_width) // 2
         self.resolution_buttons = []
@@ -1885,11 +1895,12 @@ class Game:
             button_x = start_x + i * (button_width + button_spacing)
             button = SettingsButton(
                 button_x,
-                option_y + 5,
+                option_y + int(5 * self.scale_y),
                 button_width,
-                30,
+                int(30 * self.scale_y),
                 res,
-                is_selected=(self.current_resolution == res)
+                is_selected=(self.current_resolution == res),
+                font_size=int(32 * min(self.scale_x, self.scale_y))
             )
             button.draw(options_surface)
             self.resolution_buttons.append(button)
@@ -1900,8 +1911,8 @@ class Game:
         options_surface.blit(display_text, (option_x, option_y))
         
         # 显示模式按钮
-        button_width = 150
-        button_spacing = 20
+        button_width = int(150 * self.scale_x)
+        button_spacing = int(20 * self.scale_x)
         total_width = len(self.display_modes) * button_width + (len(self.display_modes) - 1) * button_spacing
         start_x = (settings_width - total_width) // 2
         self.display_mode_buttons = []
@@ -1909,11 +1920,12 @@ class Game:
             button_x = start_x + i * (button_width + button_spacing)
             button = SettingsButton(
                 button_x,
-                option_y + 5,
+                option_y + int(5 * self.scale_y),
                 button_width,
-                30,
+                int(30 * self.scale_y),
                 self.get_text(mode),
-                is_selected=(self.display_mode == mode)
+                is_selected=(self.display_mode == mode),
+                font_size=int(32 * min(self.scale_x, self.scale_y))
             )
             button.draw(options_surface)
             self.display_mode_buttons.append(button)
@@ -1925,8 +1937,8 @@ class Game:
         
         # 语言选择按钮
         languages = ["简体中文", "繁體中文", "日本語", "English"]
-        button_width = 120
-        button_spacing = 20
+        button_width = int(120 * self.scale_x)
+        button_spacing = int(20 * self.scale_x)
         total_width = len(languages) * button_width + (len(languages) - 1) * button_spacing
         start_x = (settings_width - total_width) // 2
         self.language_buttons = []
@@ -1934,69 +1946,70 @@ class Game:
             button_x = start_x + i * (button_width + button_spacing)
             button = SettingsButton(
                 button_x,
-                option_y + 5,
+                option_y + int(5 * self.scale_y),
                 button_width,
-                30,
+                int(30 * self.scale_y),
                 lang,
-                is_selected=(self.language == lang)
+                is_selected=(self.language == lang),
+                font_size=int(32 * min(self.scale_x, self.scale_y))
             )
             button.draw(options_surface)
             self.language_buttons.append(button)
         
         # 计算内容总高度和最大滚动距离
-        total_content_height = option_y + 100  # 最后一个选项的底部位置
-        visible_height = settings_height - 120  # 减小可见区域高度，为底部按钮留出空间
+        total_content_height = option_y + int(100 * self.scale_y)
+        visible_height = settings_height - int(120 * self.scale_y)
         self.settings_max_scroll = max(0, total_content_height - visible_height)
         
         # 确保滚动位置在有效范围内
         self.settings_scroll_y = max(0, min(self.settings_scroll_y, self.settings_max_scroll))
         
         # 创建一个裁剪后的surface
-        visible_surface = pygame.Surface((settings_width, settings_height - 100), pygame.SRCALPHA)  # 减小高度
-        visible_surface.blit(options_surface, (0, 0), (0, self.settings_scroll_y, settings_width, settings_height - 100))
+        visible_surface = pygame.Surface((settings_width, settings_height - int(100 * self.scale_y)), pygame.SRCALPHA)
+        visible_surface.blit(options_surface, (0, 0), (0, self.settings_scroll_y, settings_width, settings_height - int(100 * self.scale_y)))
         
         # 将裁剪后的surface绘制到主surface上
         settings_surface.blit(visible_surface, (settings_x, settings_y))
         
         # 如果有滚动条
         if self.settings_max_scroll > 0:
-            scroll_bar_width = 10
-            scroll_bar_height = ((settings_height - 100) / total_content_height) * (settings_height - 100)
-            scroll_bar_x = settings_x + settings_width - scroll_bar_width - 5
-            scroll_bar_y = settings_y + (self.settings_scroll_y / total_content_height) * (settings_height - 100)
+            scroll_bar_width = int(10 * self.scale_x)
+            scroll_bar_height = ((settings_height - int(100 * self.scale_y)) / total_content_height) * (settings_height - int(100 * self.scale_y))
+            scroll_bar_x = settings_x + settings_width - scroll_bar_width - int(5 * self.scale_x)
+            scroll_bar_y = settings_y + (self.settings_scroll_y / total_content_height) * (settings_height - int(100 * self.scale_y))
             
             # 绘制滚动条背景
             pygame.draw.rect(settings_surface, (60, 60, 60), 
-                           (scroll_bar_x, settings_y, scroll_bar_width, settings_height - 100))
+                           (scroll_bar_x, settings_y, scroll_bar_width, settings_height - int(100 * self.scale_y)))
             # 绘制滚动条
             pygame.draw.rect(settings_surface, (150, 150, 150),
                            (scroll_bar_x, scroll_bar_y, scroll_bar_width, scroll_bar_height))
         
         # 绘制保存和返回按钮（这些按钮不受滚动影响）
-        button_width = 200
-        button_height = 50
-        button_y = settings_y + settings_height - 80
+        button_width = int(200 * self.scale_x)
+        button_height = int(50 * self.scale_y)
+        button_y = settings_y + settings_height - int(80 * self.scale_y)
         
         # 保存按钮
         self.save_button = SimpleButton(
-            settings_x + settings_width//2 - button_width - 20,
+            settings_x + settings_width//2 - button_width - int(20 * self.scale_x),
             button_y,
             button_width,
             button_height,
             self.get_text("save_settings"),
             color=(0, 150, 0),
-            font_size=32
+            font_size=int(32 * min(self.scale_x, self.scale_y))
         )
         
         # 返回按钮
         self.back_button = SimpleButton(
-            settings_x + settings_width//2 + 20,
+            settings_x + settings_width//2 + int(20 * self.scale_x),
             button_y,
             button_width,
             button_height,
             self.get_text("back"),
             color=(150, 0, 0),
-            font_size=32
+            font_size=int(32 * min(self.scale_x, self.scale_y))
         )
         
         # 设置按钮的声音
@@ -2013,13 +2026,13 @@ class Game:
         # 如果有消息需要显示
         if hasattr(self, 'settings_message') and self.settings_message:
             # 创建消息框
-            message_font = get_font(24)
+            message_font = get_font(int(24 * min(self.scale_x, self.scale_y)))
             message = message_font.render(self.settings_message, True, (255, 255, 255))
-            message_rect = message.get_rect(centerx=settings_x + settings_width//2, y=settings_y + settings_height - 30)
+            message_rect = message.get_rect(centerx=settings_x + settings_width//2, y=settings_y + settings_height - int(30 * self.scale_y))
             # 绘制半透明背景
-            msg_bg = pygame.Surface((message.get_width() + 20, message.get_height() + 10), pygame.SRCALPHA)
+            msg_bg = pygame.Surface((message.get_width() + int(20 * self.scale_x), message.get_height() + int(10 * self.scale_y)), pygame.SRCALPHA)
             msg_bg.fill((0, 0, 0, 150))
-            settings_surface.blit(msg_bg, (message_rect.x - 10, message_rect.y - 5))
+            settings_surface.blit(msg_bg, (message_rect.x - int(10 * self.scale_x), message_rect.y - int(5 * self.scale_y)))
             settings_surface.blit(message, message_rect)
         
         # 将设置界面绘制到屏幕上
@@ -2237,41 +2250,43 @@ class Game:
         
         # 绘制背景图片
         if hasattr(self, 'menu_background') and self.menu_background:
-            self.buffer.blit(self.menu_background, (0, 0))
+            # 计算需要的缩放比例，确保图片覆盖整个屏幕
+            bg_width = self.menu_background.get_width()
+            bg_height = self.menu_background.get_height()
+            scale_x = self.screen_width / bg_width
+            scale_y = self.screen_height / bg_height
+            scale = max(scale_x, scale_y)  # 使用较大的缩放比例以确保覆盖
+            
+            # 缩放背景图片
+            new_width = int(bg_width * scale)
+            new_height = int(bg_height * scale)
+            scaled_bg = pygame.transform.scale(self.menu_background, (new_width, new_height))
+            
+            # 计算绘制位置，使图片居中并完全覆盖屏幕
+            x = (self.screen_width - new_width) // 2
+            y = (self.screen_height - new_height) // 2
+            
+            # 绘制背景
+            self.buffer.blit(scaled_bg, (x, y))
+            
+            # 添加轻微的暗色遮罩使文字更清晰
+            overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 100))  # 半透明黑色遮罩
+            self.buffer.blit(overlay, (0, 0))
         
-        # 创建半透明遮罩使按钮文字更清晰
-        overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 128))  # 黑色半透明遮罩
-        self.buffer.blit(overlay, (0, 0))
-        
-        # 绘制标题
-        title = self.title_font.render("幻境世界", True, (255, 255, 255))
-        title_rect = title.get_rect(center=(self.screen_width//2, 100))
+        # 绘制游戏标题
+        title_font = get_font(int(64 * min(self.scale_x, self.scale_y)))
+        title = title_font.render("幻境世界", True, (255, 255, 255))
+        title_rect = title.get_rect(centerx=self.screen_width//2, y=int(50 * self.scale_y))
         self.buffer.blit(title, title_rect)
         
-        # 检查是否有消息框
-        has_message = hasattr(self, 'message_box') and self.message_box and self.message_box.visible
-        
-        # 绘制所有按钮，如果有消息框则禁用悬停效果
+        # 绘制所有按钮
         for button in self.menu_buttons:
-            if has_message:
-                # 临时保存并清除悬停状态
-                was_hovered = button.is_hovered
-                button.is_hovered = False
-                button.draw(self.buffer)
-                button.is_hovered = was_hovered
-            else:
-                button.draw(self.buffer)
+            button.draw(self.buffer)
         
-        # 如果有消息框，绘制消息框
-        if has_message:
-            self.message_box.draw(self.buffer)
-        
-        # 将缓冲区内容复制到屏幕
+        # 将缓冲区内容绘制到屏幕上
         self.screen.blit(self.buffer, (0, 0))
         pygame.display.flip()
-        
-        self.needs_redraw = False
 
     def draw_character_preview(self, char_data, x, y, preview_size):
         """绘制角色预览"""
@@ -3350,10 +3365,16 @@ class Game:
 
     def apply_display_settings(self):
         """应用显示设置"""
+        # 设置新的分辨率
         width, height = map(int, self.current_resolution.split('x'))
         self.screen_width = width
         self.screen_height = height
         
+        # 更新缩放比例
+        self.scale_x = width / 1280  # 基准分辨率宽度
+        self.scale_y = height / 720  # 基准分辨率高度
+        
+        # 设置显示模式
         if self.display_mode == "fullscreen":
             self.screen = pygame.display.set_mode((width, height), pygame.FULLSCREEN)
         elif self.display_mode == "borderless":
@@ -3363,6 +3384,9 @@ class Game:
         
         # 重新创建缓冲区以匹配新的分辨率
         self.buffer = pygame.Surface((width, height))
+        
+        # 重新初始化按钮以适应新的分辨率
+        self.initialize_buttons()
         
         # 标记需要重绘
         self.needs_redraw = True
