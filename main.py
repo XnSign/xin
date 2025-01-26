@@ -1990,20 +1990,9 @@ class Game:
         button_height = int(50 * self.scale_y)
         button_y = settings_y + settings_height - int(80 * self.scale_y)
         
-        # 保存按钮
-        self.save_button = SimpleButton(
-            settings_x + settings_width//2 - button_width - int(20 * self.scale_x),
-            button_y,
-            button_width,
-            button_height,
-            self.get_text("save_settings"),
-            color=(0, 150, 0),
-            font_size=int(32 * min(self.scale_x, self.scale_y))
-        )
-        
-        # 返回按钮
+        # 返回按钮（居中）
         self.back_button = SimpleButton(
-            settings_x + settings_width//2 + int(20 * self.scale_x),
+            settings_x + (settings_width - button_width) // 2,  # 居中放置
             button_y,
             button_width,
             button_height,
@@ -2013,14 +2002,12 @@ class Game:
         )
         
         # 设置按钮的声音
-        for button in [self.save_button, self.back_button]:
-            if hasattr(self, 'hover_sound'):
-                button.hover_sound = self.hover_sound
-            if hasattr(self, 'click_sound'):
-                button.click_sound = self.click_sound
+        if hasattr(self, 'hover_sound'):
+            self.back_button.hover_sound = self.hover_sound
+        if hasattr(self, 'click_sound'):
+            self.back_button.click_sound = self.click_sound
         
         # 绘制按钮
-        self.save_button.draw(settings_surface)
         self.back_button.draw(settings_surface)
         
         # 如果有消息需要显示
@@ -2076,6 +2063,7 @@ class Game:
                             self.graphics_quality = button.text
                             if hasattr(self, 'click_sound') and self.click_sound:
                                 self.click_sound.play()
+                            self.save_settings()  # 自动保存设置
                             self.needs_redraw = True
                             return True
                 
@@ -2088,6 +2076,7 @@ class Game:
                             if hasattr(self, 'click_sound') and self.click_sound:
                                 self.click_sound.play()
                             self.apply_display_settings()
+                            self.save_settings()  # 自动保存设置
                             self.show_settings_message(self.get_text("resolution_changed"))
                             return True
                 
@@ -2100,6 +2089,7 @@ class Game:
                             if hasattr(self, 'click_sound') and self.click_sound:
                                 self.click_sound.play()
                             self.apply_display_settings()
+                            self.save_settings()  # 自动保存设置
                             return True
                 
                 if hasattr(self, 'language_buttons'):
@@ -2111,17 +2101,11 @@ class Game:
                             if hasattr(self, 'click_sound') and self.click_sound:
                                 self.click_sound.play()
                             self.initialize_buttons()
+                            self.save_settings()  # 自动保存设置
                             self.needs_redraw = True
                             return True
             
-            # 检查保存和返回按钮（这些按钮不受滚动影响）
-            if hasattr(self, 'save_button') and self.save_button.rect.collidepoint(mouse_pos):
-                self.save_settings()
-                if hasattr(self, 'click_sound') and self.click_sound:
-                    self.click_sound.play()
-                self.show_settings_message(self.get_text("settings_saved"))
-                return True
-            
+            # 检查返回按钮
             if hasattr(self, 'back_button') and self.back_button.rect.collidepoint(mouse_pos):
                 self.game_state = self.previous_state if hasattr(self, 'previous_state') else "main_menu"
                 if hasattr(self, 'click_sound') and self.click_sound:
@@ -2150,9 +2134,7 @@ class Game:
                         temp_event = pygame.event.Event(pygame.MOUSEMOTION, {'pos': adjusted_mouse_pos})
                         button.handle_event(temp_event)
             
-            # 保存和返回按钮不需要调整位置
-            if hasattr(self, 'save_button'):
-                self.save_button.handle_event(event)
+            # 返回按钮不需要调整位置
             if hasattr(self, 'back_button'):
                 self.back_button.handle_event(event)
         
