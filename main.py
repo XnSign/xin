@@ -2053,16 +2053,19 @@ class Game:
             mouse_pos = event.pos
             
             # 获取设置面板的位置和尺寸
-            settings_width = 800
-            settings_height = 600
+            settings_width = int(800 * self.scale_x)
+            settings_height = int(600 * self.scale_y)
             settings_x = (self.screen_width - settings_width) // 2
             settings_y = (self.screen_height - settings_height) // 2
             
             # 检查是否点击在可滚动区域内
-            scroll_area_rect = pygame.Rect(settings_x, settings_y, settings_width, settings_height - 100)
+            scroll_area_rect = pygame.Rect(settings_x, settings_y, settings_width, settings_height - int(100 * self.scale_y))
             if scroll_area_rect.collidepoint(mouse_pos):
-                # 调整鼠标位置以考虑滚动
-                adjusted_mouse_pos = (mouse_pos[0] - settings_x, mouse_pos[1] - settings_y + self.settings_scroll_y)
+                # 调整鼠标位置以考虑滚动和缩放
+                adjusted_mouse_pos = (
+                    mouse_pos[0] - settings_x,
+                    mouse_pos[1] - settings_y + self.settings_scroll_y
+                )
                 
                 # 检查各种按钮
                 if hasattr(self, 'quality_buttons'):
@@ -2082,9 +2085,9 @@ class Game:
                             for btn in self.resolution_buttons:
                                 btn.is_selected = (btn == button)
                             self.current_resolution = button.text
-                            self.apply_display_settings()
                             if hasattr(self, 'click_sound') and self.click_sound:
                                 self.click_sound.play()
+                            self.apply_display_settings()
                             self.show_settings_message(self.get_text("resolution_changed"))
                             return True
                 
@@ -2093,10 +2096,10 @@ class Game:
                         if button.rect.collidepoint(adjusted_mouse_pos):
                             for btn in self.display_mode_buttons:
                                 btn.is_selected = (btn == button)
-                            self.display_mode = ["windowed", "borderless", "fullscreen"][i]
-                            self.apply_display_settings()
+                            self.display_mode = self.display_modes[i]
                             if hasattr(self, 'click_sound') and self.click_sound:
                                 self.click_sound.play()
+                            self.apply_display_settings()
                             return True
                 
                 if hasattr(self, 'language_buttons'):
@@ -2105,18 +2108,18 @@ class Game:
                             for btn in self.language_buttons:
                                 btn.is_selected = (btn == button)
                             self.language = button.text
-                            self.initialize_buttons()
                             if hasattr(self, 'click_sound') and self.click_sound:
                                 self.click_sound.play()
+                            self.initialize_buttons()
                             self.needs_redraw = True
                             return True
             
             # 检查保存和返回按钮（这些按钮不受滚动影响）
             if hasattr(self, 'save_button') and self.save_button.rect.collidepoint(mouse_pos):
                 self.save_settings()
-                self.show_settings_message(self.get_text("settings_saved"))
                 if hasattr(self, 'click_sound') and self.click_sound:
                     self.click_sound.play()
+                self.show_settings_message(self.get_text("settings_saved"))
                 return True
             
             if hasattr(self, 'back_button') and self.back_button.rect.collidepoint(mouse_pos):
@@ -2128,11 +2131,15 @@ class Game:
         
         elif event.type == pygame.MOUSEMOTION:
             # 获取设置面板的位置
-            settings_x = (self.screen_width - 800) // 2
-            settings_y = (self.screen_height - 600) // 2
+            settings_width = int(800 * self.scale_x)
+            settings_x = (self.screen_width - settings_width) // 2
+            settings_y = (self.screen_height - int(600 * self.scale_y)) // 2
             
-            # 调整鼠标位置以考虑滚动
-            adjusted_mouse_pos = (event.pos[0] - settings_x, event.pos[1] - settings_y + self.settings_scroll_y)
+            # 调整鼠标位置以考虑滚动和缩放
+            adjusted_mouse_pos = (
+                event.pos[0] - settings_x,
+                event.pos[1] - settings_y + self.settings_scroll_y
+            )
             
             # 更新所有按钮的悬停状态
             for button_group in ['quality_buttons', 'resolution_buttons', 
@@ -3365,8 +3372,20 @@ class Game:
 
     def apply_display_settings(self):
         """应用显示设置"""
+        # 获取当前显示器信息
+        display_info = pygame.display.Info()
+        
         # 设置新的分辨率
-        width, height = map(int, self.current_resolution.split('x'))
+        if self.display_mode in ["fullscreen", "borderless"]:
+            # 在全屏和无边框模式下使用显示器的最大分辨率
+            width = display_info.current_w
+            height = display_info.current_h
+            # 更新当前分辨率设置
+            self.current_resolution = f"{width}x{height}"
+        else:
+            # 窗口模式使用选择的分辨率
+            width, height = map(int, self.current_resolution.split('x'))
+        
         self.screen_width = width
         self.screen_height = height
         
@@ -3378,9 +3397,14 @@ class Game:
         if self.display_mode == "fullscreen":
             self.screen = pygame.display.set_mode((width, height), pygame.FULLSCREEN)
         elif self.display_mode == "borderless":
-            self.screen = pygame.display.set_mode((width, height), pygame.NOFRAME)
+            # 在Windows上，无边框模式需要特殊处理以确保全屏
+            if os.name == 'nt':
+                self.screen = pygame.display.set_mode((width, height), pygame.NOFRAME)
+            else:
+                self.screen = pygame.display.set_mode((width, height), pygame.NOFRAME)
         else:  # windowed
-            self.screen = pygame.display.set_mode((width, height))
+            # 使用默认标志（带边框的窗口模式）
+            self.screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
         
         # 重新创建缓冲区以匹配新的分辨率
         self.buffer = pygame.Surface((width, height))
