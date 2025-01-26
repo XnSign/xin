@@ -654,6 +654,63 @@ class Game:
         pygame.init()
         pygame.mixer.init()
         
+        # 添加翻译字典
+        self.translations = {
+            "简体中文": {
+                "start_game": "开始游戏",
+                "settings": "设置",
+                "credits": "制作人员",
+                "quit": "退出",
+                "back": "返回",
+                "save_settings": "保存设置",
+                "sound_volume": "音效音量",
+                "music_volume": "音乐音量",
+                "graphics_quality": "画面质量",
+                "language": "语言",
+                "low": "低",
+                "medium": "中",
+                "high": "高",
+                "create_character": "创建角色",
+                "select_character": "选择角色",
+                "delete_character": "删除角色",
+                "create_map": "创建地图",
+                "select_map": "选择地图",
+                "delete_map": "删除地图",
+                "settings_saved": "设置已保存",
+                "confirm_delete": "确认删除？",
+                "yes": "是",
+                "no": "否"
+            },
+            "English": {
+                "start_game": "Start Game",
+                "settings": "Settings",
+                "credits": "Credits",
+                "quit": "Quit",
+                "back": "Back",
+                "save_settings": "Save Settings",
+                "sound_volume": "Sound Volume",
+                "music_volume": "Music Volume",
+                "graphics_quality": "Graphics Quality",
+                "language": "Language",
+                "low": "Low",
+                "medium": "Medium",
+                "high": "High",
+                "create_character": "Create Character",
+                "select_character": "Select Character",
+                "delete_character": "Delete Character",
+                "create_map": "Create Map",
+                "select_map": "Select Map",
+                "delete_map": "Delete Map",
+                "settings_saved": "Settings Saved",
+                "confirm_delete": "Confirm Delete?",
+                "yes": "Yes",
+                "no": "No"
+            }
+        }
+        
+        # 设置默认语言
+        self.language = "简体中文"
+        
         # 加载设置
         self.load_settings()
         
@@ -758,32 +815,35 @@ class Game:
 
     def initialize_buttons(self):
         """初始化所有按钮"""
-        # 主菜单按钮
-        button_width = 300
-        button_height = 50
-        button_x = self.screen_width//2 - button_width//2
-        button_y_start = 200
-        button_spacing = 60
+        # 根据当前语言设置按钮文本
+        menu_texts = [self.translations[self.language]["start_game"], self.translations[self.language]["create_character"], self.translations[self.language]["create_map"], self.translations[self.language]["settings"], self.translations[self.language]["credits"], self.translations[self.language]["quit"]] if self.language == "简体中文" else ["Start Game", "Create Character", "Create Map", "Settings", "Credits", "Exit"]
+        save_text = "Save" if self.language == "English" else "保存"
+        back_text = "Back" if self.language == "English" else "返回"
         
-        self.menu_buttons = {}
-        button_colors = {
-            '单人模式': (200, 200, 220),  # 银白色
-            '多人模式': (200, 200, 220),
-            '成就': (200, 200, 220),
-            '设置': (100, 150, 200),  # 特殊的蓝色，让设置按钮更显眼
-            '制作人员': (200, 200, 220),
-            '退出': (200, 100, 100)  # 红色调，表示退出功能
-        }
+        # 清除现有按钮
+        self.menu_buttons = []
         
-        for i, (key, color) in enumerate(button_colors.items()):
-            self.menu_buttons[key] = SimpleButton(
-                button_x,
-                button_y_start + i * button_spacing,
-                button_width,
-                button_height,
-                key,
-                color=color
-            )
+        # 创建主菜单按钮
+        button_y = 200
+        for text in menu_texts:
+            button = SimpleButton(self.screen_width//2 - 100, button_y, 200, 50, text)
+            if hasattr(self, 'hover_sound'):
+                button.hover_sound = self.hover_sound
+            if hasattr(self, 'click_sound'):
+                button.click_sound = self.click_sound
+            self.menu_buttons.append(button)
+            button_y += 70
+        
+        # 创建保存和返回按钮
+        self.save_button = SimpleButton(self.screen_width//2 - 160, self.screen_height - 100, 150, 40, save_text)
+        self.back_button = SimpleButton(self.screen_width//2 + 10, self.screen_height - 100, 150, 40, back_text)
+        
+        # 设置按钮的声音
+        for button in [self.save_button, self.back_button]:
+            if hasattr(self, 'hover_sound'):
+                button.hover_sound = self.hover_sound
+            if hasattr(self, 'click_sound'):
+                button.click_sound = self.click_sound
 
     def run(self):
         """游戏主循环"""
@@ -824,7 +884,7 @@ class Game:
                 # 处理鼠标移动事件，更新按钮悬停状态
                 if event.type == pygame.MOUSEMOTION:
                     if self.game_state == "main_menu":
-                        for button in self.menu_buttons.values():
+                        for button in self.menu_buttons:
                             button.handle_event(event)
                         self.needs_redraw = True
             
@@ -864,7 +924,7 @@ class Game:
         
         # 绘制标题
         title_font = get_font(48)
-        title = title_font.render("选择世界", True, (200, 200, 255))
+        title = title_font.render(self.get_text("select_map"), True, (200, 200, 255))
         title_rect = title.get_rect(centerx=self.screen_width//2, y=50)
         self.buffer.blit(title, title_rect)
         
@@ -936,7 +996,7 @@ class Game:
             button_y,
             button_width,
             button_height,
-            "返回",
+            self.get_text("back"),
             color=(60, 60, 140),
             font_size=36
         )
@@ -947,7 +1007,7 @@ class Game:
             button_y,
             button_width,
             button_height,
-            "新建",
+            self.get_text("create_map"),
             color=(60, 60, 140),
             font_size=36
         )
@@ -1056,22 +1116,22 @@ class Game:
             return True
             
         # 处理按钮事件
-        for button in self.menu_buttons.values():
+        for button in self.menu_buttons:  # 直接遍历列表
             if button.handle_event(event):
                 button_text = button.text
-                if button_text == '单人模式':
+                if button_text == self.get_text("start_game"):
                     self.game_state = "character_select"
                     self.load_characters_and_maps()
-                elif button_text == '多人模式':
-                    self.show_message("多人模式正在开发中...")
-                elif button_text == '成就':
-                    self.show_message("成就系统正在开发中...")
-                elif button_text == '设置':
+                elif button_text == self.get_text("create_character"):
+                    self.game_state = "character_create"
+                elif button_text == self.get_text("create_map"):
+                    self.game_state = "map_create"
+                elif button_text == self.get_text("settings"):
                     self.previous_state = self.game_state  # 保存当前状态
                     self.game_state = "settings"
-                elif button_text == '制作人员':
+                elif button_text == self.get_text("credits"):
                     self.game_state = "credits"
-                elif button_text == '退出':
+                elif button_text == self.get_text("quit"):
                     self.running = False
                 
                 if hasattr(self, 'click_sound') and self.click_sound:
@@ -1097,7 +1157,7 @@ class Game:
             return
         
         # 绘制标题
-        title = self.title_font.render("创建角色", True, (255, 255, 255))
+        title = self.title_font.render(self.get_text("create_character"), True, (255, 255, 255))
         title_rect = title.get_rect(center=(self.screen_width//2, 50))
         self.buffer.blit(title, title_rect)
         
@@ -1124,7 +1184,7 @@ class Game:
         spacing = 60
         
         # 角色名称输入
-        name_label = self.font.render("角色名称:", True, (255, 255, 255))
+        name_label = self.font.render(self.get_text("character_name") + ":", True, (255, 255, 255))
         self.buffer.blit(name_label, (label_x, input_y))
         
         # 绘制输入框
@@ -1135,7 +1195,7 @@ class Game:
         
         # 性别选择
         input_y += spacing
-        gender_label = self.font.render("性别:", True, (255, 255, 255))
+        gender_label = self.font.render(self.get_text("gender") + ":", True, (255, 255, 255))
         self.buffer.blit(gender_label, (label_x, input_y))
         
         # 性别按钮
@@ -1154,7 +1214,7 @@ class Game:
         
         # 发型选择按钮
         input_y += spacing
-        hair_label = self.font.render("发型:", True, (255, 255, 255))
+        hair_label = self.font.render(self.get_text("hairstyle") + ":", True, (255, 255, 255))
         self.buffer.blit(hair_label, (label_x, input_y))
         
         # 创建发型选择按钮
@@ -1163,7 +1223,7 @@ class Game:
             input_y,
             200,
             40,
-            "选择发型",
+            self.get_text("select_hairstyle"),
             color=(100, 100, 200),
             font_size=32
         )
@@ -1172,7 +1232,7 @@ class Game:
         
         # 体型选择
         input_y += spacing
-        body_label = self.font.render("体型:", True, (255, 255, 255))
+        body_label = self.font.render(self.get_text("body_type") + ":", True, (255, 255, 255))
         self.buffer.blit(body_label, (label_x, input_y))
         
         # 体型按钮
@@ -1191,7 +1251,7 @@ class Game:
         
         # 职业选择
         input_y += spacing
-        class_label = self.font.render("职业:", True, (255, 255, 255))
+        class_label = self.font.render(self.get_text("class") + ":", True, (255, 255, 255))
         self.buffer.blit(class_label, (label_x, input_y))
         
         # 职业按钮
@@ -1245,7 +1305,7 @@ class Game:
         
         # 创建临时角色数据用于预览
         preview_data = {
-            'name': self.character_name or "预览",
+            'name': self.character_name or self.get_text("preview"),
             'gender': self.selected_gender,
             'hairstyle': self.selected_hairstyle,
             'body_type': self.selected_body_type,
@@ -1508,7 +1568,7 @@ class Game:
         
         # 绘制标题
         title_font = get_font(48)
-        title = title_font.render("游戏设置", True, (255, 255, 255))
+        title = title_font.render(self.get_text("settings"), True, (255, 255, 255))
         title_rect = title.get_rect(centerx=settings_x + settings_width//2, y=settings_y + 20)
         settings_surface.blit(title, title_rect)
         
@@ -1531,7 +1591,7 @@ class Game:
         
         # 音效音量控制
         font = get_font(32)
-        sound_text = font.render(f"音效音量: {int(self.sound_volume * 100)}%", True, (255, 255, 255))
+        sound_text = font.render(f"{self.get_text('sound_volume')}: {int(self.sound_volume * 100)}%", True, (255, 255, 255))
         settings_surface.blit(sound_text, (option_x, option_y))
         
         # 音效音量滑块
@@ -1545,7 +1605,7 @@ class Game:
         
         # 音乐音量控制
         option_y += option_spacing
-        music_text = font.render(f"音乐音量: {int(self.music_volume * 100)}%", True, (255, 255, 255))
+        music_text = font.render(f"{self.get_text('music_volume')}: {int(self.music_volume * 100)}%", True, (255, 255, 255))
         settings_surface.blit(music_text, (option_x, option_y))
         
         # 音乐音量滑块
@@ -1556,7 +1616,7 @@ class Game:
         
         # 图形质量设置
         option_y += option_spacing
-        graphics_text = font.render("图形质量:", True, (255, 255, 255))
+        graphics_text = font.render(self.get_text("graphics_quality"), True, (255, 255, 255))
         settings_surface.blit(graphics_text, (option_x, option_y))
         
         # 图形质量按钮
@@ -1581,24 +1641,26 @@ class Game:
         
         # 语言设置
         option_y += option_spacing
-        language_text = font.render("语言:", True, (255, 255, 255))
+        language_text = font.render(self.get_text("language"), True, (255, 255, 255))
         settings_surface.blit(language_text, (option_x, option_y))
         
         # 语言选择按钮
         languages = ["简体中文", "English"]
-        button_width = 120  # 增加语言按钮的宽度
+        button_width = 120
+        button_spacing = 20
         total_width = len(languages) * button_width + (len(languages) - 1) * button_spacing
         start_x = settings_x + (settings_width - total_width) // 2
         self.language_buttons = []
         for i, lang in enumerate(languages):
             button_x = start_x + i * (button_width + button_spacing)
+            is_selected = (not hasattr(self, 'language') and lang == "简体中文") or (hasattr(self, 'language') and self.language == lang)
             button = SettingsButton(
                 button_x,
                 option_y + 5,
                 button_width,
                 30,
                 lang,
-                is_selected=(self.language == lang)
+                is_selected=is_selected
             )
             button.draw(settings_surface)
             self.language_buttons.append(button)
@@ -1614,7 +1676,7 @@ class Game:
             button_y,
             button_width,
             button_height,
-            "保存设置",
+            self.get_text("save_settings"),
             color=(0, 150, 0),
             font_size=32
         )
@@ -1625,10 +1687,17 @@ class Game:
             button_y,
             button_width,
             button_height,
-            "返回",
+            self.get_text("back"),
             color=(150, 0, 0),
             font_size=32
         )
+        
+        # 设置按钮的声音
+        for button in [self.save_button, self.back_button]:
+            if hasattr(self, 'hover_sound'):
+                button.hover_sound = self.hover_sound
+            if hasattr(self, 'click_sound'):
+                button.click_sound = self.click_sound
         
         # 绘制按钮
         self.save_button.draw(settings_surface)
@@ -1642,6 +1711,21 @@ class Game:
         """处理设置界面的事件"""
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = event.pos
+            
+            # 检查语言按钮
+            if hasattr(self, 'language_buttons'):
+                for button in self.language_buttons:
+                    if button.rect.collidepoint(mouse_pos):
+                        # 更新所有按钮的选中状态
+                        for btn in self.language_buttons:
+                            btn.is_selected = (btn == button)
+                        self.language = button.text
+                        # 重新初始化按钮
+                        self.initialize_buttons()
+                        if hasattr(self, 'click_sound') and self.click_sound:
+                            self.click_sound.play()
+                        self.needs_redraw = True
+                        return True
             
             # 获取设置面板的位置和尺寸
             settings_width = 800
@@ -1679,18 +1763,10 @@ class Game:
             if hasattr(self, 'quality_buttons'):
                 for button in self.quality_buttons:
                     if button.rect.collidepoint(mouse_pos):
+                        # 更新所有按钮的选中状态
+                        for btn in self.quality_buttons:
+                            btn.is_selected = (btn == button)
                         self.graphics_quality = button.text
-                        if hasattr(self, 'click_sound') and self.click_sound:
-                            self.click_sound.play()
-                        self.needs_redraw = True
-                        return True
-            
-            # 检查语言按钮
-            option_y += option_spacing
-            if hasattr(self, 'language_buttons'):
-                for button in self.language_buttons:
-                    if button.rect.collidepoint(mouse_pos):
-                        self.language = button.text
                         if hasattr(self, 'click_sound') and self.click_sound:
                             self.click_sound.play()
                         self.needs_redraw = True
@@ -1700,7 +1776,7 @@ class Game:
             if hasattr(self, 'save_button') and self.save_button.rect.collidepoint(mouse_pos):
                 # 保存设置到文件
                 self.save_settings()
-                self.show_settings_message("设置已保存")
+                self.show_settings_message(self.get_text("settings_saved"))
                 if hasattr(self, 'click_sound') and self.click_sound:
                     self.click_sound.play()
                 return True
@@ -1714,38 +1790,19 @@ class Game:
                 self.needs_redraw = True
                 return True
         
-        elif event.type == pygame.MOUSEMOTION:
-            if event.buttons[0]:  # 左键拖动
-                mouse_pos = event.pos
-                settings_x = (self.screen_width - 800) // 2
-                settings_y = (self.screen_height - 600) // 2
-                option_x = settings_x + 50
-                option_spacing = 80  # 选项之间的间距
-                slider_x = option_x + 50
-                slider_width = 300
-                
-                # 检查音效音量滑块
-                option_y = settings_y + 100
-                slider_rect = pygame.Rect(slider_x, option_y + 50, slider_width, 10)
-                if slider_rect.collidepoint(mouse_pos):
-                    self.sound_volume = (mouse_pos[0] - slider_x) / slider_width
-                    self.sound_volume = max(0, min(1, self.sound_volume))
-                    if hasattr(self, 'click_sound'):
-                        self.click_sound.set_volume(self.sound_volume)
-                    self.needs_redraw = True
-                    return True
-                
-                # 检查音乐音量滑块
-                option_y += option_spacing
-                slider_rect = pygame.Rect(slider_x, option_y + 50, slider_width, 10)
-                if slider_rect.collidepoint(mouse_pos):
-                    self.music_volume = (mouse_pos[0] - slider_x) / slider_width
-                    self.music_volume = max(0, min(1, self.music_volume))
-                    pygame.mixer.music.set_volume(self.music_volume)
-                    self.needs_redraw = True
-                    return True
-        
         return False
+
+    def apply_language_change(self):
+        """应用语言更改"""
+        # 重新初始化所有按钮和文本
+        self.initialize_buttons()
+        # 更新设置界面的文本
+        if hasattr(self, 'save_button'):
+            self.save_button.text = self.get_text("save_settings")
+        if hasattr(self, 'back_button'):
+            self.back_button.text = self.get_text("back")
+        # 标记需要重绘
+        self.needs_redraw = True
 
     def save_settings(self):
         """保存设置到文件"""
@@ -1848,7 +1905,7 @@ class Game:
         has_message = hasattr(self, 'message_box') and self.message_box and self.message_box.visible
         
         # 绘制所有按钮，如果有消息框则禁用悬停效果
-        for button in self.menu_buttons.values():
+        for button in self.menu_buttons:
             if has_message:
                 # 临时保存并清除悬停状态
                 was_hovered = button.is_hovered
@@ -1884,7 +1941,7 @@ class Game:
         self.buffer.fill((0, 0, 50))
         
         # 绘制标题
-        title = self.title_font.render("选择角色", True, (255, 255, 255))
+        title = self.title_font.render(self.get_text("select_character"), True, (255, 255, 255))
         title_rect = title.get_rect(center=(self.screen_width//2, 50))
         self.buffer.blit(title, title_rect)
         
@@ -1943,15 +2000,15 @@ class Game:
                         
                         # 绘制角色名称和职业（并列）
                         name_text = self.font.render(char_name, True, (255, 255, 255))
-                        class_text = self.font.render(f"职业: {char_data.get('class', '战士')}", True, (200, 200, 100))
+                        class_text = self.font.render(f"{self.get_text('class')}: {char_data.get('class', '战士')}", True, (200, 200, 100))
                         self.buffer.blit(name_text, (info_x, info_y))
                         self.buffer.blit(class_text, (info_x + 150, info_y))  # 减小偏移量
                         
                         # 绘制生命值和魔法值（并列）
                         max_hp = char_data.get('max_hp', 100)
                         max_mp = char_data.get('max_mp', 100)
-                        hp_text = self.font.render(f"生命值: {max_hp}", True, (255, 100, 100))
-                        mp_text = self.font.render(f"魔力值: {max_mp}", True, (100, 100, 255))
+                        hp_text = self.font.render(f"{self.get_text('health')}: {max_hp}", True, (255, 100, 100))
+                        mp_text = self.font.render(f"{self.get_text('mana')}: {max_mp}", True, (100, 100, 255))
                         self.buffer.blit(hp_text, (info_x, info_y + info_spacing))
                         self.buffer.blit(mp_text, (info_x + 150, info_y + info_spacing))  # 减小偏移量
                         
@@ -1960,7 +2017,7 @@ class Game:
                         hours = playtime // 3600
                         minutes = (playtime % 3600) // 60
                         seconds = playtime % 60
-                        time_text = self.font.render(f"游戏时间: {hours:02d}:{minutes:02d}:{seconds:02d}", True, (200, 200, 200))
+                        time_text = self.font.render(f"{self.get_text('playtime')}: {hours:02d}:{minutes:02d}:{seconds:02d}", True, (200, 200, 200))
                         self.buffer.blit(time_text, (info_x, info_y + info_spacing * 2))
                         
                         # 添加删除按钮（与游戏时间同一行）
@@ -1975,7 +2032,7 @@ class Game:
                             delete_btn_y,
                             delete_btn_width,
                             delete_btn_height,
-                            "删除",
+                            self.get_text("delete"),
                             color=(200, 50, 50),
                             font_size=24
                         )
@@ -2030,7 +2087,7 @@ class Game:
             new_btn_y,
             new_btn_width,
             new_btn_height,
-            "创建新角色",
+            self.get_text("create_character"),
             color=(0, 150, 0),
             font_size=32
         )
@@ -2047,7 +2104,7 @@ class Game:
             back_btn_y,
             back_btn_width,
             back_btn_height,
-            "返回",
+            self.get_text("back"),
             color=(100, 100, 200),
             font_size=32
         )
@@ -2138,7 +2195,7 @@ class Game:
                     
                     if current_rect.collidepoint(mouse_pos):
                         # 显示确认对话框
-                        self.show_confirm_dialog(f"确定要删除角色 {char_name} 吗？")
+                        self.show_confirm_dialog(f"{self.get_text('confirm_delete')} {char_name}?")
                         self.confirm_dialog.char_name = char_name  # 保存要删除的角色名
                         return True
             
@@ -2228,7 +2285,7 @@ class Game:
             btn_y,
             btn_width,
             btn_height,
-            "确认",
+            self.get_text("yes"),
             color=(0, 150, 0),
             font_size=24
         )
@@ -2240,7 +2297,7 @@ class Game:
             btn_y,
             btn_width,
             btn_height,
-            "取消",
+            self.get_text("no"),
             color=(200, 50, 50),
             font_size=24
         )
@@ -2446,18 +2503,18 @@ class Game:
         
         # 绘制标题
         title_font = get_font(64)
-        title = title_font.render("制作人员", True, WHITE)
+        title = title_font.render(self.get_text("credits"), True, WHITE)
         title_rect = title.get_rect(centerx=self.screen_width//2, y=100)
         self.buffer.blit(title, title_rect)
         
         # 制作人员列表
         credits_font = get_font(36)
         credits_list = [
-            "游戏设计：TrFk团队",
-            "程序开发：TrFk团队",
-            "美术设计：TrFk团队",
-            "音效设计：TrFk团队",
-            "测试团队：TrFk团队"
+            f"{self.get_text('game_design')}: TrFk{self.get_text('team')}",
+            f"{self.get_text('programming')}: TrFk{self.get_text('team')}",
+            f"{self.get_text('art_design')}: TrFk{self.get_text('team')}",
+            f"{self.get_text('sound_design')}: TrFk{self.get_text('team')}",
+            f"{self.get_text('testing_team')}: TrFk{self.get_text('team')}"
         ]
         
         # 绘制制作人员列表
@@ -2474,7 +2531,7 @@ class Game:
             self.screen_height - 100,
             200,
             60,
-            "返回",
+            self.get_text("back"),
             color=(200, 100, 0),
             font_size=36
         )
@@ -2565,7 +2622,7 @@ class Game:
         
         # 绘制标题
         title_font = get_font(48)
-        title = title_font.render("创建世界", True, (200, 200, 255))
+        title = title_font.render(self.get_text("create_world"), True, (200, 200, 255))
         title_rect = title.get_rect(centerx=self.screen_width//2, y=50)
         self.buffer.blit(title, title_rect)
         
@@ -2582,7 +2639,7 @@ class Game:
         
         # 绘制名称输入框标签
         name_font = get_font(32)
-        name_text = name_font.render("名字:", True, (255, 255, 255))
+        name_text = name_font.render(f"{self.get_text('name')}:", True, (255, 255, 255))
         self.buffer.blit(name_text, (panel_x + 50, panel_y + 30))
         
         # 绘制名称输入框
@@ -2599,7 +2656,7 @@ class Game:
         # 绘制地图大小选项
         size_y = panel_y + 100
         size_spacing = 60
-        sizes = ["小型", "中型", "大型"]
+        sizes = [self.get_text("small"), self.get_text("medium"), self.get_text("large")]
         size_buttons = []
         
         for i, size in enumerate(sizes):
@@ -2616,12 +2673,12 @@ class Game:
             size_buttons.append(button)
             
             # 添加大小说明文本
-            if size == "小型":
-                desc_text = name_font.render("小型世界 (40×23格) - 适合快速游戏和探索", True, (200, 200, 255))
-            elif size == "中型":
-                desc_text = name_font.render("中型世界 (80×45格) - 平衡的游戏体验", True, (200, 200, 255))
+            if size == self.get_text("small"):
+                desc_text = name_font.render(f"{self.get_text('small_world')} (40×23 {self.get_text('grid')}) - {self.get_text('fast_game_exploration')}", True, (200, 200, 255))
+            elif size == self.get_text("medium"):
+                desc_text = name_font.render(f"{self.get_text('medium_world')} (80×45 {self.get_text('grid')}) - {self.get_text('balanced_gameplay')}", True, (200, 200, 255))
             else:
-                desc_text = name_font.render("大型世界 (120×68格) - 史诗般的冒险之旅", True, (200, 200, 255))
+                desc_text = name_font.render(f"{self.get_text('large_world')} (120×68 {self.get_text('grid')}) - {self.get_text('epic_adventure')}", True, (200, 200, 255))
             desc_rect = desc_text.get_rect(x=panel_x + 50, y=size_y + i * size_spacing + 50)
             self.buffer.blit(desc_text, desc_rect)
         
@@ -2636,7 +2693,7 @@ class Game:
             button_y,
             button_width,
             button_height,
-            "返回",
+            self.get_text("back"),
             color=(60, 60, 140),
             font_size=36
         )
@@ -2647,7 +2704,7 @@ class Game:
             button_y,
             button_width,
             button_height,
-            "创建",
+            self.get_text("create_map"),
             color=(60, 60, 140),
             font_size=36
         )
@@ -2675,9 +2732,9 @@ class Game:
             if self.create_button.handle_event(event):
                 if self.map_name_input:  # 只有在有名字的情况下才创建
                     # 根据选择的大小创建地图
-                    if self.selected_map_size == "小型":
+                    if self.selected_map_size == self.get_text("small"):
                         width, height = 40, 23
-                    elif self.selected_map_size == "中型":
+                    elif self.selected_map_size == self.get_text("medium"):
                         width, height = 80, 45
                     else:
                         width, height = 120, 68
@@ -2704,7 +2761,7 @@ class Game:
             panel_x = (self.screen_width - self.screen_width * 0.8) // 2
             size_y = 120 + 100
             size_spacing = 60
-            sizes = ["小型", "中型", "大型"]
+            sizes = [self.get_text("small"), self.get_text("medium"), self.get_text("large")]
             
             for i, size in enumerate(sizes):
                 button_rect = pygame.Rect(
@@ -2768,7 +2825,7 @@ class Game:
         self.buffer.fill((0, 20, 50))  # 深蓝色背景
         
         # 绘制标题
-        title = self.title_font.render("选择发型", True, (255, 255, 255))
+        title = self.title_font.render(self.get_text("select_hairstyle"), True, (255, 255, 255))
         title_rect = title.get_rect(center=(self.screen_width//2, 50))
         self.buffer.blit(title, title_rect)
         
@@ -2811,11 +2868,11 @@ class Game:
             
             # 创建临时角色数据用于预览
             preview_data = {
-                'name': "预览",
+                'name': self.get_text("preview"),
                 'gender': self.selected_gender,
                 'hairstyle': {'style': str(i + 1), 'color': self.selected_hairstyle['color']},
-                'body_type': "普通",
-                'class': "战士",
+                'body_type': self.get_text("normal"),
+                'class': self.get_text("warrior"),
                 'skin_color': (255, 220, 180),
                 'health': 100,
                 'mana': 100
@@ -2870,7 +2927,7 @@ class Game:
                 button_y,
                 button_width,
                 button_height,
-                "上一页",
+                self.get_text("prev_page"),
                 color=(100, 100, 200),
                 font_size=24
             )
@@ -2886,7 +2943,7 @@ class Game:
                 button_y,
                 button_width,
                 button_height,
-                "下一页",
+                self.get_text("next_page"),
                 color=(100, 100, 200),
                 font_size=24
             )
@@ -2901,7 +2958,7 @@ class Game:
             button_y,
             button_width,
             button_height,
-            "确认",
+            self.get_text("confirm"),
             color=(0, 150, 0),
             font_size=24
         )
@@ -2913,8 +2970,8 @@ class Game:
         # 默认设置
         self.sound_volume = 0.5
         self.music_volume = 0.5
-        self.graphics_quality = "中"
-        self.language = "简体中文"
+        self.graphics_quality = "中"  # 使用直接的字符串而不是get_text
+        self.language = "简体中文"    # 使用直接的字符串而不是get_text
         
         try:
             if os.path.exists('settings.json'):
@@ -2933,6 +2990,12 @@ class Game:
         self.settings_message = message
         self.settings_message_time = pygame.time.get_ticks()
         self.needs_redraw = True
+
+    def get_text(self, key):
+        """获取当前语言的文本"""
+        if not hasattr(self, 'language'):
+            self.language = "简体中文"
+        return self.translations[self.language].get(key, key)
 
 class SettingsButton(SimpleButton):
     def __init__(self, x, y, width, height, text, color=(200, 200, 220), font_size=32, is_selected=False):
@@ -3032,7 +3095,10 @@ class SettingsButton(SimpleButton):
                         # 更新所有按钮的选中状态
                         for btn in self.language_buttons:
                             btn.is_selected = (btn == button)
+                        # 更新语言设置
                         self.language = button.text
+                        # 重新初始化按钮
+                        self.initialize_buttons()
                         if hasattr(self, 'click_sound') and self.click_sound:
                             self.click_sound.play()
                         self.needs_redraw = True
@@ -3042,7 +3108,7 @@ class SettingsButton(SimpleButton):
             if hasattr(self, 'save_button') and self.save_button.rect.collidepoint(mouse_pos):
                 # 保存设置到文件
                 self.save_settings()
-                self.show_settings_message("设置已保存")
+                self.show_settings_message(self.get_text("settings_saved"))
                 if hasattr(self, 'click_sound') and self.click_sound:
                     self.click_sound.play()
                 return True
