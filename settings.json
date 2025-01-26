@@ -1,6 +1,8 @@
 {
     "sound_volume": 0.5,
     "music_volume": 0.5,
-    "graphics_quality": "中",
-    "language": "简体中文"
+    "graphics_quality": "低",
+    "language": "简体中文",
+    "resolution": "1280x720",
+    "display_mode": "windowed"
 }
