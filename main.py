@@ -679,7 +679,8 @@ class Game:
                 "settings_saved": "设置已保存",
                 "confirm_delete": "确认删除？",
                 "yes": "是",
-                "no": "否"
+                "no": "否",
+                "achievements": "成就"
             },
             "English": {
                 "start_game": "Start Game",
@@ -704,7 +705,8 @@ class Game:
                 "settings_saved": "Settings Saved",
                 "confirm_delete": "Confirm Delete?",
                 "yes": "Yes",
-                "no": "No"
+                "no": "No",
+                "achievements": "Achievements"
             }
         }
         
@@ -816,9 +818,13 @@ class Game:
     def initialize_buttons(self):
         """初始化所有按钮"""
         # 根据当前语言设置按钮文本
-        menu_texts = [self.translations[self.language]["start_game"], self.translations[self.language]["create_character"], self.translations[self.language]["create_map"], self.translations[self.language]["settings"], self.translations[self.language]["credits"], self.translations[self.language]["quit"]] if self.language == "简体中文" else ["Start Game", "Create Character", "Create Map", "Settings", "Credits", "Exit"]
-        save_text = "Save" if self.language == "English" else "保存"
-        back_text = "Back" if self.language == "English" else "返回"
+        menu_texts = [
+            self.get_text("start_game"),
+            self.get_text("achievements"),  # 新增成就按钮
+            self.get_text("settings"),
+            self.get_text("credits"),
+            self.get_text("quit")
+        ]
         
         # 清除现有按钮
         self.menu_buttons = []
@@ -835,8 +841,8 @@ class Game:
             button_y += 70
         
         # 创建保存和返回按钮
-        self.save_button = SimpleButton(self.screen_width//2 - 160, self.screen_height - 100, 150, 40, save_text)
-        self.back_button = SimpleButton(self.screen_width//2 + 10, self.screen_height - 100, 150, 40, back_text)
+        self.save_button = SimpleButton(self.screen_width//2 - 160, self.screen_height - 100, 150, 40, "保存")
+        self.back_button = SimpleButton(self.screen_width//2 + 10, self.screen_height - 100, 150, 40, "返回")
         
         # 设置按钮的声音
         for button in [self.save_button, self.back_button]:
@@ -1116,18 +1122,16 @@ class Game:
             return True
             
         # 处理按钮事件
-        for button in self.menu_buttons:  # 直接遍历列表
+        for button in self.menu_buttons:
             if button.handle_event(event):
                 button_text = button.text
                 if button_text == self.get_text("start_game"):
                     self.game_state = "character_select"
                     self.load_characters_and_maps()
-                elif button_text == self.get_text("create_character"):
-                    self.game_state = "character_create"
-                elif button_text == self.get_text("create_map"):
-                    self.game_state = "map_create"
+                elif button_text == self.get_text("achievements"):  # 新增成就按钮处理
+                    self.show_message("成就系统正在开发中...")
                 elif button_text == self.get_text("settings"):
-                    self.previous_state = self.game_state  # 保存当前状态
+                    self.previous_state = self.game_state
                     self.game_state = "settings"
                 elif button_text == self.get_text("credits"):
                     self.game_state = "credits"
