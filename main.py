@@ -1006,7 +1006,7 @@ class Game:
         
         # 加载音效
         try:
-            self.click_sound = pygame.mixer.Sound("assets/sounds/click.wav")
+            self.click_sound = pygame.mixer.Sound("assets/sounds/ui/click.wav")
             self.click_sound.set_volume(0.5)  # 设置音量为50%
         except Exception as e:
             print(f"加载音效时出错: {e}")
