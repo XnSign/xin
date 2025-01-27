@@ -1687,214 +1687,94 @@ class Game:
 
     def handle_character_create_events(self, event):
         """处理角色创建界面的事件"""
-        # 如果在发型选择界面，处理发型选择界面的事件
-        if self.in_hairstyle_selection:
-            # 处理滑块事件
-            for key, slider in self.hair_color_sliders.items():
-                if slider.handle_event(event):
-                    # 更新发色
-                    self.selected_hairstyle['color'] = (
-                        int(self.hair_color_sliders['R'].value),
-                        int(self.hair_color_sliders['G'].value),
-                        int(self.hair_color_sliders['B'].value)
-                    )
-                    self.needs_redraw = True
-                    return True
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            # 获取所有按钮
+            buttons = {
+                'male': SimpleButton(self.male_button_rect.x, self.male_button_rect.y, 
+                                   self.male_button_rect.width, self.male_button_rect.height, 
+                                   "男", color=(240, 240, 255) if self.selected_gender == "男" else (220, 220, 240)),
+                'female': SimpleButton(self.female_button_rect.x, self.female_button_rect.y, 
+                                     self.female_button_rect.width, self.female_button_rect.height, 
+                                     "女", color=(240, 240, 255) if self.selected_gender == "女" else (220, 220, 240)),
+                'hair': SimpleButton(self.hair_button_rect.x, self.hair_button_rect.y, 
+                                   self.hair_button_rect.width, self.hair_button_rect.height, 
+                                   "选择发型", color=(220, 220, 240)),
+                'thin': SimpleButton(self.thin_button_rect.x, self.thin_button_rect.y, 
+                                   self.thin_button_rect.width, self.thin_button_rect.height, 
+                                   "瘦小", color=(240, 240, 255) if self.selected_body_type == "瘦小" else (220, 220, 240)),
+                'normal': SimpleButton(self.normal_button_rect.x, self.normal_button_rect.y, 
+                                     self.normal_button_rect.width, self.normal_button_rect.height, 
+                                     "标准", color=(240, 240, 255) if self.selected_body_type == "标准" else (220, 220, 240)),
+                'fat': SimpleButton(self.fat_button_rect.x, self.fat_button_rect.y, 
+                                  self.fat_button_rect.width, self.fat_button_rect.height, 
+                                  "魁梧", color=(240, 240, 255) if self.selected_body_type == "魁梧" else (220, 220, 240)),
+                'warrior': SimpleButton(self.warrior_button_rect.x, self.warrior_button_rect.y, 
+                                      self.warrior_button_rect.width, self.warrior_button_rect.height, 
+                                      "战士", color=(240, 240, 255) if self.selected_class == "战士" else (220, 220, 240)),
+                'mage': SimpleButton(self.mage_button_rect.x, self.mage_button_rect.y, 
+                                   self.mage_button_rect.width, self.mage_button_rect.height, 
+                                   "法师", color=(240, 240, 255) if self.selected_class == "法师" else (220, 220, 240)),
+                'archer': SimpleButton(self.archer_button_rect.x, self.archer_button_rect.y, 
+                                     self.archer_button_rect.width, self.archer_button_rect.height, 
+                                     "弓箭手", color=(240, 240, 255) if self.selected_class == "弓箭手" else (220, 220, 240)),
+                'thief': SimpleButton(self.thief_button_rect.x, self.thief_button_rect.y, 
+                                    self.thief_button_rect.width, self.thief_button_rect.height, 
+                                    "盗贼", color=(240, 240, 255) if self.selected_class == "盗贼" else (220, 220, 240)),
+                'back': SimpleButton(self.back_button_rect.x, self.back_button_rect.y, 
+                                   self.back_button_rect.width, self.back_button_rect.height, 
+                                   "返回", color=(220, 220, 240)),
+                'create': SimpleButton(self.create_button_rect.x, self.create_button_rect.y, 
+                                     self.create_button_rect.width, self.create_button_rect.height, 
+                                     "创建", color=(220, 240, 220))
+            }
             
-            # 处理鼠标点击
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # 只处理左键点击
-                mouse_pos = event.pos
-                
-                # 检查发型预览网格点击
-                panel_width = 900
-                panel_height = 500
-                panel_x = (self.screen_width - panel_width) // 2
-                panel_y = (self.screen_height - panel_height) // 2  # 修改为垂直居中
-                preview_size = (100, 100)
-                grid_spacing = 20
-                grid_cols = 4
-                grid_rows = 2
-                start_x = panel_x + (panel_width - (preview_size[0] + grid_spacing) * grid_cols + grid_spacing) // 2
-                start_y = panel_y + 50
-                
-                # 计算当前页的发型范围
-                start_index = self.hairstyle_page * (grid_cols * grid_rows)
-                end_index = min(start_index + (grid_cols * grid_rows), 20)
-                
-                # 检查发型预览点击
-                for i in range(start_index, end_index):
-                    row = (i - start_index) // grid_cols
-                    col = (i - start_index) % grid_cols
-                    x = start_x + col * (preview_size[0] + grid_spacing)
-                    y = start_y + row * (preview_size[1] + grid_spacing)
+            # 处理按钮点击
+            for button_name, button in buttons.items():
+                if button.rect.collidepoint(event.pos):
+                    if self.click_sound:
+                        self.click_sound.play()
                     
-                    preview_rect = pygame.Rect(x, y, preview_size[0], preview_size[1])
-                    if preview_rect.collidepoint(mouse_pos):
-                        self.selected_hairstyle['style'] = str(i + 1)
-                        if self.click_sound:
-                            self.click_sound.play()
+                    if button_name == 'male':
+                        self.selected_gender = "男"
                         self.needs_redraw = True
-                        return
-                
-                # 检查颜色滑块
-                color_y = start_y + (grid_rows * (preview_size[1] + grid_spacing)) + 10
-                for key, slider in self.hair_color_sliders.items():
-                    if slider.handle_event(event):
-                        # 更新发色
-                        self.selected_hairstyle['color'] = (
-                            int(self.hair_color_sliders['R'].value),
-                            int(self.hair_color_sliders['G'].value),
-                            int(self.hair_color_sliders['B'].value)
-                        )
+                    elif button_name == 'female':
+                        self.selected_gender = "女"
                         self.needs_redraw = True
-                        return
-                
-                # 检查翻页按钮
-                if self.prev_btn_rect and self.prev_btn_rect.collidepoint(mouse_pos):
-                    if self.hairstyle_page > 0:
-                        self.hairstyle_page -= 1
-                        if self.click_sound:
-                            self.click_sound.play()
+                    elif button_name == 'hair':
+                        self.in_hairstyle_selection = True
                         self.needs_redraw = True
-                        return
-                
-                if self.next_btn_rect and self.next_btn_rect.collidepoint(mouse_pos):
-                    if (self.hairstyle_page + 1) * (grid_cols * grid_rows) < 20:
-                        self.hairstyle_page += 1
-                        if self.click_sound:
-                            self.click_sound.play()
+                    elif button_name in ['thin', 'normal', 'fat']:
+                        self.selected_body_type = {"thin": "瘦小", "normal": "标准", "fat": "魁梧"}[button_name]
                         self.needs_redraw = True
-                        return
-                
-                # 检查确认按钮
-                if self.confirm_btn_rect and self.confirm_btn_rect.collidepoint(mouse_pos):
-                    self.in_hairstyle_selection = False
-                    if self.click_sound:
-                        self.click_sound.play()
-                    self.needs_redraw = True
-                    return
-            
-            return
+                    elif button_name in ['warrior', 'mage', 'archer', 'thief']:
+                        self.selected_class = {"warrior": "战士", "mage": "法师", 
+                                            "archer": "弓箭手", "thief": "盗贼"}[button_name]
+                        self.needs_redraw = True
+                    elif button_name == 'back':
+                        self.game_state = "character_select"
+                        self.needs_redraw = True
+                    elif button_name == 'create':
+                        if not self.character_name:
+                            self.show_message("请输入角色名称")
+                        else:
+                            self.create_character()
+                    break
         
-        # 以下是原有的角色创建界面事件处理代码
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # 只处理左键点击
-            mouse_pos = event.pos
-            
-            # 获取面板位置
-            panel_width = 900
-            panel_height = 500
-            panel_x = (self.screen_width - panel_width) // 2
-            panel_y = (self.screen_height - panel_height) // 2  # 修改为垂直居中
-            
-            # 计算输入区域位置
-            input_x = panel_x + 200
-            input_y = panel_y + 30
-            spacing = 60
-            
-            # 检查名称输入框
-            name_rect = pygame.Rect(input_x, input_y, 200, 30)
-            self.input_active = name_rect.collidepoint(event.pos)
-            
-            # 检查性别按钮
-            input_y += spacing
-            gender_button_width = 80
-            gender_spacing = 20
-            for i, gender in enumerate(['男', '女']):
-                button_x = input_x + i * (gender_button_width + gender_spacing)
-                button_rect = pygame.Rect(button_x, input_y, gender_button_width, 30)
-                if button_rect.collidepoint(event.pos):
-                    if self.selected_gender != gender:  # 只在性别真正改变时更新
-                        self.selected_gender = gender
-                        if self.click_sound:
-                            self.click_sound.play()
-                        self.needs_redraw = True
-                    return
-            
-            # 检查发型选择按钮
-            input_y += spacing
-            if hasattr(self, 'hair_button_rect') and self.hair_button_rect.collidepoint(mouse_pos):
-                self.in_hairstyle_selection = True
-                if self.click_sound:
-                    self.click_sound.play()
-                self.needs_redraw = True
-                return
+        # 处理输入框点击
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            input_rect = pygame.Rect(self.input_x, self.input_y, 200, 30)
+            self.input_active = input_rect.collidepoint(event.pos)
+            self.needs_redraw = True
         
-            # 检查体型按钮
-            input_y += spacing
-            body_button_width = 80
-            body_spacing = 10
-            for i, body_type in enumerate(BODY_TYPES):
-                button_x = input_x + i * (body_button_width + body_spacing)
-                button_rect = pygame.Rect(button_x, input_y, body_button_width, 30)
-                if button_rect.collidepoint(event.pos):
-                    if self.selected_body_type != body_type:  # 只在体型真正改变时更新
-                        self.selected_body_type = body_type
-                        if self.click_sound:
-                            self.click_sound.play()
-                        self.needs_redraw = True
-                    return
-
-            # 检查职业按钮
-            input_y += spacing
-            class_button_width = 80
-            class_spacing = 10
-            for i, class_type in enumerate(CLASSES):
-                button_x = input_x + i * (class_button_width + class_spacing)
-                button_rect = pygame.Rect(button_x, input_y, class_button_width, 30)
-                if button_rect.collidepoint(event.pos):
-                    if self.selected_class != class_type:  # 只在职业真正改变时更新
-                        self.selected_class = class_type
-                        if self.click_sound:
-                            self.click_sound.play()
-                        self.needs_redraw = True
-                    return
-
-            # 检查创建按钮
-            button_y = panel_y + panel_height - 50
-            create_button_rect = pygame.Rect(panel_x + panel_width - 150, button_y, 100, 40)
-            if create_button_rect.collidepoint(event.pos):
-                if self.character_name:  # 只在有名字的情况下创建角色
-                    # 创建角色数据
-                    character_data = {
-                        'name': self.character_name,
-                        'gender': self.selected_gender,
-                        'hairstyle': self.selected_hairstyle,
-                        'body_type': self.selected_body_type,
-                        'class': self.selected_class,
-                        'health': 100,
-                        'mana': 100,
-                        'inventory': []
-                    }
-                    # 保存角色
-                    self.save_character(self.character_name, character_data)
-                    # 返回角色选择界面
-                    self.game_state = "character_select"
-                    self.load_characters_and_maps()  # 重新加载角色列表
-                    if self.click_sound:
-                        self.click_sound.play()
-                    self.needs_redraw = True
-                return
-
-            # 检查返回按钮
-            back_button_rect = pygame.Rect(panel_x + 50, button_y, 100, 40)
-            if back_button_rect.collidepoint(event.pos):
-                self.game_state = "character_select"
-                if self.click_sound:
-                    self.click_sound.play()
-                self.needs_redraw = True
-                return
-        
+        # 处理键盘输入
         elif event.type == pygame.KEYDOWN and self.input_active:
             if event.key == pygame.K_RETURN:
                 self.input_active = False
             elif event.key == pygame.K_BACKSPACE:
                 self.character_name = self.character_name[:-1]
-                self.needs_redraw = True
             else:
-                # 限制名称长度为10个字符
-                if len(self.character_name) < 10 and event.unicode.isprintable():
-                    self.character_name += event.unicode
-                    self.needs_redraw = True
+                self.character_name += event.unicode
+            self.needs_redraw = True
 
     def draw_settings(self):
         """绘制设置界面"""
@@ -3531,6 +3411,28 @@ class Game:
         self.initialize_buttons()
         
         # 标记需要重绘
+        self.needs_redraw = True
+
+    def create_character(self):
+        """创建新角色"""
+        # 创建角色数据
+        character_data = {
+            'name': self.character_name,
+            'gender': self.selected_gender,
+            'hairstyle': self.selected_hairstyle,
+            'body_type': self.selected_body_type,
+            'class': self.selected_class,
+            'health': 100,
+            'mana': 100,
+            'inventory': []
+        }
+        # 保存角色
+        self.save_character(self.character_name, character_data)
+        # 返回角色选择界面
+        self.game_state = "character_select"
+        self.load_characters_and_maps()  # 重新加载角色列表
+        if self.click_sound:
+            self.click_sound.play()
         self.needs_redraw = True
 
 class SettingsButton(SimpleButton):
