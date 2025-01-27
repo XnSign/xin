@@ -4,5 +4,5 @@
     "graphics_quality": "低",
     "language": "简体中文",
     "resolution": "1920x1080",
-    "display_mode": "fullscreen"
+    "display_mode": "windowed"
 }
