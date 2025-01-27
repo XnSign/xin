@@ -2405,14 +2405,14 @@ class Game:
         
         # 绘制标题
         title = self.title_font.render(self.get_text("select_character"), True, (255, 255, 255))
-        title_rect = title.get_rect(center=(self.screen_width//2, 50))
+        title_rect = title.get_rect(center=(self.screen_width//2, int(self.screen_height * 0.1)))
         self.buffer.blit(title, title_rect)
         
         # 创建半透明的面板
-        panel_width = 800
-        panel_height = 500
+        panel_width = int(self.screen_width * 0.8)  # 使用屏幕宽度的80%
+        panel_height = int(self.screen_height * 0.7)  # 使用屏幕高度的70%
         panel_x = (self.screen_width - panel_width) // 2
-        panel_y = 100
+        panel_y = int(self.screen_height * 0.15)  # 从屏幕15%的位置开始
         
         panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
         panel.fill((0, 0, 0, 128))
@@ -2423,10 +2423,10 @@ class Game:
         self.buffer.set_clip(clip_rect)
         
         # 显示现有角色（从上到下排列）
-        char_spacing_y = 220  # 垂直间距
+        char_spacing_y = int(panel_height * 0.4)  # 垂直间距
         start_x = panel_x + 20  # 移到左边
         start_y = panel_y + 30 - self.scroll_y  # 应用滚动偏移
-        preview_size = (180, 180)  # 改为方形预览框
+        preview_size = (int(panel_height * 0.3), int(panel_height * 0.3))  # 预览框大小
         
         # 初始化删除按钮字典
         self.delete_buttons = {}
@@ -2459,13 +2459,13 @@ class Game:
                         # 绘制角色信息面板
                         info_x = x + preview_size[0] + 20
                         info_y = y + 10
-                        info_spacing = 30  # 增加行间距
+                        info_spacing = int(preview_size[1] * 0.2)  # 信息行间距
                         
                         # 绘制角色名称和职业（并列）
                         name_text = self.font.render(char_name, True, (255, 255, 255))
                         class_text = self.font.render(f"{self.get_text('class')}: {char_data.get('class', '战士')}", True, (200, 200, 100))
                         self.buffer.blit(name_text, (info_x, info_y))
-                        self.buffer.blit(class_text, (info_x + 150, info_y))  # 减小偏移量
+                        self.buffer.blit(class_text, (info_x + panel_width * 0.25, info_y))
                         
                         # 绘制生命值和魔法值（并列）
                         max_hp = char_data.get('max_hp', 100)
@@ -2473,7 +2473,7 @@ class Game:
                         hp_text = self.font.render(f"{self.get_text('health')}: {max_hp}", True, (255, 100, 100))
                         mp_text = self.font.render(f"{self.get_text('mana')}: {max_mp}", True, (100, 100, 255))
                         self.buffer.blit(hp_text, (info_x, info_y + info_spacing))
-                        self.buffer.blit(mp_text, (info_x + 150, info_y + info_spacing))  # 减小偏移量
+                        self.buffer.blit(mp_text, (info_x + panel_width * 0.25, info_y + info_spacing))
                         
                         # 绘制游戏时间和删除按钮（同一行）
                         playtime = char_data.get('playtime', 0)
@@ -2484,10 +2484,10 @@ class Game:
                         self.buffer.blit(time_text, (info_x, info_y + info_spacing * 2))
                         
                         # 添加删除按钮（与游戏时间同一行）
-                        delete_btn_width = 80
-                        delete_btn_height = 30
-                        delete_btn_x = panel_x + panel_width - delete_btn_width - 40  # 距离右边界40像素
-                        delete_btn_y = info_y + info_spacing * 2  # 与游戏时间同一行
+                        delete_btn_width = int(panel_width * 0.1)
+                        delete_btn_height = int(panel_height * 0.06)
+                        delete_btn_x = panel_x + panel_width - delete_btn_width - 40
+                        delete_btn_y = info_y + info_spacing * 2
                         
                         # 绘制删除按钮
                         delete_btn = SimpleButton(
@@ -2508,10 +2508,10 @@ class Game:
                         if i < len(self.characters) - 1:
                             pygame.draw.line(
                                 self.buffer,
-                                (100, 100, 150),  # 分隔线颜色
-                                (panel_x + 20, y + preview_size[1] + 10),  # 起点
-                                (panel_x + panel_width - 20, y + preview_size[1] + 10),  # 终点
-                                2  # 线宽
+                                (100, 100, 150),
+                                (panel_x + 20, y + preview_size[1] + 10),
+                                (panel_x + panel_width - 20, y + preview_size[1] + 10),
+                                2
                             )
                         
                 except Exception as e:
@@ -2522,7 +2522,7 @@ class Game:
         
         # 绘制滚动条
         if total_height > visible_height:
-            scroll_bar_width = 16
+            scroll_bar_width = int(panel_width * 0.02)
             scroll_bar_height = max(50, (visible_height / total_height) * visible_height)
             scroll_bar_x = panel_x + panel_width - scroll_bar_width - 4
             scroll_bar_y = panel_y + (self.scroll_y / total_height) * visible_height
@@ -2540,10 +2540,10 @@ class Game:
             self.scroll_area_rect = pygame.Rect(scroll_bar_x, panel_y, scroll_bar_width, panel_height)
         
         # 添加新建角色按钮
-        new_btn_width = 200
-        new_btn_height = 40
+        new_btn_width = int(panel_width * 0.25)
+        new_btn_height = int(panel_height * 0.08)
         new_btn_x = (self.screen_width - new_btn_width) // 2
-        new_btn_y = panel_y + panel_height - 60
+        new_btn_y = panel_y + panel_height + int(panel_height * 0.05)
         
         new_btn = SimpleButton(
             new_btn_x,
@@ -2557,10 +2557,10 @@ class Game:
         new_btn.draw(self.buffer)
         
         # 添加返回按钮
-        back_btn_width = 100
-        back_btn_height = 40
-        back_btn_x = panel_x + 50
-        back_btn_y = panel_y + panel_height - 60
+        back_btn_width = int(panel_width * 0.15)
+        back_btn_height = int(panel_height * 0.08)
+        back_btn_x = panel_x
+        back_btn_y = new_btn_y
         
         back_btn = SimpleButton(
             back_btn_x,
