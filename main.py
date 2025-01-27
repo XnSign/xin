@@ -1686,7 +1686,93 @@ class Game:
 
     def handle_character_create_events(self, event):
         """处理角色创建界面的事件"""
+        if self.in_hairstyle_selection:
+            # 处理发型选择界面的事件
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                
+                # 检查发型预览网格的点击
+                panel_width = 900
+                panel_height = 500
+                panel_x = (self.screen_width - panel_width) // 2
+                panel_y = (self.screen_height - panel_height) // 2
+                
+                preview_size = (100, 100)
+                grid_spacing = 20
+                grid_cols = 4
+                grid_rows = 2
+                start_x = panel_x + (panel_width - (preview_size[0] + grid_spacing) * grid_cols + grid_spacing) // 2
+                start_y = panel_y + 50
+                
+                # 计算当前页的发型范围
+                start_index = self.hairstyle_page * (grid_cols * grid_rows)
+                end_index = min(start_index + (grid_cols * grid_rows), 20)
+                
+                # 检查每个发型预览框
+                for i in range(start_index, end_index):
+                    row = (i - start_index) // grid_cols
+                    col = (i - start_index) % grid_cols
+                    x = start_x + col * (preview_size[0] + grid_spacing)
+                    y = start_y + row * (preview_size[1] + grid_spacing)
+                    
+                    preview_rect = pygame.Rect(x, y, preview_size[0], preview_size[1])
+                    if preview_rect.collidepoint(mouse_pos):
+                        if self.click_sound:
+                            self.click_sound.play()
+                        self.selected_hairstyle['style'] = str(i + 1)
+                        self.needs_redraw = True
+                        return True
+                
+                # 检查翻页按钮
+                if self.prev_btn_rect and self.prev_btn_rect.collidepoint(mouse_pos):
+                    if self.click_sound:
+                        self.click_sound.play()
+                    self.hairstyle_page = max(0, self.hairstyle_page - 1)
+                    self.needs_redraw = True
+                    return True
+                
+                if self.next_btn_rect and self.next_btn_rect.collidepoint(mouse_pos):
+                    if self.click_sound:
+                        self.click_sound.play()
+                    max_pages = (20 - 1) // (grid_cols * grid_rows)
+                    self.hairstyle_page = min(max_pages, self.hairstyle_page + 1)
+                    self.needs_redraw = True
+                    return True
+                
+                # 检查确认按钮
+                if self.confirm_btn_rect and self.confirm_btn_rect.collidepoint(mouse_pos):
+                    if self.click_sound:
+                        self.click_sound.play()
+                    self.in_hairstyle_selection = False
+                    self.needs_redraw = True
+                    return True
+                
+                # 检查发色滑块
+                for slider in self.hair_color_sliders.values():
+                    if slider.handle_event(event):
+                        # 更新发色
+                        self.selected_hairstyle['color'] = (
+                            self.hair_color_sliders['R'].value,
+                            self.hair_color_sliders['G'].value,
+                            self.hair_color_sliders['B'].value
+                        )
+                        self.needs_redraw = True
+                        return True
+            
+            return True
+        
+        # 原有的角色创建界面事件处理代码
         if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_pos = pygame.mouse.get_pos()
+            
+            # 检查发型按钮
+            if hasattr(self, 'hair_button_rect') and self.hair_button_rect.collidepoint(mouse_pos):
+                if hasattr(self, 'click_sound') and self.click_sound:
+                    self.click_sound.play()
+                self.in_hairstyle_selection = True
+                self.needs_redraw = True
+                return True
+            
             # 获取所有按钮
             buttons = {
                 'male': SimpleButton(self.male_button_rect.x, self.male_button_rect.y, 
@@ -3254,82 +3340,66 @@ class Game:
         # 发色选择（RGB滑块）
         color_y = start_y + (grid_rows * (preview_size[1] + grid_spacing)) + 30  # 发色控制区域的起始y坐标
         
-        # 显示当前发色预览
-        color_preview_size = 60  # 预览框大小
-        color_preview_x = start_x + 50  # 移到左边，稍微缩进
-        color_preview_y = color_y  # 设置到发型预览网格下方
-        
-        # 绘制发色预览框
-        pygame.draw.rect(self.buffer, self.selected_hairstyle['color'],
-                        (color_preview_x, color_preview_y,
-                         color_preview_size, color_preview_size))
-        pygame.draw.rect(self.buffer, (255, 255, 255),
-                        (color_preview_x, color_preview_y,
-                         color_preview_size, color_preview_size), 1)
-        
         # 更新滑块位置
-        slider_spacing = 35  # 滑块间距
         slider_width = 200
-        slider_x = color_preview_x + color_preview_size + 50  # 滑块的x坐标
+        slider_spacing = 40
+        slider_x = panel_x + (panel_width - slider_width) // 2
         
-        # 绘制滑块（不显示任何文字）
-        for i, (key, slider) in enumerate(self.hair_color_sliders.items()):
-            # 设置滑块位置
+        for i, (color, slider) in enumerate(self.hair_color_sliders.items()):
             slider.rect.x = slider_x
-            slider.rect.y = color_preview_y + i * slider_spacing
-            
-            # 绘制滑块
+            slider.rect.y = color_y + i * slider_spacing
             slider.draw(self.buffer)
+            
+            # 绘制颜色标签
+            label = self.font.render(color, True, (255, 255, 255))
+            label_rect = label.get_rect(right=slider.rect.left - 10, centery=slider.rect.centery)
+            self.buffer.blit(label, label_rect)
         
-        # 添加翻页和确认按钮
+        # 绘制翻页按钮
         button_width = 100
         button_height = 40
-        button_y = panel_y + panel_height - 60  # 保持按钮在底部
+        button_y = panel_y + panel_height - 60
         
         # 上一页按钮
-        if self.hairstyle_page > 0:
-            prev_btn = SimpleButton(
-                panel_x + 50,
-                button_y,
-                button_width,
-                button_height,
-                self.get_text("prev_page"),
-                color=(100, 100, 200),
-                font_size=24
-            )
-            prev_btn.draw(self.buffer)
-            self.prev_btn_rect = prev_btn.rect
-        else:
-            self.prev_btn_rect = None
+        prev_button = SimpleButton(
+            panel_x + 50,
+            button_y,
+            button_width,
+            button_height,
+            self.get_text("prev_page"),
+            color=(220, 220, 240)
+        )
+        prev_button.draw(self.buffer)
+        self.prev_btn_rect = prev_button.rect
         
         # 下一页按钮
-        if (self.hairstyle_page + 1) * (grid_cols * grid_rows) < 20:
-            next_btn = SimpleButton(
-                panel_x + panel_width - button_width - 50,
-                button_y,
-                button_width,
-                button_height,
-                self.get_text("next_page"),
-                color=(100, 100, 200),
-                font_size=24
-            )
-            next_btn.draw(self.buffer)
-            self.next_btn_rect = next_btn.rect
-        else:
-            self.next_btn_rect = None
+        next_button = SimpleButton(
+            panel_x + panel_width - button_width - 50,
+            button_y,
+            button_width,
+            button_height,
+            self.get_text("next_page"),
+            color=(220, 220, 240)
+        )
+        next_button.draw(self.buffer)
+        self.next_btn_rect = next_button.rect
         
         # 确认按钮
-        confirm_btn = SimpleButton(
+        confirm_button = SimpleButton(
             panel_x + (panel_width - button_width) // 2,
             button_y,
             button_width,
             button_height,
             self.get_text("confirm"),
-            color=(0, 150, 0),
-            font_size=24
+            color=(220, 240, 220)
         )
-        confirm_btn.draw(self.buffer)
-        self.confirm_btn_rect = confirm_btn.rect
+        confirm_button.draw(self.buffer)
+        self.confirm_btn_rect = confirm_button.rect
+        
+        # 将缓冲区内容复制到屏幕
+        self.screen.blit(self.buffer, (0, 0))
+        pygame.display.flip()
+        self.needs_redraw = False
 
     def load_settings(self):
         """从文件加载设置"""
