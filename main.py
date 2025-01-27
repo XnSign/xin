@@ -354,10 +354,10 @@ class CharacterCreator:
             return
         
         # 创建半透明面板
-        panel_width = 900
-        panel_height = 500
+        panel_width = 1000  # 增加面板宽度
+        panel_height = 600  # 增加面板高度
         panel_x = (self.screen_width - panel_width) // 2
-        panel_y = (self.screen_height - panel_height) // 2  # 修改为垂直居中
+        panel_y = (self.screen_height - panel_height) // 2
         
         # 绘制标题
         title = self.title_font.render(self.get_text("create_character"), True, (255, 255, 255))
@@ -371,14 +371,14 @@ class CharacterCreator:
         
         # 分割线
         pygame.draw.line(self.buffer, (100, 100, 150), 
-                        (panel_x + 600, panel_y + 20),
-                        (panel_x + 600, panel_y + panel_height - 20), 2)
+                        (panel_x + 700, panel_y + 20),  # 调整分割线位置
+                        (panel_x + 700, panel_y + panel_height - 20), 2)
         
         # 绘制输入框和标签
-        input_y = panel_y + 30
-        label_x = panel_x + 50
-        input_x = panel_x + 200
-        spacing = 60
+        input_y = panel_y + 40  # 稍微增加顶部间距
+        label_x = panel_x + 80  # 标签左移
+        input_x = panel_x + 180  # 输入框和按钮左移
+        spacing = 80  # 增加垂直间距
         
         # 角色名称输入
         name_label = self.font.render("角色名称:", True, (255, 255, 255))
@@ -394,15 +394,15 @@ class CharacterCreator:
         self.buffer.blit(gender_label, (label_x, input_y))
         
         # 性别按钮
-        gender_button_width = 80
-        gender_spacing = 50  # 增加间距
+        gender_button_width = 100  # 增加按钮宽度
+        gender_spacing = 60  # 增加按钮间距
         for i, gender in enumerate(["男", "女"]):
             button_x = input_x + i * (gender_button_width + gender_spacing)
             button = SimpleButton(
                 button_x,
                 input_y,
                 gender_button_width,
-                30,
+                35,  # 增加按钮高度
                 gender,
                 color=(240, 240, 255) if self.selected_gender == gender else (220, 220, 240)
             )
@@ -421,8 +421,8 @@ class CharacterCreator:
         hair_button = SimpleButton(
             input_x,
             input_y,
-            200,
-            30,
+            250,  # 增加按钮宽度
+            35,   # 增加按钮高度
             "选择发型",
             color=(220, 220, 240)
         )
@@ -435,15 +435,15 @@ class CharacterCreator:
         self.buffer.blit(body_label, (label_x, input_y))
         
         # 体型按钮
-        body_button_width = 80
-        body_spacing = 40  # 增加间距
+        body_button_width = 100  # 增加按钮宽度
+        body_spacing = 50  # 增加按钮间距
         for i, body_type in enumerate(BODY_TYPES):
             button_x = input_x + i * (body_button_width + body_spacing)
             button = SimpleButton(
                 button_x,
                 input_y,
                 body_button_width,
-                30,
+                35,  # 增加按钮高度
                 body_type,
                 color=(240, 240, 255) if self.selected_body_type == body_type else (220, 220, 240)
             )
@@ -461,15 +461,18 @@ class CharacterCreator:
         self.buffer.blit(class_label, (label_x, input_y))
         
         # 职业按钮
-        class_button_width = 80
-        class_spacing = 40  # 增加间距
+        class_button_width = 90  # 减小按钮宽度
+        class_spacing = 40  # 减小按钮间距
+        total_width = (class_button_width * len(CLASSES)) + (class_spacing * (len(CLASSES) - 1))
+        start_x = input_x  # 起始位置
+        
         for i, class_type in enumerate(CLASSES):
-            button_x = input_x + i * (class_button_width + class_spacing)
+            button_x = start_x + i * (class_button_width + class_spacing)
             button = SimpleButton(
                 button_x,
                 input_y,
                 class_button_width,
-                30,
+                35,  # 保持按钮高度
                 class_type,
                 color=(240, 240, 255) if self.selected_class == class_type else (220, 220, 240)
             )
@@ -484,14 +487,14 @@ class CharacterCreator:
                 self.thief_button_rect = button.rect
         
         # 底部按钮
-        button_y = panel_y + panel_height - 50
-        button_height = 40
+        button_y = panel_y + panel_height - 60  # 调整底部按钮位置
+        button_height = 45  # 增加按钮高度
         
         # 返回按钮
         back_button = SimpleButton(
-            panel_x + 50,
+            panel_x + 80,  # 左移
             button_y,
-            100,
+            120,  # 增加按钮宽度
             button_height,
             "返回",
             color=(220, 220, 240)
@@ -501,21 +504,21 @@ class CharacterCreator:
         
         # 创建按钮
         create_button = SimpleButton(
-            panel_x + panel_width - 150,
+            panel_x + panel_width - 200,  # 调整位置
             button_y,
-            100,
+            120,  # 增加按钮宽度
             button_height,
             "创建",
-            color=(220, 240, 220)  # 略微偏绿的银白色
+            color=(220, 240, 220)
         )
         create_button.draw(self.buffer)
         self.create_button_rect = create_button.rect
         
         # 绘制角色预览
-        preview_x = panel_x + 650  # 预览区域的x坐标
-        preview_y = panel_y + 50   # 预览区域的y坐标
-        preview_width = 200        # 预览区域的宽度
-        preview_height = 300       # 预览区域的高度
+        preview_x = panel_x + 750  # 调整预览区域位置
+        preview_y = panel_y + 50
+        preview_width = 200
+        preview_height = 400  # 增加预览区域高度
         
         # 绘制预览区域标题
         preview_title = self.font.render("角色预览", True, (255, 255, 255))
@@ -1493,10 +1496,10 @@ class Game:
             return
         
         # 创建半透明面板
-        panel_width = 900
-        panel_height = 500
+        panel_width = 1000  # 增加面板宽度
+        panel_height = 600  # 增加面板高度
         panel_x = (self.screen_width - panel_width) // 2
-        panel_y = (self.screen_height - panel_height) // 2  # 修改为垂直居中
+        panel_y = (self.screen_height - panel_height) // 2
         
         # 绘制标题
         title = self.title_font.render(self.get_text("create_character"), True, (255, 255, 255))
@@ -1510,14 +1513,14 @@ class Game:
         
         # 分割线
         pygame.draw.line(self.buffer, (100, 100, 150), 
-                        (panel_x + 600, panel_y + 20),
-                        (panel_x + 600, panel_y + panel_height - 20), 2)
+                        (panel_x + 700, panel_y + 20),  # 调整分割线位置
+                        (panel_x + 700, panel_y + panel_height - 20), 2)
         
         # 绘制输入框和标签
-        input_y = panel_y + 30
-        label_x = panel_x + 50
-        input_x = panel_x + 200
-        spacing = 60
+        input_y = panel_y + 40  # 稍微增加顶部间距
+        label_x = panel_x + 80  # 标签左移
+        input_x = panel_x + 180  # 输入框和按钮左移
+        spacing = 80  # 增加垂直间距
         
         # 角色名称输入
         name_label = self.font.render("角色名称:", True, (255, 255, 255))
@@ -1533,15 +1536,15 @@ class Game:
         self.buffer.blit(gender_label, (label_x, input_y))
         
         # 性别按钮
-        gender_button_width = 80
-        gender_spacing = 50  # 增加间距
+        gender_button_width = 100  # 增加按钮宽度
+        gender_spacing = 60  # 增加按钮间距
         for i, gender in enumerate(["男", "女"]):
             button_x = input_x + i * (gender_button_width + gender_spacing)
             button = SimpleButton(
                 button_x,
                 input_y,
                 gender_button_width,
-                30,
+                35,  # 增加按钮高度
                 gender,
                 color=(240, 240, 255) if self.selected_gender == gender else (220, 220, 240)
             )
@@ -1560,8 +1563,8 @@ class Game:
         hair_button = SimpleButton(
             input_x,
             input_y,
-            200,
-            30,
+            250,  # 增加按钮宽度
+            35,   # 增加按钮高度
             "选择发型",
             color=(220, 220, 240)
         )
@@ -1574,15 +1577,15 @@ class Game:
         self.buffer.blit(body_label, (label_x, input_y))
         
         # 体型按钮
-        body_button_width = 80
-        body_spacing = 40  # 增加间距
+        body_button_width = 100  # 增加按钮宽度
+        body_spacing = 50  # 增加按钮间距
         for i, body_type in enumerate(BODY_TYPES):
             button_x = input_x + i * (body_button_width + body_spacing)
             button = SimpleButton(
                 button_x,
                 input_y,
                 body_button_width,
-                30,
+                35,  # 增加按钮高度
                 body_type,
                 color=(240, 240, 255) if self.selected_body_type == body_type else (220, 220, 240)
             )
@@ -1600,15 +1603,18 @@ class Game:
         self.buffer.blit(class_label, (label_x, input_y))
         
         # 职业按钮
-        class_button_width = 80
-        class_spacing = 40  # 增加间距
+        class_button_width = 90  # 减小按钮宽度
+        class_spacing = 40  # 减小按钮间距
+        total_width = (class_button_width * len(CLASSES)) + (class_spacing * (len(CLASSES) - 1))
+        start_x = input_x  # 起始位置
+        
         for i, class_type in enumerate(CLASSES):
-            button_x = input_x + i * (class_button_width + class_spacing)
+            button_x = start_x + i * (class_button_width + class_spacing)
             button = SimpleButton(
                 button_x,
                 input_y,
                 class_button_width,
-                30,
+                35,  # 保持按钮高度
                 class_type,
                 color=(240, 240, 255) if self.selected_class == class_type else (220, 220, 240)
             )
@@ -1623,14 +1629,14 @@ class Game:
                 self.thief_button_rect = button.rect
         
         # 底部按钮
-        button_y = panel_y + panel_height - 50
-        button_height = 40
+        button_y = panel_y + panel_height - 60  # 调整底部按钮位置
+        button_height = 45  # 增加按钮高度
         
         # 返回按钮
         back_button = SimpleButton(
-            panel_x + 50,
+            panel_x + 80,  # 左移
             button_y,
-            100,
+            120,  # 增加按钮宽度
             button_height,
             "返回",
             color=(220, 220, 240)
@@ -1640,21 +1646,21 @@ class Game:
         
         # 创建按钮
         create_button = SimpleButton(
-            panel_x + panel_width - 150,
+            panel_x + panel_width - 200,  # 调整位置
             button_y,
-            100,
+            120,  # 增加按钮宽度
             button_height,
             "创建",
-            color=(220, 240, 220)  # 略微偏绿的银白色
+            color=(220, 240, 220)
         )
         create_button.draw(self.buffer)
         self.create_button_rect = create_button.rect
         
         # 绘制角色预览
-        preview_x = panel_x + 650  # 预览区域的x坐标
-        preview_y = panel_y + 50   # 预览区域的y坐标
-        preview_width = 200        # 预览区域的宽度
-        preview_height = 300       # 预览区域的高度
+        preview_x = panel_x + 750  # 调整预览区域位置
+        preview_y = panel_y + 50
+        preview_width = 200
+        preview_height = 400  # 增加预览区域高度
         
         # 绘制预览区域标题
         preview_title = self.font.render("角色预览", True, (255, 255, 255))
