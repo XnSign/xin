@@ -353,16 +353,16 @@ class CharacterCreator:
             self.draw_hairstyle_selection()
             return
         
-        # 绘制标题
-        title = self.title_font.render("创建角色", True, (255, 255, 255))
-        title_rect = title.get_rect(center=(self.screen_width//2, 50))
-        self.buffer.blit(title, title_rect)
-        
         # 创建半透明面板
         panel_width = 900
         panel_height = 500
         panel_x = (self.screen_width - panel_width) // 2
-        panel_y = 100
+        panel_y = (self.screen_height - panel_height) // 2  # 修改为垂直居中
+        
+        # 绘制标题
+        title = self.title_font.render(self.get_text("create_character"), True, (255, 255, 255))
+        title_rect = title.get_rect(center=(self.screen_width//2, panel_y - 30))
+        self.buffer.blit(title, title_rect)
         
         # 绘制面板背景
         panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
@@ -1485,16 +1485,16 @@ class Game:
             self.draw_hairstyle_selection()
             return
         
-        # 绘制标题
-        title = self.title_font.render(self.get_text("create_character"), True, (255, 255, 255))
-        title_rect = title.get_rect(center=(self.screen_width//2, 50))
-        self.buffer.blit(title, title_rect)
-        
         # 创建半透明面板
         panel_width = 900
         panel_height = 500
         panel_x = (self.screen_width - panel_width) // 2
-        panel_y = 100
+        panel_y = (self.screen_height - panel_height) // 2  # 修改为垂直居中
+        
+        # 绘制标题
+        title = self.title_font.render(self.get_text("create_character"), True, (255, 255, 255))
+        title_rect = title.get_rect(center=(self.screen_width//2, panel_y - 30))
+        self.buffer.blit(title, title_rect)
         
         # 绘制面板背景
         panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
@@ -1513,7 +1513,7 @@ class Game:
         spacing = 60
         
         # 角色名称输入
-        name_label = self.font.render(self.get_text("character_name") + ":", True, (255, 255, 255))
+        name_label = self.font.render("角色名称:", True, (255, 255, 255))
         self.buffer.blit(name_label, (label_x, input_y))
         
         # 绘制输入框
@@ -1524,7 +1524,7 @@ class Game:
         
         # 性别选择
         input_y += spacing
-        gender_label = self.font.render(self.get_text("gender") + ":", True, (255, 255, 255))
+        gender_label = self.font.render("性别:", True, (255, 255, 255))
         self.buffer.blit(gender_label, (label_x, input_y))
         
         # 性别按钮
@@ -1543,7 +1543,7 @@ class Game:
         
         # 发型选择按钮
         input_y += spacing
-        hair_label = self.font.render(self.get_text("hairstyle") + ":", True, (255, 255, 255))
+        hair_label = self.font.render("发型:", True, (255, 255, 255))
         self.buffer.blit(hair_label, (label_x, input_y))
         
         # 创建发型选择按钮
@@ -1552,7 +1552,7 @@ class Game:
             input_y,
             200,
             40,
-            self.get_text("select_hairstyle"),
+            "选择发型",
             color=(100, 100, 200),
             font_size=32
         )
@@ -1561,7 +1561,7 @@ class Game:
         
         # 体型选择
         input_y += spacing
-        body_label = self.font.render(self.get_text("body_type") + ":", True, (255, 255, 255))
+        body_label = self.font.render("体型:", True, (255, 255, 255))
         self.buffer.blit(body_label, (label_x, input_y))
         
         # 体型按钮
@@ -1580,7 +1580,7 @@ class Game:
         
         # 职业选择
         input_y += spacing
-        class_label = self.font.render(self.get_text("class") + ":", True, (255, 255, 255))
+        class_label = self.font.render("职业:", True, (255, 255, 255))
         self.buffer.blit(class_label, (label_x, input_y))
         
         # 职业按钮
@@ -1634,7 +1634,7 @@ class Game:
         
         # 创建临时角色数据用于预览
         preview_data = {
-            'name': self.character_name or self.get_text("preview"),
+            'name': self.character_name or "预览",
             'gender': self.selected_gender,
             'hairstyle': self.selected_hairstyle,
             'body_type': self.selected_body_type,
@@ -1689,7 +1689,7 @@ class Game:
                 panel_width = 900
                 panel_height = 500
                 panel_x = (self.screen_width - panel_width) // 2
-                panel_y = 100
+                panel_y = (self.screen_height - panel_height) // 2  # 修改为垂直居中
                 preview_size = (100, 100)
                 grid_spacing = 20
                 grid_cols = 4
@@ -1764,7 +1764,7 @@ class Game:
             panel_width = 900
             panel_height = 500
             panel_x = (self.screen_width - panel_width) // 2
-            panel_y = 100
+            panel_y = (self.screen_height - panel_height) // 2  # 修改为垂直居中
             
             # 计算输入区域位置
             input_x = panel_x + 200
@@ -3300,7 +3300,7 @@ class Game:
         panel_width = 900
         panel_height = 500
         panel_x = (self.screen_width - panel_width) // 2
-        panel_y = 100
+        panel_y = (self.screen_height - panel_height) // 2  # 修改为垂直居中
         
         # 绘制面板背景
         panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
