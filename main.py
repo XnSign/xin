@@ -387,8 +387,6 @@ class CharacterCreator:
         # 绘制输入框
         pygame.draw.rect(self.buffer, (255, 255, 255) if self.input_active else (150, 150, 150),
                         (input_x, input_y, 200, 30), 2)
-        name_text = self.font.render(self.character_name, True, (255, 255, 255))
-        self.buffer.blit(name_text, (input_x + 5, input_y))
         
         # 性别选择
         input_y += spacing
@@ -397,32 +395,36 @@ class CharacterCreator:
         
         # 性别按钮
         gender_button_width = 80
-        gender_spacing = 20
-        for i, gender in enumerate(['男', '女']):
+        gender_spacing = 50  # 增加间距
+        for i, gender in enumerate(["男", "女"]):
             button_x = input_x + i * (gender_button_width + gender_spacing)
-            button_color = (100, 100, 200) if self.selected_gender == gender else (60, 60, 140)
-            pygame.draw.rect(self.buffer, button_color, 
-                           (button_x, input_y, gender_button_width, 30), border_radius=5)
-            pygame.draw.rect(self.buffer, (255, 255, 255),
-                           (button_x, input_y, gender_button_width, 30), 1, border_radius=5)
-            gender_text = self.font.render(gender, True, (255, 255, 255))
-            text_rect = gender_text.get_rect(center=(button_x + gender_button_width//2, input_y + 15))
-            self.buffer.blit(gender_text, text_rect)
+            button = SimpleButton(
+                button_x,
+                input_y,
+                gender_button_width,
+                30,
+                gender,
+                color=(240, 240, 255) if self.selected_gender == gender else (220, 220, 240)
+            )
+            button.draw(self.buffer)
+            if gender == "男":
+                self.male_button_rect = button.rect
+            else:
+                self.female_button_rect = button.rect
         
-        # 发型选择按钮
+        # 发型选择
         input_y += spacing
         hair_label = self.font.render("发型:", True, (255, 255, 255))
         self.buffer.blit(hair_label, (label_x, input_y))
         
-        # 创建发型选择按钮
+        # 发型按钮
         hair_button = SimpleButton(
             input_x,
             input_y,
             200,
-            40,
+            30,
             "选择发型",
-            color=(100, 100, 200),
-            font_size=32
+            color=(220, 220, 240)
         )
         hair_button.draw(self.buffer)
         self.hair_button_rect = hair_button.rect
@@ -434,17 +436,24 @@ class CharacterCreator:
         
         # 体型按钮
         body_button_width = 80
-        body_spacing = 10
+        body_spacing = 40  # 增加间距
         for i, body_type in enumerate(BODY_TYPES):
             button_x = input_x + i * (body_button_width + body_spacing)
-            button_color = (100, 100, 200) if self.selected_body_type == body_type else (60, 60, 140)
-            pygame.draw.rect(self.buffer, button_color,
-                           (button_x, input_y, body_button_width, 30), border_radius=5)
-            pygame.draw.rect(self.buffer, (255, 255, 255),
-                           (button_x, input_y, body_button_width, 30), 1, border_radius=5)
-            type_text = self.font.render(body_type, True, (255, 255, 255))
-            text_rect = type_text.get_rect(center=(button_x + body_button_width//2, input_y + 15))
-            self.buffer.blit(type_text, text_rect)
+            button = SimpleButton(
+                button_x,
+                input_y,
+                body_button_width,
+                30,
+                body_type,
+                color=(240, 240, 255) if self.selected_body_type == body_type else (220, 220, 240)
+            )
+            button.draw(self.buffer)
+            if i == 0:
+                self.thin_button_rect = button.rect
+            elif i == 1:
+                self.normal_button_rect = button.rect
+            else:
+                self.fat_button_rect = button.rect
         
         # 职业选择
         input_y += spacing
@@ -453,35 +462,54 @@ class CharacterCreator:
         
         # 职业按钮
         class_button_width = 80
-        class_spacing = 10
+        class_spacing = 40  # 增加间距
         for i, class_type in enumerate(CLASSES):
             button_x = input_x + i * (class_button_width + class_spacing)
-            button_color = (100, 100, 200) if self.selected_class == class_type else (60, 60, 140)
-            pygame.draw.rect(self.buffer, button_color,
-                           (button_x, input_y, class_button_width, 30), border_radius=5)
-            pygame.draw.rect(self.buffer, (255, 255, 255),
-                           (button_x, input_y, class_button_width, 30), 1, border_radius=5)
-            class_text = self.font.render(class_type, True, (255, 255, 255))
-            text_rect = class_text.get_rect(center=(button_x + class_button_width//2, input_y + 15))
-            self.buffer.blit(class_text, text_rect)
+            button = SimpleButton(
+                button_x,
+                input_y,
+                class_button_width,
+                30,
+                class_type,
+                color=(240, 240, 255) if self.selected_class == class_type else (220, 220, 240)
+            )
+            button.draw(self.buffer)
+            if i == 0:
+                self.warrior_button_rect = button.rect
+            elif i == 1:
+                self.mage_button_rect = button.rect
+            elif i == 2:
+                self.archer_button_rect = button.rect
+            else:
+                self.thief_button_rect = button.rect
         
         # 底部按钮
         button_y = panel_y + panel_height - 50
         button_height = 40
         
         # 返回按钮
-        pygame.draw.rect(self.buffer, (60, 60, 140),
-                        (panel_x + 50, button_y, 100, button_height), border_radius=5)
-        back_text = self.font.render("返回", True, (255, 255, 255))
-        back_rect = back_text.get_rect(center=(panel_x + 100, button_y + button_height//2))
-        self.buffer.blit(back_text, back_rect)
+        back_button = SimpleButton(
+            panel_x + 50,
+            button_y,
+            100,
+            button_height,
+            "返回",
+            color=(220, 220, 240)
+        )
+        back_button.draw(self.buffer)
+        self.back_button_rect = back_button.rect
         
         # 创建按钮
-        pygame.draw.rect(self.buffer, (60, 140, 60),
-                        (panel_x + panel_width - 150, button_y, 100, button_height), border_radius=5)
-        create_text = self.font.render("创建", True, (255, 255, 255))
-        create_rect = create_text.get_rect(center=(panel_x + panel_width - 100, button_y + button_height//2))
-        self.buffer.blit(create_text, create_rect)
+        create_button = SimpleButton(
+            panel_x + panel_width - 150,
+            button_y,
+            100,
+            button_height,
+            "创建",
+            color=(220, 240, 220)  # 略微偏绿的银白色
+        )
+        create_button.draw(self.buffer)
+        self.create_button_rect = create_button.rect
         
         # 绘制角色预览
         preview_x = panel_x + 650  # 预览区域的x坐标
@@ -497,27 +525,6 @@ class CharacterCreator:
         # 绘制预览区域背景
         pygame.draw.rect(self.buffer, (40, 40, 80), 
                         (preview_x, preview_y, preview_width, preview_height))
-        pygame.draw.rect(self.buffer, (100, 100, 150),
-                        (preview_x, preview_y, preview_width, preview_height), 2)
-        
-        # 创建临时角色数据用于预览
-        preview_data = {
-            'name': self.character_name or "预览",
-            'gender': self.selected_gender,
-            'hairstyle': self.selected_hairstyle,
-            'body_type': self.selected_body_type,
-            'class': self.selected_class,
-            'skin_color': (255, 220, 180),
-            'health': 100,
-            'mana': 100
-        }
-        
-        # 使用Player类的预览功能
-        preview_player = Player(preview_x + preview_width//2, preview_y + preview_height//2, preview_data)
-        preview_player.preview_mode = True
-        preview_player.update_appearance()
-        preview_rect = preview_player.image.get_rect(center=(preview_x + preview_width//2, preview_y + preview_height//2))
-        self.buffer.blit(preview_player.image, preview_rect)
         
         # 如果有弹出框，绘制弹出框
         if hasattr(self, 'popup') and self.popup and self.popup.visible:
@@ -1519,8 +1526,6 @@ class Game:
         # 绘制输入框
         pygame.draw.rect(self.buffer, (255, 255, 255) if self.input_active else (150, 150, 150),
                         (input_x, input_y, 200, 30), 2)
-        name_text = self.font.render(self.character_name, True, (255, 255, 255))
-        self.buffer.blit(name_text, (input_x + 5, input_y))
         
         # 性别选择
         input_y += spacing
@@ -1529,32 +1534,36 @@ class Game:
         
         # 性别按钮
         gender_button_width = 80
-        gender_spacing = 20
-        for i, gender in enumerate(['男', '女']):
+        gender_spacing = 50  # 增加间距
+        for i, gender in enumerate(["男", "女"]):
             button_x = input_x + i * (gender_button_width + gender_spacing)
-            button_color = (100, 100, 200) if self.selected_gender == gender else (60, 60, 140)
-            pygame.draw.rect(self.buffer, button_color, 
-                           (button_x, input_y, gender_button_width, 30), border_radius=5)
-            pygame.draw.rect(self.buffer, (255, 255, 255),
-                           (button_x, input_y, gender_button_width, 30), 1, border_radius=5)
-            gender_text = self.font.render(gender, True, (255, 255, 255))
-            text_rect = gender_text.get_rect(center=(button_x + gender_button_width//2, input_y + 15))
-            self.buffer.blit(gender_text, text_rect)
+            button = SimpleButton(
+                button_x,
+                input_y,
+                gender_button_width,
+                30,
+                gender,
+                color=(240, 240, 255) if self.selected_gender == gender else (220, 220, 240)
+            )
+            button.draw(self.buffer)
+            if gender == "男":
+                self.male_button_rect = button.rect
+            else:
+                self.female_button_rect = button.rect
         
-        # 发型选择按钮
+        # 发型选择
         input_y += spacing
         hair_label = self.font.render("发型:", True, (255, 255, 255))
         self.buffer.blit(hair_label, (label_x, input_y))
         
-        # 创建发型选择按钮
+        # 发型按钮
         hair_button = SimpleButton(
             input_x,
             input_y,
             200,
-            40,
+            30,
             "选择发型",
-            color=(100, 100, 200),
-            font_size=32
+            color=(220, 220, 240)
         )
         hair_button.draw(self.buffer)
         self.hair_button_rect = hair_button.rect
@@ -1566,17 +1575,24 @@ class Game:
         
         # 体型按钮
         body_button_width = 80
-        body_spacing = 10
+        body_spacing = 40  # 增加间距
         for i, body_type in enumerate(BODY_TYPES):
             button_x = input_x + i * (body_button_width + body_spacing)
-            button_color = (100, 100, 200) if self.selected_body_type == body_type else (60, 60, 140)
-            pygame.draw.rect(self.buffer, button_color,
-                           (button_x, input_y, body_button_width, 30), border_radius=5)
-            pygame.draw.rect(self.buffer, (255, 255, 255),
-                           (button_x, input_y, body_button_width, 30), 1, border_radius=5)
-            type_text = self.font.render(body_type, True, (255, 255, 255))
-            text_rect = type_text.get_rect(center=(button_x + body_button_width//2, input_y + 15))
-            self.buffer.blit(type_text, text_rect)
+            button = SimpleButton(
+                button_x,
+                input_y,
+                body_button_width,
+                30,
+                body_type,
+                color=(240, 240, 255) if self.selected_body_type == body_type else (220, 220, 240)
+            )
+            button.draw(self.buffer)
+            if i == 0:
+                self.thin_button_rect = button.rect
+            elif i == 1:
+                self.normal_button_rect = button.rect
+            else:
+                self.fat_button_rect = button.rect
         
         # 职业选择
         input_y += spacing
@@ -1585,35 +1601,54 @@ class Game:
         
         # 职业按钮
         class_button_width = 80
-        class_spacing = 10
+        class_spacing = 40  # 增加间距
         for i, class_type in enumerate(CLASSES):
             button_x = input_x + i * (class_button_width + class_spacing)
-            button_color = (100, 100, 200) if self.selected_class == class_type else (60, 60, 140)
-            pygame.draw.rect(self.buffer, button_color,
-                           (button_x, input_y, class_button_width, 30), border_radius=5)
-            pygame.draw.rect(self.buffer, (255, 255, 255),
-                           (button_x, input_y, class_button_width, 30), 1, border_radius=5)
-            class_text = self.font.render(class_type, True, (255, 255, 255))
-            text_rect = class_text.get_rect(center=(button_x + class_button_width//2, input_y + 15))
-            self.buffer.blit(class_text, text_rect)
+            button = SimpleButton(
+                button_x,
+                input_y,
+                class_button_width,
+                30,
+                class_type,
+                color=(240, 240, 255) if self.selected_class == class_type else (220, 220, 240)
+            )
+            button.draw(self.buffer)
+            if i == 0:
+                self.warrior_button_rect = button.rect
+            elif i == 1:
+                self.mage_button_rect = button.rect
+            elif i == 2:
+                self.archer_button_rect = button.rect
+            else:
+                self.thief_button_rect = button.rect
         
         # 底部按钮
         button_y = panel_y + panel_height - 50
         button_height = 40
         
         # 返回按钮
-        pygame.draw.rect(self.buffer, (60, 60, 140),
-                        (panel_x + 50, button_y, 100, button_height), border_radius=5)
-        back_text = self.font.render("返回", True, (255, 255, 255))
-        back_rect = back_text.get_rect(center=(panel_x + 100, button_y + button_height//2))
-        self.buffer.blit(back_text, back_rect)
+        back_button = SimpleButton(
+            panel_x + 50,
+            button_y,
+            100,
+            button_height,
+            "返回",
+            color=(220, 220, 240)
+        )
+        back_button.draw(self.buffer)
+        self.back_button_rect = back_button.rect
         
         # 创建按钮
-        pygame.draw.rect(self.buffer, (60, 140, 60),
-                        (panel_x + panel_width - 150, button_y, 100, button_height), border_radius=5)
-        create_text = self.font.render("创建", True, (255, 255, 255))
-        create_rect = create_text.get_rect(center=(panel_x + panel_width - 100, button_y + button_height//2))
-        self.buffer.blit(create_text, create_rect)
+        create_button = SimpleButton(
+            panel_x + panel_width - 150,
+            button_y,
+            100,
+            button_height,
+            "创建",
+            color=(220, 240, 220)  # 略微偏绿的银白色
+        )
+        create_button.draw(self.buffer)
+        self.create_button_rect = create_button.rect
         
         # 绘制角色预览
         preview_x = panel_x + 650  # 预览区域的x坐标
@@ -1629,27 +1664,6 @@ class Game:
         # 绘制预览区域背景
         pygame.draw.rect(self.buffer, (40, 40, 80), 
                         (preview_x, preview_y, preview_width, preview_height))
-        pygame.draw.rect(self.buffer, (100, 100, 150),
-                        (preview_x, preview_y, preview_width, preview_height), 2)
-        
-        # 创建临时角色数据用于预览
-        preview_data = {
-            'name': self.character_name or "预览",
-            'gender': self.selected_gender,
-            'hairstyle': self.selected_hairstyle,
-            'body_type': self.selected_body_type,
-            'class': self.selected_class,
-            'skin_color': (255, 220, 180),
-            'health': 100,
-            'mana': 100
-        }
-        
-        # 使用Player类的预览功能
-        preview_player = Player(preview_x + preview_width//2, preview_y + preview_height//2, preview_data)
-        preview_player.preview_mode = True
-        preview_player.update_appearance()
-        preview_rect = preview_player.image.get_rect(center=(preview_x + preview_width//2, preview_y + preview_height//2))
-        self.buffer.blit(preview_player.image, preview_rect)
         
         # 如果有弹出框，绘制弹出框
         if hasattr(self, 'popup') and self.popup and self.popup.visible:
