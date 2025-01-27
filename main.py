@@ -20,6 +20,18 @@ BASE_WIDTH = 1280  # 固定宽度
 BASE_HEIGHT = 720  # 固定高度
 DESIGN_TILES_X = 120  # 1080p下水平方向的方块数
 
+# 颜色常量
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+SKY_BLUE = (135, 206, 235)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+LIGHT_GRAY = (200, 200, 200)
+LIGHT_RED = (255, 100, 100)
+DARK_GRAY = (100, 100, 100)
+GREEN = (0, 255, 0)
+DARK_GREEN = (0, 150, 0)
+
 # 职业选项
 CLASSES = ["战士", "法师", "弓箭手", "盗贼"]
 
@@ -29,19 +41,6 @@ HAIRSTYLES = ["短发", "长发", "马尾", "双马尾", "波波头", "蓬松卷
 
 # 体型选项
 BODY_TYPES = ["瘦小", "标准", "魁梧"]
-
-# 颜色
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-SKY_BLUE = (135, 206, 235)
-GRAY = (128, 128, 128)
-RED = (255, 0, 0)
-BLUE = (0, 0, 255)
-LIGHT_GRAY = (200, 200, 200)
-LIGHT_RED = (255, 100, 100)
-DARK_GRAY = (100, 100, 100)
-GREEN = (0, 255, 0)
-DARK_GREEN = (0, 150, 0)
 
 # 游戏状态常量
 GAME_STATES = {
@@ -3403,6 +3402,23 @@ class Game:
         else:  # windowed
             # 使用默认标志（带边框的窗口模式）
             self.screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
+            
+            # 在窗口模式下，将窗口居中显示
+            if os.name == 'nt':  # Windows系统
+                import ctypes
+                hwnd = pygame.display.get_wm_info()['window']
+                # 获取屏幕尺寸
+                user32 = ctypes.windll.user32
+                screen_width = user32.GetSystemMetrics(0)
+                screen_height = user32.GetSystemMetrics(1)
+                # 计算窗口位置使其居中
+                x = (screen_width - width) // 2
+                y = (screen_height - height) // 2
+                # 设置窗口位置
+                user32.SetWindowPos(hwnd, 0, x, y, 0, 0, 0x0001)
+            else:  # 其他系统
+                # 对于其他系统，可以尝试使用 SDL 的方法设置窗口位置
+                os.environ['SDL_VIDEO_CENTERED'] = '1'
         
         # 重新创建缓冲区以匹配新的分辨率
         self.buffer = pygame.Surface((width, height))
