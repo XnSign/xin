@@ -1006,7 +1006,7 @@ class Game:
         
         # 加载音效
         try:
-            self.click_sound = pygame.mixer.Sound("assets/sounds/click.wav")
+            self.click_sound = pygame.mixer.Sound("assets/sounds/ui/click.wav")
             self.click_sound.set_volume(0.5)  # 设置音量为50%
         except Exception as e:
             print(f"加载音效时出错: {e}")
@@ -2620,7 +2620,7 @@ class Game:
             
             # 检查滚动区域点击
             elif hasattr(self, 'scroll_area_rect') and self.scroll_area_rect.collidepoint(mouse_pos):
-                panel_y = 100
+                panel_y = (self.screen_height - 500) // 2  # 使用动态计算的panel_y
                 visible_height = 500 - 60
                 total_height = len(self.characters) * 220
                 click_pos = (mouse_pos[1] - panel_y) / visible_height
@@ -2639,7 +2639,7 @@ class Game:
             
             # 检查删除按钮点击
             if hasattr(self, 'delete_buttons'):
-                panel_y = 100
+                panel_y = (self.screen_height - 500) // 2  # 使用动态计算的panel_y
                 start_y = panel_y + 30
                 char_spacing_y = 220
                 preview_size = (150, 200)
@@ -2658,9 +2658,12 @@ class Game:
                     )
                     
                     if current_rect.collidepoint(mouse_pos):
+                        # 播放点击音效
+                        if hasattr(self, 'click_sound') and self.click_sound:
+                            self.click_sound.play()
                         # 显示确认对话框
                         self.show_confirm_dialog(f"{self.get_text('confirm_delete')} {char_name}?")
-                        self.confirm_dialog.char_name = char_name  # 保存要删除的角色名
+                        self.confirm_dialog.char_name = char_name
                         return True
             
             # 检查新建角色按钮点击
@@ -2674,7 +2677,7 @@ class Game:
             # 检查角色选择（垂直布局）
             panel_width = 800
             panel_x = (self.screen_width - panel_width) // 2
-            panel_y = 100
+            panel_y = (self.screen_height - 500) // 2  # 使用动态计算的panel_y
             preview_size = (150, 200)
             char_spacing_y = 220
             start_x = panel_x + 20  # 与绘制时保持一致
