@@ -1095,9 +1095,8 @@ class Game:
         # 根据当前语言设置按钮文本
         menu_texts = [
             self.get_text("start_game"),
-            self.get_text("achievements"),  # 新增成就按钮
             self.get_text("settings"),
-            self.get_text("credits"),
+            self.get_text("achievements"),  # 调换位置
             self.get_text("quit")
         ]
         
@@ -1122,19 +1121,14 @@ class Game:
             
             # 创建按钮（水平居中）
             button = SimpleButton(
-                self.screen_width//2 - button_width//2,  # 水平居中
+                (self.screen_width - button_width) // 2,  # 水平居中
                 button_y,
                 button_width,
                 button_height,
-                text
+                text,
+                color=(220, 220, 240),
+                font_size=int(32 * min(self.scale_x, self.scale_y))
             )
-            
-            # 设置按钮音效
-            if hasattr(self, 'hover_sound'):
-                button.hover_sound = self.hover_sound
-            if hasattr(self, 'click_sound'):
-                button.click_sound = self.click_sound
-            
             self.menu_buttons.append(button)
 
     def run(self):
@@ -1424,18 +1418,17 @@ class Game:
                     # 根据按钮索引处理不同的点击事件
                     if i == 0:  # 开始游戏
                         self.game_state = "character_select"
-                    elif i == 1:  # 成就按钮
-                        self.show_message_box("系统开发中", "成就系统正在开发中，敬请期待！")
-                    elif i == 2:  # 设置
+                    elif i == 1:  # 设置
                         self.previous_state = "main_menu"
                         self.game_state = "settings"
-                    elif i == 3:  # 制作人员
-                        self.show_message_box("系统开发中", "制作人员名单正在整理中，敬请期待！")
-                    elif i == 4:  # 退出
+                    elif i == 2:  # 成就按钮
+                        self.show_message_box("系统开发中", "成就系统正在开发中，敬请期待！")
+                    elif i == 3:  # 退出
                         self.running = False
                     
                     self.needs_redraw = True
                     return True
+        
         return False
 
     def show_message_box(self, title, message):
@@ -2886,11 +2879,12 @@ class Game:
                 os.makedirs(self.world_path)
                 return
             
-            # 获取所有地图文件
+            # 获取所有.wld文件
             self.maps = []
             for entry in os.listdir(self.world_path):
-                if os.path.isdir(os.path.join(self.world_path, entry)):
-                    self.maps.append(entry)
+                if entry.endswith('.wld'):
+                    map_name = entry[:-4]  # 移除.wld后缀
+                    self.maps.append(map_name)
             
             # 按字母顺序排序地图列表
             self.maps.sort()
@@ -2901,11 +2895,6 @@ class Game:
     def create_new_map(self, width, height, grid_size, map_name):
         """创建新的地图"""
         try:
-            # 创建地图目录
-            map_dir = os.path.join(self.world_path, map_name)
-            if not os.path.exists(map_dir):
-                os.makedirs(map_dir)
-            
             # 创建地图数据
             map_data = {
                 'width': width,
@@ -2915,18 +2904,19 @@ class Game:
                 'spawn_point': [width // 2, 0]  # 设置出生点在地图中央顶部
             }
             
-            # 生成基本地形（示例：在底部生成一些地面）
-            ground_height = height - 10
-            for x in range(width):
-                for y in range(ground_height, height):
-                    map_data['grid'][y][x] = 1  # 1 代表地面方块
+            # 生成基本地形
+            self.generate_terrain(map_data['grid'])
             
             # 保存地图数据
-            with open(os.path.join(map_dir, 'world.json'), 'w', encoding='utf-8') as f:
+            map_file = os.path.join(self.world_path, f"{map_name}.wld")
+            with open(map_file, 'w', encoding='utf-8') as f:
                 json.dump(map_data, f, ensure_ascii=False, indent=2)
+            
+            print(f"成功创建地图: {map_name}")
             
         except Exception as e:
             print(f"创建地图时出错: {e}")
+            raise e  # 重新抛出异常以便调试
 
     def generate_terrain(self, grid):
         """生成基础地形"""
@@ -3237,6 +3227,10 @@ class Game:
                     self.show_message("请输入地图名称")
                     return True
                 
+                if not hasattr(self, 'selected_map_size'):
+                    self.show_message("请选择地图大小")
+                    return True
+                
                     # 根据选择的大小创建地图
                     if self.selected_map_size == self.get_text("small"):
                         width, height = 40, 23
@@ -3248,6 +3242,7 @@ class Game:
                     # 创建新地图
                     self.create_new_map(width, height, 32, self.map_name_input)
                     # 将新地图添加到列表中
+                if self.map_name_input not in self.maps:
                     self.maps.append(self.map_name_input)
                     # 返回地图选择界面
                     self.game_state = "map_select"
@@ -3279,19 +3274,8 @@ class Game:
             
         # 处理键盘输入
         elif event.type == pygame.KEYDOWN and self.map_name_active:
-            return self.handle_map_name_input(event)
-        
-        # 处理鼠标移动事件
-        elif event.type == pygame.MOUSEMOTION:
-            # 更新按钮状态
-            if self.back_button.handle_event(event) or self.create_button.handle_event(event):
-                self.needs_redraw = True
-        
-        # 处理鼠标按钮释放事件
-        elif event.type == pygame.MOUSEBUTTONUP:
-            # 更新按钮状态
-            self.back_button.handle_event(event)
-            self.create_button.handle_event(event)
+            self.handle_map_name_input(event)
+            return True
         
         return False
 
