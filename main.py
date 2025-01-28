@@ -383,9 +383,20 @@ class CharacterCreator:
         name_label = self.font.render("角色名称:", True, (255, 255, 255))
         self.buffer.blit(name_label, (label_x, input_y))
         
-        # 绘制输入框
+        # 绘制输入框和文本
         pygame.draw.rect(self.buffer, (255, 255, 255) if self.input_active else (150, 150, 150),
                         (input_x, input_y, 200, 30), 2)
+        if hasattr(self, 'character_name'):
+            name_text = self.font.render(self.character_name, True, (255, 255, 255))
+            self.buffer.blit(name_text, (input_x + 5, input_y + 5))
+        
+        # 如果输入框处于活动状态，绘制光标
+        if self.input_active and hasattr(self, 'character_name'):
+            cursor_x = input_x + 5 + self.font.size(self.character_name)[0]
+            if pygame.time.get_ticks() % 1000 < 500:  # 光标闪烁效果
+                pygame.draw.line(self.buffer, (255, 255, 255),
+                               (cursor_x, input_y + 5),
+                               (cursor_x, input_y + 25), 2)
         
         # 性别选择
         input_y += spacing
@@ -1049,7 +1060,7 @@ class Game:
         # 初始化地图创建相关属性
         self.map_name_input = ""
         self.map_name_active = False
-        self.selected_map_size = "中型"  # 默认选择中型地图
+        self.selected_map_size = self.get_text("medium")  # 默认选择中型地图
         
         # 初始化消息框和弹出框
         self.message_box = None
@@ -1258,7 +1269,7 @@ class Game:
         button_y = self.screen_height - 100
         
         # 返回按钮
-        self.back_button = SimpleButton(
+        self.back_button = MapButton(
             panel_x,
             button_y,
             button_width,
@@ -1269,7 +1280,7 @@ class Game:
         )
         
         # 新建按钮
-        self.new_map_button = SimpleButton(
+        self.new_map_button = MapButton(
             panel_x + panel_width - button_width,
             button_y,
             button_width,
@@ -1291,18 +1302,19 @@ class Game:
 
     def handle_map_select_events(self, event):
         """处理地图选择界面的事件"""
+        # 处理鼠标按钮事件
         if event.type == pygame.MOUSEBUTTONDOWN:
             # 检查返回按钮
             if self.back_button.handle_event(event):
                 self.game_state = "character_select"
                 self.needs_redraw = True
-                return
+                return True
             
             # 检查新建按钮
             if self.new_map_button.handle_event(event):
                 self.game_state = "map_create"  # 切换到地图创建状态
                 self.needs_redraw = True
-                return
+                return True
             
             # 检查地图列表点击
             if self.maps:
@@ -1311,18 +1323,31 @@ class Game:
                 panel_x = (self.screen_width - panel_width) // 2
                 panel_y = 120
                 
-                # 计算鼠标点击位置
-                mouse_pos = event.pos
-                
                 for i, map_name in enumerate(self.maps):
                     entry_height = 80
                     entry_y = panel_y + 20 + i * (entry_height + 10)
-                    entry_rect = pygame.Rect(panel_x, entry_y, panel_width, entry_height)
+                    entry_rect = pygame.Rect(panel_x + 20, entry_y, panel_width - 40, entry_height)
                     
-                    if entry_rect.collidepoint(mouse_pos):
+                    if entry_rect.collidepoint(event.pos):
                         self.selected_map = map_name
                         self.initialize_game()
-                        return
+                        if hasattr(self, 'click_sound') and self.click_sound:
+                            self.click_sound.play()
+                        return True
+        
+        # 处理鼠标移动事件
+        elif event.type == pygame.MOUSEMOTION:
+            # 更新按钮状态
+            if self.back_button.handle_event(event) or self.new_map_button.handle_event(event):
+                self.needs_redraw = True
+        
+        # 处理鼠标按钮释放事件
+        elif event.type == pygame.MOUSEBUTTONUP:
+            # 更新按钮状态
+            self.back_button.handle_event(event)
+            self.new_map_button.handle_event(event)
+        
+        return False
 
     def handle_events(self, event):
         """处理游戏主界面的事件"""
@@ -1525,9 +1550,20 @@ class Game:
         name_label = self.font.render("角色名称:", True, (255, 255, 255))
         self.buffer.blit(name_label, (label_x, input_y))
         
-        # 绘制输入框
+        # 绘制输入框和文本
         pygame.draw.rect(self.buffer, (255, 255, 255) if self.input_active else (150, 150, 150),
                         (input_x, input_y, 200, 30), 2)
+        if hasattr(self, 'character_name'):
+            name_text = self.font.render(self.character_name, True, (255, 255, 255))
+            self.buffer.blit(name_text, (input_x + 5, input_y + 5))
+        
+        # 如果输入框处于活动状态，绘制光标
+        if self.input_active and hasattr(self, 'character_name'):
+            cursor_x = input_x + 5 + self.font.size(self.character_name)[0]
+            if pygame.time.get_ticks() % 1000 < 500:  # 光标闪烁效果
+                pygame.draw.line(self.buffer, (255, 255, 255),
+                               (cursor_x, input_y + 5),
+                               (cursor_x, input_y + 25), 2)
         
         # 性别选择
         input_y += spacing
@@ -1719,51 +1755,33 @@ class Game:
                     if preview_rect.collidepoint(mouse_pos):
                         if self.click_sound:
                             self.click_sound.play()
-                        self.selected_hairstyle['style'] = str(i + 1)
+                        self.selected_hairstyle = str(i + 1)
+                        self.in_hairstyle_selection = False
                         self.needs_redraw = True
                         return True
-                
-                # 检查翻页按钮
-                if self.prev_btn_rect and self.prev_btn_rect.collidepoint(mouse_pos):
-                    if self.click_sound:
-                        self.click_sound.play()
-                    self.hairstyle_page = max(0, self.hairstyle_page - 1)
-                    self.needs_redraw = True
-                    return True
-                
-                if self.next_btn_rect and self.next_btn_rect.collidepoint(mouse_pos):
-                    if self.click_sound:
-                        self.click_sound.play()
-                    max_pages = (20 - 1) // (grid_cols * grid_rows)
-                    self.hairstyle_page = min(max_pages, self.hairstyle_page + 1)
-                    self.needs_redraw = True
-                    return True
-                
-                # 检查确认按钮
-                if self.confirm_btn_rect and self.confirm_btn_rect.collidepoint(mouse_pos):
-                    if self.click_sound:
-                        self.click_sound.play()
-                    self.in_hairstyle_selection = False
-                    self.needs_redraw = True
-                    return True
-                
-                # 检查发色滑块
-                for slider in self.hair_color_sliders.values():
-                    if slider.handle_event(event):
-                        # 更新发色
-                        self.selected_hairstyle['color'] = (
-                            self.hair_color_sliders['R'].value,
-                            self.hair_color_sliders['G'].value,
-                            self.hair_color_sliders['B'].value
-                        )
-                        self.needs_redraw = True
-                        return True
-            
             return True
         
-        # 原有的角色创建界面事件处理代码
+        # 处理输入框点击
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = pygame.mouse.get_pos()
+            
+            # 获取输入框位置
+            panel_width = 1000
+            panel_height = 600
+            panel_x = (self.screen_width - panel_width) // 2
+            panel_y = (self.screen_height - panel_height) // 2
+            input_x = panel_x + 180
+            input_y = panel_y + 40
+            
+            # 检查输入框点击
+            input_rect = pygame.Rect(input_x, input_y, 200, 30)
+            if input_rect.collidepoint(mouse_pos):
+                self.input_active = True
+                if not hasattr(self, 'character_name'):
+                    self.character_name = ""
+                return True
+            else:
+                self.input_active = False
             
             # 检查发型按钮
             if hasattr(self, 'hair_button_rect') and self.hair_button_rect.collidepoint(mouse_pos):
@@ -1815,7 +1833,7 @@ class Game:
             
             # 处理按钮点击
             for button_name, button in buttons.items():
-                if button.rect.collidepoint(event.pos):
+                if button.rect.collidepoint(mouse_pos):
                     if self.click_sound:
                         self.click_sound.play()
                     
@@ -1839,27 +1857,28 @@ class Game:
                         self.game_state = "character_select"
                         self.needs_redraw = True
                     elif button_name == 'create':
-                        if not self.character_name:
+                        if not hasattr(self, 'character_name') or not self.character_name:
                             self.show_message("请输入角色名称")
                         else:
                             self.create_character()
-                    break
-        
-        # 处理输入框点击
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            input_rect = pygame.Rect(self.input_x, self.input_y, 200, 30)
-            self.input_active = input_rect.collidepoint(event.pos)
-            self.needs_redraw = True
+                    return True
         
         # 处理键盘输入
         elif event.type == pygame.KEYDOWN and self.input_active:
             if event.key == pygame.K_RETURN:
                 self.input_active = False
             elif event.key == pygame.K_BACKSPACE:
-                self.character_name = self.character_name[:-1]
+                if hasattr(self, 'character_name'):
+                    self.character_name = self.character_name[:-1]
             else:
-                self.character_name += event.unicode
+                if not hasattr(self, 'character_name'):
+                    self.character_name = ""
+                if len(self.character_name) < 20 and event.unicode.isprintable():  # 限制名称长度
+                    self.character_name += event.unicode
             self.needs_redraw = True
+            return True
+        
+        return False
 
     def draw_settings(self):
         """绘制设置界面"""
@@ -3069,7 +3088,7 @@ class Game:
 
     def draw_map_create(self):
         """绘制地图创建界面"""
-        # 清空缓冲区并填充深蓝色背景
+        # 填充深蓝色背景
         self.buffer.fill((20, 20, 40))  # 深蓝色背景
         
         # 绘制标题
@@ -3080,67 +3099,65 @@ class Game:
         
         # 创建地图创建区域（蓝色半透明面板）
         panel_width = self.screen_width * 0.8
-        panel_height = self.screen_height * 0.6
+        panel_height = self.screen_height * 0.7
         panel_x = (self.screen_width - panel_width) // 2
         panel_y = 120
         
-        # 绘制地图创建面板背景
+        # 绘制面板背景
         panel_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
         pygame.draw.rect(panel_surface, (50, 50, 120, 200), (0, 0, panel_width, panel_height), border_radius=10)
         self.buffer.blit(panel_surface, (panel_x, panel_y))
         
-        # 绘制名称输入框标签
+        # 绘制地图名称输入框
         name_font = get_font(32)
-        name_text = name_font.render(f"{self.get_text('name')}:", True, (255, 255, 255))
-        self.buffer.blit(name_text, (panel_x + 50, panel_y + 30))
+        name_label = name_font.render(self.get_text("name") + ":", True, (255, 255, 255))
+        self.buffer.blit(name_label, (panel_x + 50, panel_y + 30))
         
-        # 绘制名称输入框
-        name_rect = pygame.Rect(panel_x + 150, panel_y + 30, 300, 40)
-        pygame.draw.rect(self.buffer, (60, 60, 60) if self.map_name_active else (40, 40, 40), name_rect)
-        pygame.draw.rect(self.buffer, (255, 255, 255), name_rect, 2)
+        # 绘制输入框
+        input_rect = pygame.Rect(panel_x + 150, panel_y + 30, 300, 40)
+        pygame.draw.rect(self.buffer, (255, 255, 255) if self.map_name_active else (150, 150, 150),
+                        input_rect, 2, border_radius=5)
         
-        # 绘制名称文本
-        display_text = self.map_name_input if self.map_name_input else ""
-        cursor = "_" if self.map_name_active and pygame.time.get_ticks() % 1000 < 500 else ""
-        name_surface = name_font.render(display_text + cursor, True, (255, 255, 255))
-        self.buffer.blit(name_surface, (name_rect.x + 10, name_rect.y + 5))
+        # 绘制输入的文本
+        if hasattr(self, 'map_name_input'):
+            text_surface = name_font.render(self.map_name_input, True, (255, 255, 255))
+            text_rect = text_surface.get_rect(x=input_rect.x + 5, centery=input_rect.centery)
+            self.buffer.blit(text_surface, text_rect)
         
         # 绘制地图大小选项
         size_y = panel_y + 100
         size_spacing = 60
         sizes = [self.get_text("small"), self.get_text("medium"), self.get_text("large")]
-        size_buttons = []
+        descriptions = [
+            self.get_text("fast_game_exploration"),
+            self.get_text("balanced_gameplay"),
+            self.get_text("epic_adventure")
+        ]
+        grids = ["40x23", "80x45", "120x68"]
         
-        for i, size in enumerate(sizes):
-            button = SimpleButton(
-                panel_x + 50,
-                size_y + i * size_spacing,
-                panel_width - 100,
-                50,
-                size,
-                color=(100, 100, 150),
-                font_size=32
-            )
-            button.draw(self.buffer)
-            size_buttons.append(button)
-            
-            # 添加大小说明文本
-            if size == self.get_text("small"):
-                desc_text = name_font.render(f"{self.get_text('small_world')} (40×23 {self.get_text('grid')}) - {self.get_text('fast_game_exploration')}", True, (200, 200, 255))
-            elif size == self.get_text("medium"):
-                desc_text = name_font.render(f"{self.get_text('medium_world')} (80×45 {self.get_text('grid')}) - {self.get_text('balanced_gameplay')}", True, (200, 200, 255))
+        for i, (size, desc, grid) in enumerate(zip(sizes, descriptions, grids)):
+            # 绘制选项背景
+            option_rect = pygame.Rect(panel_x + 50, size_y + i * size_spacing, panel_width - 100, 50)
+            if self.selected_map_size == size:
+                pygame.draw.rect(self.buffer, (80, 80, 150, 200), option_rect, border_radius=5)
             else:
-                desc_text = name_font.render(f"{self.get_text('large_world')} (120×68 {self.get_text('grid')}) - {self.get_text('epic_adventure')}", True, (200, 200, 255))
-            desc_rect = desc_text.get_rect(x=panel_x + 50, y=size_y + i * size_spacing + 50)
-            self.buffer.blit(desc_text, desc_rect)
+                pygame.draw.rect(self.buffer, (60, 60, 120, 200), option_rect, border_radius=5)
+            
+            # 绘制选项文本
+            size_text = name_font.render(f"{size} ({grid} {self.get_text('grid')})", True, (255, 255, 255))
+            desc_font = get_font(24)
+            desc_text = desc_font.render(desc, True, (200, 200, 255))
+            
+            self.buffer.blit(size_text, (option_rect.x + 20, option_rect.y + 5))
+            self.buffer.blit(desc_text, (option_rect.x + 20, option_rect.y + 30))
         
         # 绘制底部按钮
         button_width = 200
         button_height = 60
-        button_y = self.screen_height - 100
+        button_y = panel_y + panel_height + 20
         
         # 返回按钮
-        self.back_button = SimpleButton(
+        self.back_button = MapButton(
             panel_x,
             button_y,
             button_width,
@@ -3151,13 +3168,13 @@ class Game:
         )
         
         # 创建按钮
-        self.create_button = SimpleButton(
+        self.create_button = MapButton(
             panel_x + panel_width - button_width,
             button_y,
             button_width,
             button_height,
-            self.get_text("create_map"),
-            color=(60, 60, 140),
+            self.get_text("create"),
+            color=(60, 140, 60),
             font_size=36
         )
         
@@ -3173,16 +3190,22 @@ class Game:
 
     def handle_map_create_events(self, event):
         """处理地图创建界面的事件"""
+        # 处理鼠标按钮事件
         if event.type == pygame.MOUSEBUTTONDOWN:
             # 检查返回按钮
             if self.back_button.handle_event(event):
                 self.game_state = "map_select"
+                if hasattr(self, 'click_sound') and self.click_sound:
+                    self.click_sound.play()
                 self.needs_redraw = True
-                return
+                return True
             
             # 检查创建按钮
             if self.create_button.handle_event(event):
-                if self.map_name_input:  # 只有在有名字的情况下才创建
+                if not hasattr(self, 'map_name_input') or not self.map_name_input:
+                    self.show_message("请输入地图名称")
+                    return True
+                
                     # 根据选择的大小创建地图
                     if self.selected_map_size == self.get_text("small"):
                         width, height = 40, 23
@@ -3197,46 +3220,49 @@ class Game:
                     self.maps.append(self.map_name_input)
                     # 返回地图选择界面
                     self.game_state = "map_select"
+                if hasattr(self, 'click_sound') and self.click_sound:
+                    self.click_sound.play()
                     self.needs_redraw = True
-                return
+                return True
             
             # 检查名称输入框
-            name_rect = pygame.Rect(
-                self.screen_width//2 - 400 + 150,
-                120 + 30,
-                300,
-                40
-            )
-            self.map_name_active = name_rect.collidepoint(event.pos)
+            panel_width = self.screen_width * 0.8
+            panel_x = (self.screen_width - panel_width) // 2
+            panel_y = 120
+            input_rect = pygame.Rect(panel_x + 150, panel_y + 30, 300, 40)
+            self.map_name_active = input_rect.collidepoint(event.pos)
             
             # 检查大小选项按钮
-            panel_x = (self.screen_width - self.screen_width * 0.8) // 2
-            size_y = 120 + 100
+            size_y = panel_y + 100
             size_spacing = 60
             sizes = [self.get_text("small"), self.get_text("medium"), self.get_text("large")]
             
             for i, size in enumerate(sizes):
-                button_rect = pygame.Rect(
-                    panel_x + 50,
-                    size_y + i * size_spacing,
-                    self.screen_width * 0.8 - 100,
-                    50
-                )
-                if button_rect.collidepoint(event.pos):
+                option_rect = pygame.Rect(panel_x + 50, size_y + i * size_spacing, panel_width - 100, 50)
+                if option_rect.collidepoint(event.pos):
                     self.selected_map_size = size
+                    if hasattr(self, 'click_sound') and self.click_sound:
+                        self.click_sound.play()
                     self.needs_redraw = True
-                    return
+                    return True
             
+        # 处理键盘输入
         elif event.type == pygame.KEYDOWN and self.map_name_active:
-            if event.key == pygame.K_RETURN:
-                self.map_name_active = False
-            elif event.key == pygame.K_BACKSPACE:
-                self.map_name_input = self.map_name_input[:-1]
+            return self.handle_map_name_input(event)
+        
+        # 处理鼠标移动事件
+        elif event.type == pygame.MOUSEMOTION:
+            # 更新按钮状态
+            if self.back_button.handle_event(event) or self.create_button.handle_event(event):
                 self.needs_redraw = True
-            elif len(self.map_name_input) < 20:  # 限制名称长度
-                if event.unicode.isprintable():
-                    self.map_name_input += event.unicode
-                    self.needs_redraw = True
+        
+        # 处理鼠标按钮释放事件
+        elif event.type == pygame.MOUSEBUTTONUP:
+            # 更新按钮状态
+            self.back_button.handle_event(event)
+            self.create_button.handle_event(event)
+        
+        return False
 
     def show_popup(self, message):
         """显示弹出消息"""
@@ -3521,6 +3547,29 @@ class Game:
             self.click_sound.play()
         self.needs_redraw = True
 
+    def handle_map_name_input(self, event):
+        """处理地图名称的键盘输入"""
+        if event.key == pygame.K_RETURN:
+            self.map_name_active = False
+            self.needs_redraw = True
+            return True
+        
+        if event.key == pygame.K_BACKSPACE:
+            if hasattr(self, 'map_name_input') and self.map_name_input:
+                self.map_name_input = self.map_name_input[:-1]
+                self.needs_redraw = True
+            return True
+        
+        if event.unicode.isprintable():
+            if not hasattr(self, 'map_name_input'):
+                self.map_name_input = ""
+            if len(self.map_name_input) < 20:  # 限制名称长度
+                self.map_name_input += event.unicode
+                self.needs_redraw = True
+            return True
+        
+        return False
+
 class SettingsButton(SimpleButton):
     def __init__(self, x, y, width, height, text, color=(200, 200, 220), font_size=32, is_selected=False):
         super().__init__(x, y, width, height, text, color, font_size)
@@ -3549,6 +3598,68 @@ class SettingsButton(SimpleButton):
     def update_position(self, scroll_y):
         """更新按钮位置以适应滚动"""
         self.rect.y = self.original_y - scroll_y
+
+class MapButton:
+    def __init__(self, x, y, width, height, text, color=(60, 60, 140), font_size=36):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.text = text
+        self.font = get_font(font_size)
+        self.color = color
+        self.hovered = False
+        self.is_clicked = False
+        
+        # 加载音效
+        self.hover_sound = None
+        self.click_sound = None
+        try:
+            self.hover_sound = pygame.mixer.Sound("assets/sounds/ui/hover.wav")
+            self.hover_sound.set_volume(0.15)
+            
+            self.click_sound = pygame.mixer.Sound("assets/sounds/ui/click.wav")
+            self.click_sound.set_volume(0.3)
+        except Exception as e:
+            print(f"Warning: Could not load button sounds: {e}")
+    
+    def draw(self, screen):
+        # 根据悬停和点击状态确定颜色
+        current_color = self.color
+        if self.is_clicked:
+            current_color = tuple(max(0, c - 30) for c in self.color)
+        elif self.hovered:
+            current_color = tuple(min(255, c + 30) for c in self.color)
+        
+        # 绘制圆角矩形
+        pygame.draw.rect(screen, current_color, self.rect, border_radius=10)
+        
+        # 绘制边框
+        border_color = (255, 215, 0) if self.hovered else (218, 165, 32)
+        border_width = 3 if self.hovered else 2
+        pygame.draw.rect(screen, border_color, self.rect, border_width, border_radius=10)
+        
+        # 绘制文本
+        text_surface = self.font.render(self.text, True, (255, 255, 255))
+        text_rect = text_surface.get_rect(center=self.rect.center)
+        screen.blit(text_surface, text_rect)
+    
+    def handle_event(self, event):
+        """处理按钮事件"""
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.rect.collidepoint(event.pos):
+                self.is_clicked = True
+                if self.click_sound:
+                    self.click_sound.play()
+                return True
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            was_clicked = self.is_clicked
+            self.is_clicked = False
+            if was_clicked and self.rect.collidepoint(event.pos):
+                return True
+        elif event.type == pygame.MOUSEMOTION:
+            previous_hover = self.hovered
+            self.hovered = self.rect.collidepoint(event.pos)
+            if not previous_hover and self.hovered and self.hover_sound:
+                self.hover_sound.play()
+        return False
 
 if __name__ == "__main__":
     game = Game()

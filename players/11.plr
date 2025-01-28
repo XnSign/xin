@@ -1,0 +1,17 @@
+{
+    "name": "11",
+    "gender": "男",
+    "hairstyle": {
+        "style": "1",
+        "color": [
+            0,
+            0,
+            0
+        ]
+    },
+    "body_type": "标准",
+    "class": "战士",
+    "health": 100,
+    "mana": 100,
+    "inventory": []
+}
