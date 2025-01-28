@@ -539,6 +539,20 @@ class CharacterCreator:
         pygame.draw.rect(self.buffer, (40, 40, 80), 
                         (preview_x, preview_y, preview_width, preview_height))
         
+        # 绘制角色预览
+        if hasattr(self, 'selected_gender') and hasattr(self, 'selected_body_type'):
+            preview_data = {
+                'name': '预览',
+                'gender': self.selected_gender,
+                'body_type': self.selected_body_type,
+                'hairstyle': getattr(self, 'selected_hairstyle', {'style': '1', 'color': (0, 0, 0)}),
+                'class': getattr(self, 'selected_class', '战士'),
+                'skin_color': (255, 223, 196) if self.selected_gender == '女' else (240, 200, 160),
+                'health': 100,
+                'mana': 100
+            }
+            self.draw_character_preview(preview_data, preview_x, preview_y, (preview_width, preview_height))
+        
         # 如果有弹出框，绘制弹出框
         if hasattr(self, 'popup') and self.popup and self.popup.visible:
             if not self.popup.should_hide():
@@ -1706,6 +1720,20 @@ class Game:
         pygame.draw.rect(self.buffer, (40, 40, 80), 
                         (preview_x, preview_y, preview_width, preview_height))
         
+        # 绘制角色预览
+        if hasattr(self, 'selected_gender') and hasattr(self, 'selected_body_type'):
+            preview_data = {
+                'name': '预览',
+                'gender': self.selected_gender,
+                'body_type': self.selected_body_type,
+                'hairstyle': getattr(self, 'selected_hairstyle', {'style': '1', 'color': (0, 0, 0)}),
+                'class': getattr(self, 'selected_class', '战士'),
+                'skin_color': (255, 223, 196) if self.selected_gender == '女' else (240, 200, 160),
+                'health': 100,
+                'mana': 100
+            }
+            self.draw_character_preview(preview_data, preview_x, preview_y, (preview_width, preview_height))
+        
         # 如果有弹出框，绘制弹出框
         if hasattr(self, 'popup') and self.popup and self.popup.visible:
             if not self.popup.should_hide():
@@ -2457,6 +2485,9 @@ class Game:
                     character_file = os.path.join(self.player_path, f"{char_name}.plr")
                     with open(character_file, 'r', encoding='utf-8') as f:
                         char_data = json.load(f)
+                        # 确保有皮肤颜色属性
+                        if 'skin_color' not in char_data:
+                            char_data['skin_color'] = (255, 223, 196) if char_data.get('gender') == '女' else (240, 200, 160)
                         
                         # 绘制角色预览
                         self.draw_character_preview(char_data, x, y, preview_size)
