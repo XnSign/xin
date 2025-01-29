@@ -2894,6 +2894,11 @@ class Game:
 
     def create_new_map(self, width, height, grid_size, map_name):
         """创建新的地图"""
+        # 验证地图名
+        if not map_name or map_name.strip() == "":
+            self.show_message("提示", "地图名不能为空！")
+            return
+            
         try:
             # 创建地图数据
             map_data = {
@@ -3055,15 +3060,8 @@ class Game:
             print(f"找不到地图文件: {map_name}")
 
     def show_message(self, message):
-        """显示消息框"""
-        # 创建消息框
-        box_width = 400
-        box_height = 200
-        box_x = (self.screen_width - box_width) // 2
-        box_y = (self.screen_height - box_height) // 2
-        
-        self.message_box = MessageBox(box_x, box_y, box_width, box_height, message)
-        self.needs_redraw = True
+        """显示简单的消息提示"""
+        self.show_message_box("提示", message)
 
     def place_block(self, pos):
         """在指定位置放置方块"""
@@ -3542,6 +3540,11 @@ class Game:
 
     def create_character(self):
         """创建新角色"""
+        # 验证角色名
+        if not hasattr(self, 'character_name') or not self.character_name or self.character_name.strip() == "":
+            self.show_message("提示", "角色名不能为空！")
+            return
+
         # 创建角色数据
         character_data = {
             'name': self.character_name,
