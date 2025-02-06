@@ -1205,107 +1205,109 @@ class Game:
 
     def draw_map_select(self):
         """绘制地图选择界面"""
-        # 填充深蓝色背景
-        self.buffer.fill((20, 20, 40))  # 深蓝色背景
+        # 清空缓冲区
+        self.buffer.fill((0, 0, 0))
+        
+        # 绘制背景
+        if hasattr(self, 'menu_background') and self.menu_background:
+            self.buffer.blit(self.menu_background, (0, 0))
+            
+            # 添加半透明遮罩
+            overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 180))
+            self.buffer.blit(overlay, (0, 0))
         
         # 绘制标题
         title_font = get_font(48)
-        title = title_font.render(self.get_text("select_map"), True, (200, 200, 255))
-        title_rect = title.get_rect(centerx=self.screen_width//2, y=50)
+        title = title_font.render(self.get_text("select_map"), True, (255, 255, 255))
+        title_rect = title.get_rect(centerx=self.screen_width//2, y=30)
         self.buffer.blit(title, title_rect)
         
-        # 创建地图列表区域（蓝色半透明面板）
+        # 绘制地图列表面板
         panel_width = self.screen_width * 0.8
         panel_height = self.screen_height * 0.6
         panel_x = (self.screen_width - panel_width) // 2
         panel_y = 120
         
-        # 绘制地图列表面板背景
+        # 绘制半透明背景
         panel_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
-        pygame.draw.rect(panel_surface, (50, 50, 120, 200), (0, 0, panel_width, panel_height), border_radius=10)
+        panel_surface.fill((0, 0, 0, 200))
         self.buffer.blit(panel_surface, (panel_x, panel_y))
         
-        # 如果有地图，显示地图信息
+        # 绘制边框
+        pygame.draw.rect(self.buffer, (255, 215, 0), (panel_x, panel_y, panel_width, panel_height), 2)
+        
+        # 绘制地图列表
         if self.maps:
             for i, map_name in enumerate(self.maps):
-                # 读取地图数据
-                map_file = os.path.join(self.world_path, f"{map_name}.wld")
-                if os.path.exists(map_file):
-                    with open(map_file, 'r', encoding='utf-8') as f:
-                        map_data = json.load(f)
-                    
-                    # 创建地图信息条目
-                    entry_height = 80
-                    entry_y = panel_y + 20 + i * (entry_height + 10)
-                    
-                    # 绘制条目背景（半透明白色，用于hover效果）
-                    entry_surface = pygame.Surface((panel_width - 40, entry_height), pygame.SRCALPHA)
-                    pygame.draw.rect(entry_surface, (255, 255, 255, 10), (0, 0, panel_width - 40, entry_height))
-                    self.buffer.blit(entry_surface, (panel_x + 20, entry_y))
-                    
-                    # 绘制地图图标（示例：简单的方形图标）
-                    icon_rect = pygame.Rect(panel_x + 20, entry_y + 10, 60, 60)
-                    pygame.draw.rect(self.buffer, (100, 100, 150), icon_rect)
-                    
-                    # 绘制地图信息
-                    info_font = get_font(32)
-                    # 显示地图名称和大小
-                    size_text = "中世界"  # 可以根据地图大小动态设置
-                    name_surface = info_font.render(map_name, True, (255, 255, 255))
-                    size_surface = info_font.render(size_text, True, (200, 200, 255))
-                    create_time = "已创建: 2001/10/12"  # 这里可以从地图数据中获取实际创建时间
-                    time_surface = info_font.render(create_time, True, (200, 200, 255))
-                    
-                    # 绘制文本
-                    self.buffer.blit(name_surface, (panel_x + 100, entry_y + 5))
-                    self.buffer.blit(size_surface, (panel_x + 100, entry_y + 35))
-                    self.buffer.blit(time_surface, (panel_x + panel_width - 300, entry_y + 20))
-                    
-                    # 绘制分隔线（除了最后一个条目）
-                    if i < len(self.maps) - 1:
-                        pygame.draw.line(
-                            self.buffer,
-                            (100, 100, 150, 128),  # 半透明的分隔线颜色
-                            (panel_x + 20, entry_y + entry_height + 5),
-                            (panel_x + panel_width - 20, entry_y + entry_height + 5),
-                            1  # 线的宽度
-                        )
+                entry_height = 80
+                entry_y = panel_y + 20 + i * (entry_height + 10)
+                
+                # 创建地图按钮
+                map_btn = SimpleButton(
+                    panel_x + 20,
+                    entry_y,
+                    panel_width - 40,
+                    entry_height,
+                    map_name,
+                    color=(60, 60, 140)
+                )
+                map_btn.draw(self.buffer)
+                
+                # 绘制删除按钮
+                delete_btn = SimpleButton(
+                    panel_x + panel_width - 140,
+                    entry_y + 25,
+                    100,
+                    30,
+                    self.get_text("delete"),
+                    color=(200, 50, 50)
+                )
+                delete_btn.draw(self.buffer)
+        else:
+            # 如果没有地图，显示提示信息
+            no_map_font = get_font(32)
+            no_map_text = no_map_font.render(self.get_text("no_maps"), True, (200, 200, 200))
+            no_map_rect = no_map_text.get_rect(center=(panel_x + panel_width//2, panel_y + panel_height//2))
+            self.buffer.blit(no_map_text, no_map_rect)
         
-        # 绘制底部按钮
-        button_width = 200
-        button_height = 60
-        button_y = self.screen_height - 100
+        # 绘制新建地图按钮
+        new_btn_width = 200
+        new_btn_height = 50
+        new_btn_x = panel_x + (panel_width - new_btn_width) // 2
+        new_btn_y = panel_y + panel_height + 20
         
-        # 返回按钮
-        self.back_button = MapButton(
-            panel_x,
-            button_y,
-            button_width,
-            button_height,
+        new_map_btn = SimpleButton(
+            new_btn_x,
+            new_btn_y,
+            new_btn_width,
+            new_btn_height,
+            self.get_text("new_map"),
+            color=(100, 200, 100)
+        )
+        new_map_btn.draw(self.buffer)
+        self.new_map_button = new_map_btn.rect
+        
+        # 绘制返回按钮
+        back_btn_width = 150
+        back_btn_height = 50
+        back_btn_x = 20
+        back_btn_y = self.screen_height - back_btn_height - 20
+        
+        back_btn = SimpleButton(
+            back_btn_x,
+            back_btn_y,
+            back_btn_width,
+            back_btn_height,
             self.get_text("back"),
-            color=(60, 60, 140),
-            font_size=36
+            color=(200, 100, 100)
         )
+        back_btn.draw(self.buffer)
+        self.back_button = back_btn.rect
         
-        # 新建按钮
-        self.new_map_button = MapButton(
-            panel_x + panel_width - button_width,
-            button_y,
-            button_width,
-            button_height,
-            self.get_text("create_map"),
-            color=(60, 60, 140),
-            font_size=36
-        )
-        
-        # 绘制按钮
-        self.back_button.draw(self.buffer)
-        self.new_map_button.draw(self.buffer)
-        
-        # 将缓冲区内容复制到屏幕
+        # 更新屏幕
         self.screen.blit(self.buffer, (0, 0))
         pygame.display.flip()
-        
         self.needs_redraw = False
 
     def handle_map_select_events(self, event):
@@ -2451,186 +2453,147 @@ class Game:
 
     def draw_character_select(self):
         """绘制角色选择界面"""
-        # 清空缓冲区并填充背景
-        self.buffer.fill((0, 0, 50))
+        # 清空缓冲区
+        self.buffer.fill((0, 0, 0))
         
-        # 计算面板尺寸和位置
+        # 绘制背景
+        if hasattr(self, 'menu_background') and self.menu_background:
+            self.buffer.blit(self.menu_background, (0, 0))
+            
+            # 添加半透明遮罩
+            overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 180))
+            self.buffer.blit(overlay, (0, 0))
+        
+        # 绘制标题
+        title_font = get_font(48)
+        title = title_font.render("选择角色", True, (255, 255, 255))
+        title_rect = title.get_rect(centerx=self.screen_width//2, y=30)
+        self.buffer.blit(title, title_rect)
+        
+        # 绘制角色列表面板
         panel_width = 800
         panel_height = 500
         panel_x = (self.screen_width - panel_width) // 2
-        panel_y = (self.screen_height - panel_height) // 2  # 修改为垂直居中
+        panel_y = (self.screen_height - panel_height) // 2
         
-        # 绘制标题
-        title = self.title_font.render(self.get_text("select_character"), True, (255, 255, 255))
-        title_rect = title.get_rect(center=(self.screen_width//2, panel_y - 30))
-        self.buffer.blit(title, title_rect)
+        # 绘制半透明背景
+        panel_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
+        panel_surface.fill((0, 0, 0, 200))
+        self.buffer.blit(panel_surface, (panel_x, panel_y))
         
-        # 创建半透明的面板
-        panel = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
-        panel.fill((0, 0, 0, 128))
-        self.buffer.blit(panel, (panel_x, panel_y))
+        # 绘制边框
+        pygame.draw.rect(self.buffer, (255, 215, 0), (panel_x, panel_y, panel_width, panel_height), 2)
         
-        # 创建裁剪区域
-        clip_rect = pygame.Rect(panel_x, panel_y, panel_width - 20, panel_height)  # 减去滚动条宽度
-        self.buffer.set_clip(clip_rect)
+        # 设置滚动区域
+        self.scroll_area_rect = pygame.Rect(panel_x, panel_y, panel_width, panel_height - 60)
         
-        # 显示现有角色（从上到下排列）
-        char_spacing_y = 220  # 垂直间距
-        start_x = panel_x + 20  # 移到左边
-        start_y = panel_y + 30 - self.scroll_y  # 应用滚动偏移
-        preview_size = (180, 180)  # 改为方形预览框
-        
-        # 初始化删除按钮字典
-        self.delete_buttons = {}
-        
-        # 计算内容总高度
-        total_height = len(self.characters) * char_spacing_y
-        visible_height = panel_height - 60
-        
-        for i, char_name in enumerate(self.characters):
-            y = start_y + i * char_spacing_y
+        # 绘制角色列表
+        if self.characters:
+            preview_size = (150, 200)
+            char_spacing_y = 220
+            start_y = panel_y + 30
+            self.delete_buttons = {}
             
-            # 只绘制可见区域内的角色
-            if panel_y - preview_size[1] <= y <= panel_y + panel_height:
-                x = start_x
+            for i, char_name in enumerate(self.characters):
+                current_y = start_y + i * char_spacing_y - self.scroll_y
                 
-                # 创建预览区域背景
-                preview_bg = pygame.Surface(preview_size, pygame.SRCALPHA)
-                preview_bg.fill((50, 50, 50, 128))
-                self.buffer.blit(preview_bg, (x, y))
-                
-                # 加载并显示角色预览和信息
-                try:
-                    character_file = os.path.join(self.player_path, f"{char_name}.plr")
-                    with open(character_file, 'r', encoding='utf-8') as f:
-                        char_data = json.load(f)
-                        # 确保有皮肤颜色属性
-                        if 'skin_color' not in char_data:
-                            char_data['skin_color'] = (255, 223, 196) if char_data.get('gender') == '女' else (240, 200, 160)
-                        
-                        # 绘制角色预览
-                        self.draw_character_preview(char_data, x, y, preview_size)
-                        
-                        # 绘制角色信息面板
-                        info_x = x + preview_size[0] + 20
-                        info_y = y + 10
-                        info_spacing = 30  # 增加行间距
-                        
-                        # 绘制角色名称和职业（并列）
-                        name_text = self.font.render(char_name, True, (255, 255, 255))
-                        class_text = self.font.render(f"{self.get_text('class')}: {char_data.get('class', '战士')}", True, (200, 200, 100))
-                        self.buffer.blit(name_text, (info_x, info_y))
-                        self.buffer.blit(class_text, (info_x + 150, info_y))  # 减小偏移量
-                        
-                        # 绘制生命值和魔法值（并列）
-                        max_hp = char_data.get('max_hp', 100)
-                        max_mp = char_data.get('max_mp', 100)
-                        hp_text = self.font.render(f"{self.get_text('health')}: {max_hp}", True, (255, 100, 100))
-                        mp_text = self.font.render(f"{self.get_text('mana')}: {max_mp}", True, (100, 100, 255))
-                        self.buffer.blit(hp_text, (info_x, info_y + info_spacing))
-                        self.buffer.blit(mp_text, (info_x + 150, info_y + info_spacing))  # 减小偏移量
-                        
-                        # 绘制游戏时间和删除按钮（同一行）
-                        playtime = char_data.get('playtime', 0)
-                        hours = playtime // 3600
-                        minutes = (playtime % 3600) // 60
-                        seconds = playtime % 60
-                        time_text = self.font.render(f"{self.get_text('playtime')}: {hours:02d}:{minutes:02d}:{seconds:02d}", True, (200, 200, 200))
-                        self.buffer.blit(time_text, (info_x, info_y + info_spacing * 2))
-                        
-                        # 添加删除按钮（与游戏时间同一行）
-                        delete_btn_width = 80
-                        delete_btn_height = 30
-                        delete_btn_x = panel_x + panel_width - delete_btn_width - 40  # 距离右边界40像素
-                        delete_btn_y = info_y + info_spacing * 2  # 与游戏时间同一行
-                        
-                        # 绘制删除按钮
-                        delete_btn = SimpleButton(
-                            delete_btn_x,
-                            delete_btn_y,
-                            delete_btn_width,
-                            delete_btn_height,
-                            self.get_text("delete"),
-                            color=(200, 50, 50),
-                            font_size=24
-                        )
-                        delete_btn.draw(self.buffer)
-                        
-                        # 存储删除按钮的位置
-                        self.delete_buttons[char_name] = pygame.Rect(delete_btn_x, delete_btn_y, delete_btn_width, delete_btn_height)
-                        
-                        # 如果不是最后一个角色，添加分隔线
-                        if i < len(self.characters) - 1:
+                # 如果角色条目在可见区域内才绘制
+                if panel_y - char_spacing_y <= current_y <= panel_y + panel_height:
+                    # 绘制角色预览
+                    try:
+                        with open(os.path.join(self.player_path, f"{char_name}.plr"), 'r') as f:
+                            char_data = json.load(f)
+                        self.draw_character_preview(char_data, panel_x + 20, current_y, preview_size)
+                    except Exception as e:
+                        print(f"无法加载角色预览: {e}")
+                    
+                    # 绘制角色名称和信息
+                    info_x = panel_x + 200
+                    info_y = current_y
+                    
+                    # 绘制角色名称
+                    name_font = get_font(32)
+                    name_text = name_font.render(char_name, True, (255, 255, 255))
+                    self.buffer.blit(name_text, (info_x, info_y))
+                    
+                    # 绘制角色信息（等级、职业等）
+                    info_font = get_font(24)
+                    info_y += 40
+                    
+                    # 显示职业
+                    if 'class' in char_data:
+                        class_text = info_font.render(f"职业: {char_data['class']}", True, (200, 200, 200))
+                        self.buffer.blit(class_text, (info_x, info_y))
+                    
+                    # 显示等级
+                    info_y += 30
+                    level_text = info_font.render(f"等级: {char_data.get('level', 1)}", True, (200, 200, 200))
+                    self.buffer.blit(level_text, (info_x, info_y))
+                    
+                    # 绘制删除按钮
+                    delete_btn = SimpleButton(
+                        panel_x + panel_width - 150,
+                        current_y + preview_size[1] - 40,
+                        100,
+                        30,
+                        "删除",
+                        color=(200, 50, 50)
+                    )
+                    delete_btn.draw(self.buffer)
+                    self.delete_buttons[char_name] = delete_btn.rect
+                    
+                    # 如果不是最后一个角色，添加分隔线
+                    if i < len(self.characters) - 1:
+                        next_y = current_y + char_spacing_y
+                        if next_y <= panel_y + panel_height:
                             pygame.draw.line(
                                 self.buffer,
-                                (100, 100, 150),  # 分隔线颜色
-                                (panel_x + 20, y + preview_size[1] + 10),  # 起点
-                                (panel_x + panel_width - 20, y + preview_size[1] + 10),  # 终点
-                                2  # 线宽
+                                (255, 215, 0),  # 金色
+                                (panel_x + 20, current_y + preview_size[1] + 10),
+                                (panel_x + panel_width - 20, current_y + preview_size[1] + 10),
+                                1  # 线宽
                             )
-                        
-                except Exception as e:
-                    print(f"加载角色预览时出错: {e}")
+        else:
+            # 如果没有角色，显示提示信息
+            no_char_font = get_font(32)
+            no_char_text = no_char_font.render("暂无角色", True, (200, 200, 200))
+            no_char_rect = no_char_text.get_rect(center=(panel_x + panel_width//2, panel_y + panel_height//2))
+            self.buffer.blit(no_char_text, no_char_rect)
         
-        # 重置裁剪区域
-        self.buffer.set_clip(None)
-        
-        # 绘制滚动条
-        if total_height > visible_height:
-            scroll_bar_width = 16
-            scroll_bar_height = max(50, (visible_height / total_height) * visible_height)
-            scroll_bar_x = panel_x + panel_width - scroll_bar_width - 4
-            scroll_bar_y = panel_y + (self.scroll_y / total_height) * visible_height
-            
-            # 绘制滚动条背景
-            pygame.draw.rect(self.buffer, (50, 50, 50, 128),
-                           (scroll_bar_x, panel_y, scroll_bar_width, panel_height))
-            
-            # 绘制滚动条
-            pygame.draw.rect(self.buffer, (150, 150, 150, 200),
-                           (scroll_bar_x, scroll_bar_y, scroll_bar_width, scroll_bar_height))
-            
-            # 存储滚动条区域
-            self.scroll_bar_rect = pygame.Rect(scroll_bar_x, scroll_bar_y, scroll_bar_width, scroll_bar_height)
-            self.scroll_area_rect = pygame.Rect(scroll_bar_x, panel_y, scroll_bar_width, panel_height)
-        
-        # 添加新建角色按钮
+        # 绘制新建角色按钮
         new_btn_width = 200
-        new_btn_height = 40
-        new_btn_x = (self.screen_width - new_btn_width) // 2
-        new_btn_y = panel_y + panel_height - 60
+        new_btn_height = 50
+        new_btn_x = panel_x + (panel_width - new_btn_width) // 2
+        new_btn_y = panel_y + panel_height + 20
         
-        new_btn = SimpleButton(
+        new_char_btn = SimpleButton(
             new_btn_x,
             new_btn_y,
             new_btn_width,
             new_btn_height,
-            self.get_text("create_character"),
-            color=(0, 150, 0),
-            font_size=32
+            "新建角色",
+            color=(100, 200, 100)
         )
-        new_btn.draw(self.buffer)
+        new_char_btn.draw(self.buffer)
+        self.new_char_button = new_char_btn.rect
         
-        # 添加返回按钮
-        back_btn_width = 100
-        back_btn_height = 40
-        back_btn_x = panel_x + 50
-        back_btn_y = panel_y + panel_height - 60
+        # 绘制返回按钮
+        back_btn_width = 150
+        back_btn_height = 50
+        back_btn_x = 20
+        back_btn_y = self.screen_height - back_btn_height - 20
         
         back_btn = SimpleButton(
             back_btn_x,
             back_btn_y,
             back_btn_width,
             back_btn_height,
-            self.get_text("back"),
-            color=(100, 100, 200),
-            font_size=32
+            "返回",
+            color=(200, 100, 100)
         )
         back_btn.draw(self.buffer)
-        
-        # 存储按钮位置
-        self.new_char_button = pygame.Rect(new_btn_x, new_btn_y, new_btn_width, new_btn_height)
-        self.back_button = pygame.Rect(back_btn_x, back_btn_y, back_btn_width, back_btn_height)
+        self.back_button = back_btn.rect
         
         # 更新屏幕
         self.screen.blit(self.buffer, (0, 0))
@@ -2716,7 +2679,7 @@ class Game:
                         if hasattr(self, 'click_sound') and self.click_sound:
                             self.click_sound.play()
                         # 显示确认对话框
-                        self.show_confirm_dialog(f"{self.get_text('confirm_delete')} {char_name}?")
+                        self.show_confirm_dialog(f"确认删除 {char_name}?")
                         self.confirm_dialog.char_name = char_name
                         return True
             
@@ -3202,7 +3165,7 @@ class Game:
         button_y = panel_y + panel_height + 20
         
         # 返回按钮
-        self.back_button = MapButton(
+        self.back_button = SimpleButton(
             panel_x,
             button_y,
             button_width,
@@ -3213,7 +3176,7 @@ class Game:
         )
         
         # 创建按钮
-        self.create_button = MapButton(
+        self.create_button = SimpleButton(
             panel_x + panel_width - button_width,
             button_y,
             button_width,
@@ -3703,6 +3666,21 @@ class Game:
                     self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
                 self.needs_redraw = True
                 return
+            
+            # 处理玩家移动
+            if hasattr(self, 'player'):
+                if event.key == pygame.K_a or event.key == pygame.K_LEFT:
+                    self.player.move_left()
+                elif event.key == pygame.K_d or event.key == pygame.K_RIGHT:
+                    self.player.move_right()
+                elif event.key == pygame.K_SPACE:
+                    self.player.jump()
+                
+        # 处理按键释放事件
+        elif event.type == pygame.KEYUP:
+            if hasattr(self, 'player'):
+                if event.key in [pygame.K_a, pygame.K_d, pygame.K_LEFT, pygame.K_RIGHT]:
+                    self.player.stop()
 
 class SettingsButton(SimpleButton):
     def __init__(self, x, y, width, height, text, color=(200, 200, 220), font_size=32, is_selected=False):
@@ -3714,31 +3692,22 @@ class SettingsButton(SimpleButton):
     def draw(self, screen):
         # 根据选中状态决定颜色
         if self.is_selected:
-            current_color = (100, 150, 200)  # 选中时的蓝色
+            self.color = (100, 150, 200)  # 选中时的蓝色
         else:
-            current_color = (60, 60, 140)  # 未选中时的深蓝色
+            self.color = (60, 60, 140)  # 未选中时的深蓝色
             if self.is_hovered:
-                current_color = tuple(min(255, c + 30) for c in current_color)  # 悬停时略微变亮
+                self.color = tuple(min(255, c + 30) for c in self.color)  # 悬停时略微变亮
         
-        # 绘制按钮背景
-        pygame.draw.rect(screen, current_color, self.rect, border_radius=5)
-        pygame.draw.rect(screen, (255, 255, 255), self.rect, 2, border_radius=5)  # 添加白色边框
-        
-        # 绘制文本
-        text_surface = self.font.render(self.text, True, (255, 255, 255))
-        text_rect = text_surface.get_rect(center=self.rect.center)
-        screen.blit(text_surface, text_rect)
+        # 使用父类的绘制方法来绘制六边形按钮
+        super().draw(screen)
 
     def update_position(self, scroll_y):
         """更新按钮位置以适应滚动"""
         self.rect.y = self.original_y - scroll_y
 
-class MapButton:
+class MapButton(SimpleButton):
     def __init__(self, x, y, width, height, text, color=(60, 60, 140), font_size=36):
-        self.rect = pygame.Rect(x, y, width, height)
-        self.text = text
-        self.font = get_font(font_size)
-        self.color = color
+        super().__init__(x, y, width, height, text, color, font_size)
         self.hovered = False
         self.is_clicked = False
         
@@ -3755,45 +3724,21 @@ class MapButton:
             print(f"Warning: Could not load button sounds: {e}")
     
     def draw(self, screen):
-        # 根据悬停和点击状态确定颜色
-        current_color = self.color
-        if self.is_clicked:
-            current_color = tuple(max(0, c - 30) for c in self.color)
-        elif self.hovered:
-            current_color = tuple(min(255, c + 30) for c in self.color)
-        
-        # 绘制圆角矩形
-        pygame.draw.rect(screen, current_color, self.rect, border_radius=10)
-        
-        # 绘制边框
-        border_color = (255, 215, 0) if self.hovered else (218, 165, 32)
-        border_width = 3 if self.hovered else 2
-        pygame.draw.rect(screen, border_color, self.rect, border_width, border_radius=10)
-        
-        # 绘制文本
-        text_surface = self.font.render(self.text, True, (255, 255, 255))
-        text_rect = text_surface.get_rect(center=self.rect.center)
-        screen.blit(text_surface, text_rect)
+        # 使用父类的绘制方法来绘制六边形按钮
+        super().draw(screen)
     
     def handle_event(self, event):
         """处理按钮事件"""
+        result = super().handle_event(event)
+        
+        # 处理点击事件
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if self.rect.collidepoint(event.pos):
-                self.is_clicked = True
+            if self.is_hovered:
                 if self.click_sound:
                     self.click_sound.play()
                 return True
-        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            was_clicked = self.is_clicked
-            self.is_clicked = False
-            if was_clicked and self.rect.collidepoint(event.pos):
-                return True
-        elif event.type == pygame.MOUSEMOTION:
-            previous_hover = self.hovered
-            self.hovered = self.rect.collidepoint(event.pos)
-            if not previous_hover and self.hovered and self.hover_sound:
-                self.hover_sound.play()
-        return False
+        
+        return result
 
 if __name__ == "__main__":
     game = Game()
