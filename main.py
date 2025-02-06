@@ -1440,6 +1440,17 @@ class Game:
                     self.needs_redraw = True
                     return True
         
+        # 处理鼠标移动事件，更新按钮悬停状态
+        elif event.type == pygame.MOUSEMOTION:
+            hover_changed = False
+            for button in self.menu_buttons:
+                previous_hover = button.is_hovered
+                button.handle_event(event)
+                if previous_hover != button.is_hovered:
+                    hover_changed = True
+            if hover_changed:
+                self.needs_redraw = True
+        
         return False
 
     def show_message_box(self, title, message):
@@ -2418,6 +2429,10 @@ class Game:
         
         # 绘制所有按钮
         for button in self.menu_buttons:
+            # 更新按钮的悬停状态
+            mouse_pos = pygame.mouse.get_pos()
+            button.handle_event(pygame.event.Event(pygame.MOUSEMOTION, {'pos': mouse_pos}))
+            # 绘制按钮
             button.draw(self.buffer)
         
         # 将缓冲区内容绘制到屏幕上
