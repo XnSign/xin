@@ -5,16 +5,10 @@ import glob
 def get_font(size):
     """获取指定大小的字体"""
     try:
-        return pygame.font.Font("msyh.ttc", size)  # 微软雅黑
-    except:
-        # 查找assets/fonts目录下的所有ttf文件
-        ttf_files = glob.glob(os.path.join("assets", "fonts", "*.ttf"))
-        if ttf_files:  # 如果找到了ttf文件，使用第一个
-            try:
-                return pygame.font.Font(ttf_files[0], size)
-            except:
-                pass
-        # 如果上述都失败，使用系统字体
+        return pygame.font.Font(os.path.join("assets", "fonts", "1.ttf"), size)
+    except Exception as e:
+        print(f"加载字体失败: {e}")
+        # 如果加载失败，使用系统字体
         return pygame.font.SysFont("microsoftyaheui", size)
 
 def get_documents_path():
