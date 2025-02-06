@@ -2432,6 +2432,14 @@ class Game:
 
     def draw_character_preview(self, char_data, x, y, preview_size):
         """绘制角色预览"""
+        # 确保发型数据格式正确
+        if isinstance(char_data.get('hairstyle', ''), str):
+            # 如果发型是字符串，转换为字典格式
+            char_data['hairstyle'] = {
+                'style': char_data['hairstyle'],
+                'color': (0, 0, 0)  # 默认黑色
+            }
+        
         preview_player = Player(x + preview_size[0]//2, y + preview_size[1]//2, char_data)
         preview_player.preview_mode = True
         preview_player.update_appearance()
@@ -2622,20 +2630,26 @@ class Game:
             # 处理返回按钮点击
             if hasattr(self, 'back_button'):
                 if self.back_button.rect.collidepoint(mouse_pos):
-                    self.back_button.is_clicked = True
                     if hasattr(self, 'click_sound') and self.click_sound:
                         self.click_sound.play()
-                    self.current_screen = "menu"
+                    self.game_state = "main_menu"  # 修改为 main_menu
                     self.needs_redraw = True
                     return True
             
             # 处理创建新角色按钮点击
             if hasattr(self, 'create_character_button'):
                 if self.create_character_button.rect.collidepoint(mouse_pos):
-                    self.create_character_button.is_clicked = True
                     if hasattr(self, 'click_sound') and self.click_sound:
                         self.click_sound.play()
-                    self.current_screen = "character_create"
+                    self.game_state = "character_create"
+                    # 初始化角色创建需要的属性
+                    self.character_name = ""
+                    self.selected_gender = "男"
+                    self.selected_hairstyle = "短发"  # 直接使用发型名称
+                    self.selected_hair_color = (0, 0, 0)  # 单独存储发色
+                    self.selected_body_type = "标准"
+                    self.selected_class = "战士"
+                    self.input_active = False
                     self.needs_redraw = True
                     return True
             
@@ -2659,7 +2673,7 @@ class Game:
                             self.current_character = json.load(f)
                         if hasattr(self, 'click_sound') and self.click_sound:
                             self.click_sound.play()
-                        self.current_screen = "map_select"
+                        self.game_state = "map_select"  # 修改为 game_state
                         self.needs_redraw = True
                         return True
                     except Exception as e:
@@ -3303,7 +3317,7 @@ class Game:
             # 创建预览框背景
             preview_bg = pygame.Surface(preview_size, pygame.SRCALPHA)
             preview_bg.fill((50, 50, 50, 128))
-            if str(i + 1) == self.selected_hairstyle['style']:
+            if HAIRSTYLES[i] == self.selected_hairstyle:  # 直接比较发型名称
                 pygame.draw.rect(preview_bg, (100, 100, 200, 128), (0, 0, preview_size[0], preview_size[1]), 3)
             self.buffer.blit(preview_bg, (x, y))
             
@@ -3311,7 +3325,8 @@ class Game:
             preview_data = {
                 'name': self.get_text("preview"),
                 'gender': self.selected_gender,
-                'hairstyle': {'style': str(i + 1), 'color': self.selected_hairstyle['color']},
+                'hairstyle': HAIRSTYLES[i],  # 直接使用发型名称
+                'hair_color': self.selected_hair_color,  # 使用单独存储的发色
                 'body_type': self.get_text("normal"),
                 'class': self.get_text("warrior"),
                 'skin_color': (255, 220, 180),
@@ -3320,11 +3335,7 @@ class Game:
             }
             
             # 绘制发型预览
-            preview_player = Player(preview_size[0]//2, preview_size[1]//2, preview_data)
-            preview_player.preview_mode = True
-            preview_player.update_appearance()
-            preview_rect = preview_player.image.get_rect(center=(x + preview_size[0]//2, y + preview_size[1]//2))
-            self.buffer.blit(preview_player.image, preview_rect)
+            self.draw_character_preview(preview_data, x, y, preview_size)
         
         # 发色选择（RGB滑块）
         color_y = start_y + (grid_rows * (preview_size[1] + grid_spacing)) + 30  # 发色控制区域的起始y坐标
@@ -3499,13 +3510,14 @@ class Game:
         character_data = {
             'name': self.character_name,
             'gender': self.selected_gender,
-            'hairstyle': self.selected_hairstyle,
+            'hairstyle': self.selected_hairstyle,  # 发型名称
+            'hair_color': self.selected_hair_color,  # 发色
             'body_type': self.selected_body_type,
             'class': self.selected_class,
             'health': 100,
             'mana': 100,
             'inventory': [],
-            'skin_color': (255, 223, 196) if self.selected_gender == '女' else (240, 200, 160)  # 添加默认肤色
+            'skin_color': (255, 223, 196) if self.selected_gender == '女' else (240, 200, 160)
         }
         # 保存角色
         self.save_character(self.character_name, character_data)

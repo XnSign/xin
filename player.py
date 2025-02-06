@@ -186,17 +186,14 @@ class Player:
         ]
         pygame.draw.polygon(self.image, skin_color, head_points)
         
-        # 使用传入的发色
-        hair_color = self.hairstyle.get('color', (0, 0, 0))  # 默认黑色
-        hair_shadow = tuple(max(0, c - 30) for c in hair_color)  # 阴影色
+        # 处理发型和发色
+        hair_style = self.hairstyle  # 直接使用发型名称
+        hair_color = getattr(self, 'hair_color', (0, 0, 0))  # 获取发色，默认黑色
         
-        # 根据发型编号绘制不同发型
-        hairstyle_num = self.hairstyle.get('style', '1')
-        
-        # 调整发型位置以适应不同体型
-        hair_y = face_y  # 直接使用face_y作为发型的基准位置
-        
-        if hairstyle_num == '1':  # 短直发
+        # 使用发型信息更新外观
+        # 根据发型名称绘制不同发型
+        if hair_style == "短发":
+            # 绘制短发
             points = [
                 (center_x - head_size//2 - 2, face_y + head_size//2),
                 (center_x - head_size//4, face_y - head_size//4),
@@ -205,7 +202,7 @@ class Player:
             ]
             pygame.draw.polygon(self.image, hair_color, points)
             
-        elif hairstyle_num == '2':  # 长直发
+        elif hair_style == "长直发":
             points = [
                 (center_x - head_size//2 - 4, face_y + head_size + 10),
                 (center_x - head_size//2 - 2, face_y),
@@ -215,14 +212,14 @@ class Player:
             ]
             pygame.draw.polygon(self.image, hair_color, points)
             
-        elif hairstyle_num == '3':  # 蓬松短发
+        elif hair_style == "蓬松短发":
             for i in range(5):
                 offset = i * 4
                 pygame.draw.circle(self.image, hair_color,
                                  (center_x - head_size//4 + offset,
                                   face_y + head_size//4), 6)
                                   
-        elif hairstyle_num == '4':  # 双马尾
+        elif hair_style == "双马尾":
             # 后面的马尾
             points1 = [
                 (center_x - head_size//2 - 4, face_y + head_size//2),
@@ -238,21 +235,21 @@ class Player:
             pygame.draw.polygon(self.image, hair_color, points1)
             pygame.draw.polygon(self.image, hair_color, points2)
             
-        elif hairstyle_num == '5':  # 莫西干
+        elif hair_style == "莫西干":
             for i in range(7):
                 height = 10 - abs(i - 3) * 2
                 pygame.draw.line(self.image, hair_color,
                                (center_x - 6 + i * 2, face_y),
                                (center_x - 6 + i * 2, face_y - height), 2)
                                
-        elif hairstyle_num == '6':  # 波浪长发
+        elif hair_style == "波浪长发":
             for i in range(8):
                 y_offset = math.sin(i * 0.5) * 4
                 pygame.draw.line(self.image, hair_color,
                                (center_x - head_size//2 + i * 4, face_y + y_offset),
                                (center_x - head_size//2 + i * 4, face_y + head_size + 10), 3)
                                
-        elif hairstyle_num == '7':  # 庞克头
+        elif hair_style == "庞克头":
             for i in range(-3, 4):
                 height = 15 - abs(i) * 3
                 x = center_x + i * 4
@@ -260,14 +257,14 @@ class Player:
                                (x, face_y),
                                (x + (i * 2), face_y - height), 2)
                                
-        elif hairstyle_num == '8':  # 蘑菇头
+        elif hair_style == "蘑菇头":
             pygame.draw.ellipse(self.image, hair_color,
                               (center_x - head_size//2 - 2,
                                face_y - head_size//4,
                                head_size + 4,
                                head_size//2 + 4))
                                
-        elif hairstyle_num == '9':  # 卷发
+        elif hair_style == "卷发":
             for i in range(6):
                 radius = 4
                 x = center_x - head_size//2 + i * 6
@@ -275,7 +272,7 @@ class Player:
                 pygame.draw.circle(self.image, hair_color, (int(x), int(y)), radius)
                 pygame.draw.circle(self.image, hair_color, (int(x), int(y - 6)), radius)
                 
-        elif hairstyle_num == '10':  # 爆炸头
+        elif hair_style == "爆炸头":
             for i in range(12):
                 angle = i * math.pi / 6
                 length = 10 + random.randint(0, 4)
