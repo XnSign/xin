@@ -113,3 +113,40 @@ class World:
                     return True
                     
         return False 
+
+    def generate(self):
+        """生成新的世界地形"""
+        # 生成基础地形高度
+        terrain_height = [self.height // 2] * self.width
+        for i in range(1, self.width):
+            terrain_height[i] = terrain_height[i-1] + random.randint(-1, 1)
+            terrain_height[i] = max(self.height // 4, min(terrain_height[i], self.height * 3 // 4))
+        
+        # 填充地形
+        for x in range(self.width):
+            for y in range(self.height):
+                if y > terrain_height[x]:
+                    if y > terrain_height[x] + 3:  # 深层为石头
+                        self.grid[y][x] = self.PLATFORM
+                    else:  # 表层为泥土
+                        self.grid[y][x] = self.GROUND
+
+    def load_from_data(self, data):
+        """从数据加载世界"""
+        if 'grid' in data:
+            self.grid = data['grid']
+        if 'width' in data:
+            self.width = data['width']
+        if 'height' in data:
+            self.height = data['height']
+        if 'grid_size' in data:
+            self.grid_size = data['grid_size']
+
+    def save_to_data(self):
+        """保存世界数据"""
+        return {
+            'width': self.width,
+            'height': self.height,
+            'grid_size': self.grid_size,
+            'grid': self.grid
+        } 
