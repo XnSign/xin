@@ -71,10 +71,15 @@ class SimpleButton:
         self.hover_sound = None
         self.click_sound = None
         try:
-            self.hover_sound = pygame.mixer.Sound("assets/sounds/ui/hover.wav")
+            # 使用相对于当前文件的路径
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            hover_sound_path = os.path.join(current_dir, "assets/sounds/ui/hover.wav")
+            click_sound_path = os.path.join(current_dir, "assets/sounds/ui/click.wav")
+            
+            self.hover_sound = pygame.mixer.Sound(hover_sound_path)
             self.hover_sound.set_volume(0.15)
             
-            self.click_sound = pygame.mixer.Sound("assets/sounds/ui/click.wav")
+            self.click_sound = pygame.mixer.Sound(click_sound_path)
             self.click_sound.set_volume(0.3)
         except Exception as e:
             print(f"Warning: Could not load button sounds: {e}")
@@ -142,42 +147,26 @@ class SimpleButton:
         screen.blit(text_surface, text_rect)
     
     def handle_event(self, event):
-        mouse_pos = pygame.mouse.get_pos()
-        previous_hover = self.is_hovered
-        
-        # 检查点是否在六边形内
-        center_x = self.rect.centerx
-        center_y = self.rect.centery
-        width = self.rect.width
-        height = self.rect.height
-        
-        # 简化的六边形碰撞检测
-        dx = abs(mouse_pos[0] - center_x)
-        dy = abs(mouse_pos[1] - center_y)
-        
-        # 使用改进的碰撞检测来匹配六边形形状
-        if dy <= height/3:
-            max_dx = width/2 + (width/8) * (1 - dy/(height/3))
-            self.is_hovered = dx <= max_dx
-        else:
-            self.is_hovered = dx <= width/2 and dy <= height/3
-        
-        # 处理悬停音效
-        if not previous_hover and self.is_hovered and self.hover_sound:
-            self.hover_sound.play()
-            
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if self.is_hovered:
-                self.is_clicked = True
-                if self.click_sound:
-                    self.click_sound.play()
-                    
-        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            was_clicked = self.is_clicked
-            self.is_clicked = False
-            if was_clicked and self.is_hovered:
-                return True
-                
+        """处理按钮事件"""
+        if event.type == pygame.MOUSEMOTION:
+            mouse_pos = pygame.mouse.get_pos()
+            was_hovered = self.is_hovered
+            self.is_hovered = self.rect.collidepoint(mouse_pos)
+            if not was_hovered and self.is_hovered and self.hover_sound:
+                self.hover_sound.play()
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:  # 左键点击
+                mouse_pos = pygame.mouse.get_pos()
+                if self.rect.collidepoint(mouse_pos):
+                    self.is_clicked = True
+                    if self.click_sound:
+                        self.click_sound.play()
+                    return True
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1:  # 左键释放
+                was_clicked = self.is_clicked
+                self.is_clicked = False
+                return was_clicked and self.rect.collidepoint(pygame.mouse.get_pos())
         return False
 
 class Slider:
@@ -2488,226 +2477,251 @@ class Game:
         # 设置滚动区域
         self.scroll_area_rect = pygame.Rect(panel_x, panel_y, panel_width, panel_height - 60)
         
+        # 初始化按钮字典（如果不存在）
+        if not hasattr(self, 'delete_buttons'):
+            self.delete_buttons = {}
+        if not hasattr(self, 'character_rects'):
+            self.character_rects = {}
+        
         # 绘制角色列表
         if self.characters:
             preview_size = (150, 200)
             char_spacing_y = 220
             start_y = panel_y + 30
-            self.delete_buttons = {}
-            self.character_rects = {}  # 存储每个角色的点击区域
             
             for i, char_name in enumerate(self.characters):
-                current_y = start_y + i * char_spacing_y - self.scroll_y
-                
-                # 如果角色条目在可见区域内才绘制
-                if panel_y - char_spacing_y <= current_y <= panel_y + panel_height:
-                    # 绘制角色预览
-                    try:
-                        with open(os.path.join(self.player_path, f"{char_name}.plr"), 'r') as f:
-                            char_data = json.load(f)
-                        self.draw_character_preview(char_data, panel_x + 20, current_y, preview_size)
-                    except Exception as e:
-                        print(f"无法加载角色预览: {e}")
+                try:
+                    # 尝试加载角色数据
+                    char_file = os.path.join(self.player_path, f"{char_name}.plr")
+                    with open(char_file, 'r', encoding='utf-8') as f:
+                        char_data = json.load(f)
                     
-                    # 绘制角色名称和信息
-                    info_x = panel_x + 200
-                    info_y = current_y
+                    current_y = start_y + i * char_spacing_y - self.scroll_y
                     
-                    # 绘制角色名称
-                    name_font = get_font(32)
-                    name_text = name_font.render(char_name, True, (255, 255, 255))
-                    self.buffer.blit(name_text, (info_x, info_y))
-                    
-                    # 绘制角色信息（等级、职业等）
-                    info_font = get_font(24)
-                    info_y += 40
-                    
-                    # 显示职业
-                    if 'class' in char_data:
-                        class_text = info_font.render(f"职业: {char_data['class']}", True, (200, 200, 200))
-                        self.buffer.blit(class_text, (info_x, info_y))
-                    
-                    # 显示等级
-                    info_y += 30
-                    level_text = info_font.render(f"等级: {char_data.get('level', 1)}", True, (200, 200, 200))
-                    self.buffer.blit(level_text, (info_x, info_y))
-                    
-                    # 绘制删除按钮
-                    delete_btn = SimpleButton(
-                        panel_x + panel_width - 150,
-                        current_y + preview_size[1] - 40,
-                        100,
-                        30,
-                        "删除",
-                        color=(200, 50, 50)
-                    )
-                    delete_btn.draw(self.buffer)
-                    self.delete_buttons[char_name] = delete_btn.rect
-                    
-                    # 保存角色点击区域
-                    self.character_rects[char_name] = pygame.Rect(
-                        panel_x + 20,
-                        current_y,
-                        panel_width - 190,
-                        preview_size[1]
-                    )
-                    
-                    # 如果不是最后一个角色，添加分隔线
-                    if i < len(self.characters) - 1:
-                        next_y = current_y + char_spacing_y
-                        if next_y <= panel_y + panel_height:
-                            pygame.draw.line(
-                                self.buffer,
-                                (255, 215, 0),  # 金色
-                                (panel_x + 20, current_y + preview_size[1] + 10),
-                                (panel_x + panel_width - 20, current_y + preview_size[1] + 10),
-                                1  # 线宽
-                            )
+                    # 如果角色在可见区域内才绘制
+                    if panel_y - char_spacing_y < current_y < panel_y + panel_height:
+                        # 绘制角色信息背景
+                        char_bg_rect = pygame.Rect(panel_x + 20, current_y, panel_width - 40, 200)
+                        pygame.draw.rect(self.buffer, (50, 50, 50, 200), char_bg_rect)
+                        pygame.draw.rect(self.buffer, (255, 215, 0), char_bg_rect, 2)
+                        
+                        # 绘制角色预览
+                        preview_x = panel_x + 40
+                        self.draw_character_preview(char_data, preview_x, current_y + 25, preview_size)
+                        
+                        # 绘制角色信息
+                        info_font = get_font(32)
+                        info_x = preview_x + preview_size[0] + 30
+                        info_y = current_y + 30
+                        
+                        # 绘制角色名称
+                        name_text = info_font.render(f"名称: {char_data.get('name', '未知')}", True, (255, 255, 255))
+                        self.buffer.blit(name_text, (info_x, info_y))
+                        
+                        # 绘制职业
+                        class_text = info_font.render(f"职业: {char_data.get('class', '未知')}", True, (255, 255, 255))
+                        self.buffer.blit(class_text, (info_x, info_y + 40))
+                        
+                        # 绘制性别
+                        gender_text = info_font.render(f"性别: {char_data.get('gender', '未知')}", True, (255, 255, 255))
+                        self.buffer.blit(gender_text, (info_x, info_y + 80))
+                        
+                        # 存储角色点击区域
+                        self.character_rects[char_name] = char_bg_rect
+                        
+                        # 创建或更新删除按钮
+                        if char_name not in self.delete_buttons:
+                            self.delete_buttons[char_name] = SimpleButton(
+                            panel_x + panel_width - 150, current_y + 150,
+                            100, 40, "删除", (200, 50, 50)
+                        )
+                        else:
+                            # 更新按钮位置
+                            self.delete_buttons[char_name].rect.x = panel_x + panel_width - 150
+                            self.delete_buttons[char_name].rect.y = current_y + 150
+                        
+                        # 绘制删除按钮
+                        self.delete_buttons[char_name].draw(self.buffer)
+                except Exception as e:
+                    print(f"无法加载角色预览: {e}")
+                    continue
+        
+        # 创建或更新创建新角色按钮
+        if not hasattr(self, 'create_character_button'):
+            self.create_character_button = SimpleButton(
+                panel_x + panel_width//2 - 100,
+                panel_y + panel_height + 20,
+                200, 50,
+                "创建新角色",
+                (50, 150, 50)
+            )
         else:
-            # 如果没有角色，显示提示信息
-            no_char_font = get_font(32)
-            no_char_text = no_char_font.render("暂无角色", True, (200, 200, 200))
-            no_char_rect = no_char_text.get_rect(center=(panel_x + panel_width//2, panel_y + panel_height//2))
-            self.buffer.blit(no_char_text, no_char_rect)
+            # 更新按钮位置
+            self.create_character_button.rect.x = panel_x + panel_width//2 - 100
+            self.create_character_button.rect.y = panel_y + panel_height + 20
         
-        # 绘制新建角色按钮
-        new_btn_width = 200
-        new_btn_height = 50
-        new_btn_x = panel_x + (panel_width - new_btn_width) // 2
-        new_btn_y = panel_y + panel_height + 20
+        # 创建或更新返回按钮
+        if not hasattr(self, 'back_button'):
+            self.back_button = SimpleButton(
+                30, 30, 100, 40,
+                "返回",
+                (200, 50, 50)
+            )
         
-        new_char_btn = SimpleButton(
-            new_btn_x,
-            new_btn_y,
-            new_btn_width,
-            new_btn_height,
-            "新建角色",
-            color=(100, 200, 100)
-        )
-        new_char_btn.draw(self.buffer)
-        self.new_char_button = new_char_btn.rect
+        # 绘制按钮
+        self.create_character_button.draw(self.buffer)
+        self.back_button.draw(self.buffer)
         
-        # 绘制返回按钮
-        back_btn_width = 150
-        back_btn_height = 50
-        back_btn_x = 20
-        back_btn_y = self.screen_height - back_btn_height - 20
-        
-        back_btn = SimpleButton(
-            back_btn_x,
-            back_btn_y,
-            back_btn_width,
-            back_btn_height,
-            "返回",
-            color=(200, 100, 100)
-        )
-        back_btn.draw(self.buffer)
-        self.back_button = back_btn.rect
-        
-        # 更新屏幕
+        # 将缓冲区内容绘制到屏幕
         self.screen.blit(self.buffer, (0, 0))
         
         # 如果有确认对话框，绘制它
-        if hasattr(self, 'confirm_dialog') and self.confirm_dialog and self.confirm_dialog.visible:
+        if hasattr(self, 'confirm_dialog') and self.confirm_dialog:
             self.buffer.blit(self.confirm_dialog.surface, self.confirm_dialog.rect)
             self.screen.blit(self.buffer, (0, 0))
         
         pygame.display.flip()
-        self.needs_redraw = False
+        
+        # 设置需要重绘标志
+        if hasattr(self, 'needs_redraw'):
+            self.needs_redraw = False
 
     def handle_character_select_events(self, event):
         """处理角色选择界面的事件"""
         # 如果有确认对话框，优先处理它的事件
-        if hasattr(self, 'confirm_dialog') and self.confirm_dialog and self.confirm_dialog.visible:
-            if self.confirm_dialog.handle_event(event):
-                if self.confirm_dialog.result:
+        if hasattr(self, 'confirm_dialog') and self.confirm_dialog:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                mouse_pos = event.pos
+                dialog_rect = self.confirm_dialog.rect
+                # 调整鼠标位置到对话框坐标系
+                dialog_mouse_pos = (mouse_pos[0] - dialog_rect.x, mouse_pos[1] - dialog_rect.y)
+                
+                if self.confirm_dialog.confirm_rect.collidepoint(dialog_mouse_pos):
                     # 用户确认删除
-                    char_name = self.confirm_dialog.char_name
-                    try:
-                        os.remove(os.path.join(self.player_path, f"{char_name}.plr"))
-                        self.characters.remove(char_name)
-                        if hasattr(self, 'click_sound') and self.click_sound:
-                            self.click_sound.play()
-                    except Exception as e:
-                        print(f"删除角色时出错: {e}")
-                self.confirm_dialog = None  # 清除确认对话框
-                self.needs_redraw = True
-                return True
+                    if hasattr(self, 'character_to_delete'):
+                        try:
+                            os.remove(os.path.join(self.player_path, f"{self.character_to_delete}.plr"))
+                            self.characters.remove(self.character_to_delete)
+                            delattr(self, 'character_to_delete')
+                        except Exception as e:
+                            print(f"删除角色失败: {e}")
+                            self.show_message("删除角色失败")
+                    self.confirm_dialog = None
+                    self.needs_redraw = True
+                    return True
+                elif self.confirm_dialog.cancel_rect.collidepoint(dialog_mouse_pos):
+                    self.confirm_dialog = None
+                    self.needs_redraw = True
+                    return True
             return True
-        
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # 只响应左键点击
-            mouse_pos = pygame.mouse.get_pos()
+
+        # 处理按钮事件
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            mouse_pos = event.pos
             
-            # 检查返回按钮点击
-            if hasattr(self, 'back_button') and self.back_button.collidepoint(mouse_pos):
-                self.game_state = "main_menu"
-                if hasattr(self, 'click_sound') and self.click_sound:
-                    self.click_sound.play()
-                self.needs_redraw = True
-                return True
+            # 处理返回按钮点击
+            if hasattr(self, 'back_button'):
+                if self.back_button.rect.collidepoint(mouse_pos):
+                    self.back_button.is_clicked = True
+                    if hasattr(self, 'click_sound') and self.click_sound:
+                        self.click_sound.play()
+                    self.current_screen = "menu"
+                    self.needs_redraw = True
+                    return True
             
-            # 检查新建角色按钮点击
-            if hasattr(self, 'new_char_button') and self.new_char_button.collidepoint(mouse_pos):
-                self.game_state = "character_create"
-                if hasattr(self, 'click_sound') and self.click_sound:
-                    self.click_sound.play()
-                self.needs_redraw = True
-                return True
+            # 处理创建新角色按钮点击
+            if hasattr(self, 'create_character_button'):
+                if self.create_character_button.rect.collidepoint(mouse_pos):
+                    self.create_character_button.is_clicked = True
+                    if hasattr(self, 'click_sound') and self.click_sound:
+                        self.click_sound.play()
+                    self.current_screen = "character_create"
+                    self.needs_redraw = True
+                    return True
             
-            # 检查删除按钮点击
-            if hasattr(self, 'delete_buttons'):
-                for char_name, delete_rect in self.delete_buttons.items():
-                    if delete_rect.collidepoint(mouse_pos):
+            # 处理删除按钮点击
+            for char_name, delete_btn in self.delete_buttons.items():
+                if delete_btn.rect.collidepoint(mouse_pos):
+                    delete_btn.is_clicked = True
+                    if hasattr(self, 'click_sound') and self.click_sound:
+                        self.click_sound.play()
+                    self.show_confirm_dialog(f"确定要删除角色 {char_name} 吗？")
+                    self.character_to_delete = char_name
+                    self.needs_redraw = True
+                    return True
+            
+            # 处理角色点击
+            for char_name, rect in self.character_rects.items():
+                if rect.collidepoint(mouse_pos):
+                    # 加载角色数据
+                    try:
+                        with open(os.path.join(self.player_path, f"{char_name}.plr"), 'r', encoding='utf-8') as f:
+                            self.current_character = json.load(f)
                         if hasattr(self, 'click_sound') and self.click_sound:
                             self.click_sound.play()
-                        self.show_confirm_dialog(f"确认删除 {char_name}?")
-                        self.confirm_dialog.char_name = char_name
-                        return True
-            
-            # 检查角色选择
-            if hasattr(self, 'character_rects'):
-                for char_name, char_rect in self.character_rects.items():
-                    if char_rect.collidepoint(mouse_pos):
-                        self.selected_character = char_name
-                        self.game_state = "map_select"
-                        if hasattr(self, 'click_sound') and self.click_sound:
-                            self.click_sound.play()
+                        self.current_screen = "map_select"
                         self.needs_redraw = True
                         return True
+                    except Exception as e:
+                        print(f"加载角色失败: {e}")
+                        self.show_message("加载角色失败")
+                        return True
             
-            # 检查滚动区域点击
-            if hasattr(self, 'scroll_area_rect') and self.scroll_area_rect.collidepoint(mouse_pos):
-                self.is_dragging = True
-                self.drag_start_y = mouse_pos[1]
-                self.scroll_start = self.scroll_y
-                return True
+            # 处理滚动
+            if event.button in (4, 5):  # 4是滚轮上滚，5是滚轮下滚
+                if self.scroll_area_rect.collidepoint(mouse_pos):
+                    if event.button == 4:  # 上滚
+                        self.scroll_y = max(0, self.scroll_y - 30)
+                    else:  # 下滚
+                        max_scroll = max(0, len(self.characters) * 220 - (self.scroll_area_rect.height - 60))
+                        self.scroll_y = min(max_scroll, self.scroll_y + 30)
+                    self.needs_redraw = True
+                    return True
         
-        elif event.type == pygame.MOUSEBUTTONUP:
-            if event.button == 1:  # 左键释放
-                self.is_dragging = False
-            return True
-        
+        # 处理按钮的悬停效果
         elif event.type == pygame.MOUSEMOTION:
-            if self.is_dragging:
-                # 计算滚动距离
-                delta_y = event.pos[1] - self.drag_start_y
-                visible_height = 500 - 60
-                total_height = len(self.characters) * 220
-                self.scroll_y = self.scroll_start + (delta_y / visible_height) * total_height
-                # 限制滚动范围
-                self.scroll_y = max(0, min(self.scroll_y, total_height - visible_height))
+            mouse_pos = event.pos
+            needs_redraw = False
+            
+            if hasattr(self, 'back_button'):
+                was_hovered = self.back_button.is_hovered
+                self.back_button.is_hovered = self.back_button.rect.collidepoint(mouse_pos)
+                if not was_hovered and self.back_button.is_hovered:
+                    if hasattr(self, 'hover_sound') and self.hover_sound:
+                        self.hover_sound.play()
+                    needs_redraw = True
+            
+            if hasattr(self, 'create_character_button'):
+                was_hovered = self.create_character_button.is_hovered
+                self.create_character_button.is_hovered = self.create_character_button.rect.collidepoint(mouse_pos)
+                if not was_hovered and self.create_character_button.is_hovered:
+                    if hasattr(self, 'hover_sound') and self.hover_sound:
+                        self.hover_sound.play()
+                    needs_redraw = True
+            
+            for delete_btn in self.delete_buttons.values():
+                was_hovered = delete_btn.is_hovered
+                delete_btn.is_hovered = delete_btn.rect.collidepoint(mouse_pos)
+                if not was_hovered and delete_btn.is_hovered:
+                    if hasattr(self, 'hover_sound') and self.hover_sound:
+                        self.hover_sound.play()
+                    needs_redraw = True
+            
+            if needs_redraw:
                 self.needs_redraw = True
-                return True
         
-        elif event.type == pygame.MOUSEWHEEL:
-            # 处理鼠标滚轮事件，只用于滚动列表
-            self.scroll_y -= event.y * self.scroll_speed
-            # 限制滚动范围
-            visible_height = 500 - 60
-            total_height = len(self.characters) * 220
-            self.scroll_y = max(0, min(self.scroll_y, total_height - visible_height))
+        # 处理按钮的释放事件
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            if hasattr(self, 'back_button'):
+                self.back_button.is_clicked = False
+            
+            if hasattr(self, 'create_character_button'):
+                self.create_character_button.is_clicked = False
+            
+            for delete_btn in self.delete_buttons.values():
+                delete_btn.is_clicked = False
+            
             self.needs_redraw = True
-            return True
         
         return False
 
@@ -2738,7 +2752,7 @@ class Game:
             btn_y,
             btn_width,
             btn_height,
-            self.get_text("yes"),
+            "确定",
             color=(0, 150, 0),
             font_size=24
         )
@@ -2750,50 +2764,21 @@ class Game:
             btn_y,
             btn_width,
             btn_height,
-            self.get_text("no"),
+            "取消",
             color=(200, 50, 50),
             font_size=24
         )
         cancel_btn.draw(dialog)
         
         # 创建确认对话框对象
-        class ConfirmDialog:
-            def __init__(self, surface, rect, confirm_rect, cancel_rect, message):
-                self.surface = surface
-                self.rect = rect
-                self.confirm_rect = confirm_rect
-                self.cancel_rect = cancel_rect
-                self.message = message
-                self.visible = True
-                self.result = None
-            
-            def handle_event(self, event):
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    mouse_pos = event.pos
-                    # 调整鼠标位置到对话框坐标系
-                    dialog_mouse_pos = (mouse_pos[0] - self.rect.x, mouse_pos[1] - self.rect.y)
-                    if self.confirm_rect.collidepoint(dialog_mouse_pos):
-                        self.result = True
-                        self.visible = False
-                        return True
-                    elif self.cancel_rect.collidepoint(dialog_mouse_pos):
-                        self.result = False
-                        self.visible = False
-                        return True
-                return False
-        
-        # 保存确认对话框的按钮位置
-        confirm_rect = pygame.Rect(dialog_width//4 - btn_width//2, btn_y, btn_width, btn_height)
-        cancel_rect = pygame.Rect(3*dialog_width//4 - btn_width//2, btn_y, btn_width, btn_height)
-        
-        # 创建并保存确认对话框
-        self.confirm_dialog = ConfirmDialog(
-            dialog,
-            pygame.Rect(dialog_x, dialog_y, dialog_width, dialog_height),
-            confirm_rect,
-            cancel_rect,
-            message
-        )
+        self.confirm_dialog = type('ConfirmDialog', (), {
+            'surface': dialog,
+            'rect': pygame.Rect(dialog_x, dialog_y, dialog_width, dialog_height),
+            'confirm_rect': pygame.Rect(dialog_width//4 - btn_width//2, btn_y, btn_width, btn_height),
+            'cancel_rect': pygame.Rect(3*dialog_width//4 - btn_width//2, btn_y, btn_width, btn_height),
+            'message': message,
+            'visible': True
+        })
         
         # 强制重绘
         self.needs_redraw = True
