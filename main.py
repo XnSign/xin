@@ -2494,6 +2494,7 @@ class Game:
             char_spacing_y = 220
             start_y = panel_y + 30
             self.delete_buttons = {}
+            self.character_rects = {}  # 存储每个角色的点击区域
             
             for i, char_name in enumerate(self.characters):
                 current_y = start_y + i * char_spacing_y - self.scroll_y
@@ -2542,6 +2543,14 @@ class Game:
                     )
                     delete_btn.draw(self.buffer)
                     self.delete_buttons[char_name] = delete_btn.rect
+                    
+                    # 保存角色点击区域
+                    self.character_rects[char_name] = pygame.Rect(
+                        panel_x + 20,
+                        current_y,
+                        panel_width - 190,
+                        preview_size[1]
+                    )
                     
                     # 如果不是最后一个角色，添加分隔线
                     if i < len(self.characters) - 1:
@@ -2621,30 +2630,13 @@ class Game:
                             self.click_sound.play()
                     except Exception as e:
                         print(f"删除角色时出错: {e}")
+                self.confirm_dialog = None  # 清除确认对话框
                 self.needs_redraw = True
                 return True
             return True
         
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # 只响应左键点击
             mouse_pos = pygame.mouse.get_pos()
-            
-            # 检查滚动条拖动
-            if hasattr(self, 'scroll_bar_rect') and self.scroll_bar_rect.collidepoint(mouse_pos):
-                self.is_dragging = True
-                self.drag_start_y = mouse_pos[1]
-                self.scroll_start = self.scroll_y
-                return True
-            
-            # 检查滚动区域点击
-            elif hasattr(self, 'scroll_area_rect') and self.scroll_area_rect.collidepoint(mouse_pos):
-                panel_y = (self.screen_height - 500) // 2  # 使用动态计算的panel_y
-                visible_height = 500 - 60
-                total_height = len(self.characters) * 220
-                click_pos = (mouse_pos[1] - panel_y) / visible_height
-                self.scroll_y = click_pos * total_height
-                self.scroll_y = max(0, min(self.scroll_y, total_height - visible_height))
-                self.needs_redraw = True
-                return True
             
             # 检查返回按钮点击
             if hasattr(self, 'back_button') and self.back_button.collidepoint(mouse_pos):
@@ -2654,35 +2646,6 @@ class Game:
                 self.needs_redraw = True
                 return True
             
-            # 检查删除按钮点击
-            if hasattr(self, 'delete_buttons'):
-                panel_y = (self.screen_height - 500) // 2  # 使用动态计算的panel_y
-                start_y = panel_y + 30
-                char_spacing_y = 220
-                preview_size = (150, 200)
-                delete_btn_height = 30
-                
-                for i, (char_name, delete_rect) in enumerate(self.delete_buttons.items()):
-                    # 计算当前角色条目的实际Y坐标（考虑滚动）
-                    current_y = start_y + i * char_spacing_y - self.scroll_y
-                    
-                    # 创建一个新的矩形，使用当前实际位置
-                    current_rect = pygame.Rect(
-                        delete_rect.x,
-                        current_y + preview_size[1] - delete_btn_height - 10,
-                        delete_rect.width,
-                        delete_rect.height
-                    )
-                    
-                    if current_rect.collidepoint(mouse_pos):
-                        # 播放点击音效
-                        if hasattr(self, 'click_sound') and self.click_sound:
-                            self.click_sound.play()
-                        # 显示确认对话框
-                        self.show_confirm_dialog(f"确认删除 {char_name}?")
-                        self.confirm_dialog.char_name = char_name
-                        return True
-            
             # 检查新建角色按钮点击
             if hasattr(self, 'new_char_button') and self.new_char_button.collidepoint(mouse_pos):
                 self.game_state = "character_create"
@@ -2691,27 +2654,33 @@ class Game:
                 self.needs_redraw = True
                 return True
             
-            # 检查角色选择（垂直布局）
-            panel_width = 800
-            panel_x = (self.screen_width - panel_width) // 2
-            panel_y = (self.screen_height - 500) // 2  # 使用动态计算的panel_y
-            preview_size = (150, 200)
-            char_spacing_y = 220
-            start_x = panel_x + 20  # 与绘制时保持一致
+            # 检查删除按钮点击
+            if hasattr(self, 'delete_buttons'):
+                for char_name, delete_rect in self.delete_buttons.items():
+                    if delete_rect.collidepoint(mouse_pos):
+                        if hasattr(self, 'click_sound') and self.click_sound:
+                            self.click_sound.play()
+                        self.show_confirm_dialog(f"确认删除 {char_name}?")
+                        self.confirm_dialog.char_name = char_name
+                        return True
             
-            for i, char_name in enumerate(self.characters):
-                x = start_x
-                y = panel_y + 30 + i * char_spacing_y - self.scroll_y
-                # 扩大点击区域以包含角色信息
-                char_rect = pygame.Rect(x, y, panel_width - 100, preview_size[1])
-                
-                if char_rect.collidepoint(mouse_pos):
-                    self.selected_character = char_name
-                    self.game_state = "map_select"
-                    if hasattr(self, 'click_sound') and self.click_sound:
-                        self.click_sound.play()
-                    self.needs_redraw = True
-                    return True
+            # 检查角色选择
+            if hasattr(self, 'character_rects'):
+                for char_name, char_rect in self.character_rects.items():
+                    if char_rect.collidepoint(mouse_pos):
+                        self.selected_character = char_name
+                        self.game_state = "map_select"
+                        if hasattr(self, 'click_sound') and self.click_sound:
+                            self.click_sound.play()
+                        self.needs_redraw = True
+                        return True
+            
+            # 检查滚动区域点击
+            if hasattr(self, 'scroll_area_rect') and self.scroll_area_rect.collidepoint(mouse_pos):
+                self.is_dragging = True
+                self.drag_start_y = mouse_pos[1]
+                self.scroll_start = self.scroll_y
+                return True
         
         elif event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:  # 左键释放
