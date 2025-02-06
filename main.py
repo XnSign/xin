@@ -9,7 +9,7 @@ from player import Player
 from world import World
 from inventory import Inventory
 from save_manager import SaveManager
-from utils import get_font, get_documents_path
+from utils import get_font, get_documents_path, ensure_game_directories
 
 # 初始化Pygame
 pygame.init()
@@ -1033,10 +1033,9 @@ class Game:
         self.initialize_buttons()
         
         # 设置路径
-        self.player_path = "players"
-        self.world_path = "worlds"
-        os.makedirs(self.player_path, exist_ok=True)
-        os.makedirs(self.world_path, exist_ok=True)
+        self.player_path, self.world_path = ensure_game_directories()
+        print(f"游戏存档路径: {self.player_path}")
+        print(f"地图存档路径: {self.world_path}")
         
         # 加载音效
         try:
@@ -1133,15 +1132,12 @@ class Game:
 
     def run(self):
         """游戏主循环"""
+        # 设置目标帧率
+        target_fps = 60
+        frame_time = 1.0 / target_fps
+        
         while self.running:
-            current_time = pygame.time.get_ticks()
-            
-            # 检查设置消息是否应该消失
-            if hasattr(self, 'settings_message') and self.settings_message:
-                if current_time - self.settings_message_time >= 500:  # 0.5秒后消失
-                    self.settings_message = None
-                    self.settings_message_time = None
-                    self.needs_redraw = True
+            frame_start = pygame.time.get_ticks() / 1000.0  # 转换为秒
             
             # 处理事件
             for event in pygame.event.get():
@@ -1166,16 +1162,14 @@ class Game:
                     self.handle_settings_events(event)
                 elif self.game_state == "credits":
                     self.handle_credits_events(event)
-                
-                # 处理鼠标移动事件，更新按钮悬停状态
-                if event.type == pygame.MOUSEMOTION:
-                    if self.game_state == "main_menu":
-                        for button in self.menu_buttons:
-                            button.handle_event(event)
-                        self.needs_redraw = True
             
-            # 根据游戏状态更新和绘制
+            # 更新游戏状态
+            if self.game_state == "playing":
+                self.update()
+            
+            # 只在需要时重绘
             if self.needs_redraw:
+                # 根据游戏状态绘制
                 if self.game_state == "main_menu":
                     self.draw_menu()
                 elif self.game_state == "character_select":
@@ -1187,7 +1181,6 @@ class Game:
                 elif self.game_state == "map_create":
                     self.draw_map_create()
                 elif self.game_state == "playing":
-                    self.update()
                     self.draw_game()
                 elif self.game_state == "settings":
                     self.draw_settings()
@@ -1197,11 +1190,18 @@ class Game:
                 pygame.display.flip()
                 self.needs_redraw = False
             
-            # 限制帧率
-            self.clock.tick(60)
+            # 计算帧时间并等待
+            frame_end = pygame.time.get_ticks() / 1000.0
+            frame_duration = frame_end - frame_start
+            if frame_duration < frame_time:
+                pygame.time.wait(int((frame_time - frame_duration) * 1000))
             
             # 更新窗口标题显示FPS
-            pygame.display.set_caption(f"幻境世界 - FPS: {int(self.clock.get_fps())}")
+            current_fps = self.clock.get_fps()
+            pygame.display.set_caption(f"幻境世界 - FPS: {int(current_fps)}")
+            
+            # 限制帧率
+            self.clock.tick(target_fps)
 
     def draw_map_select(self):
         """绘制地图选择界面"""
@@ -1313,16 +1313,22 @@ class Game:
         # 处理鼠标按钮事件
         if event.type == pygame.MOUSEBUTTONDOWN:
             # 检查返回按钮
-            if self.back_button.handle_event(event):
-                self.game_state = "character_select"
-                self.needs_redraw = True
-                return True
+            if hasattr(self, 'back_button') and isinstance(self.back_button, MapButton):
+                if self.back_button.handle_event(event):
+                    self.game_state = "character_select"
+                    if hasattr(self, 'click_sound') and self.click_sound:
+                        self.click_sound.play()
+                    self.needs_redraw = True
+                    return True
             
             # 检查新建按钮
-            if self.new_map_button.handle_event(event):
-                self.game_state = "map_create"  # 切换到地图创建状态
-                self.needs_redraw = True
-                return True
+            if hasattr(self, 'new_map_button') and isinstance(self.new_map_button, MapButton):
+                if self.new_map_button.handle_event(event):
+                    self.game_state = "map_create"  # 切换到地图创建状态
+                    if hasattr(self, 'click_sound') and self.click_sound:
+                        self.click_sound.play()
+                    self.needs_redraw = True
+                    return True
             
             # 检查地图列表点击
             if self.maps:
@@ -1346,14 +1352,19 @@ class Game:
         # 处理鼠标移动事件
         elif event.type == pygame.MOUSEMOTION:
             # 更新按钮状态
-            if self.back_button.handle_event(event) or self.new_map_button.handle_event(event):
-                self.needs_redraw = True
+            if hasattr(self, 'back_button') and isinstance(self.back_button, MapButton):
+                self.back_button.handle_event(event)
+            if hasattr(self, 'new_map_button') and isinstance(self.new_map_button, MapButton):
+                self.new_map_button.handle_event(event)
+            self.needs_redraw = True
         
         # 处理鼠标按钮释放事件
         elif event.type == pygame.MOUSEBUTTONUP:
             # 更新按钮状态
-            self.back_button.handle_event(event)
-            self.new_map_button.handle_event(event)
+            if hasattr(self, 'back_button') and isinstance(self.back_button, MapButton):
+                self.back_button.handle_event(event)
+            if hasattr(self, 'new_map_button') and isinstance(self.new_map_button, MapButton):
+                self.new_map_button.handle_event(event)
         
         return False
 
@@ -3229,6 +3240,7 @@ class Game:
                     self.show_message("请选择地图大小")
                     return True
                 
+                try:
                     # 根据选择的大小创建地图
                     if self.selected_map_size == self.get_text("small"):
                         width, height = 40, 23
@@ -3239,14 +3251,20 @@ class Game:
                     
                     # 创建新地图
                     self.create_new_map(width, height, 32, self.map_name_input)
+                    print(f"正在创建地图: {self.map_name_input} ({width}x{height})")
+                    
                     # 将新地图添加到列表中
-                if self.map_name_input not in self.maps:
-                    self.maps.append(self.map_name_input)
+                    if self.map_name_input not in self.maps:
+                        self.maps.append(self.map_name_input)
+                    
                     # 返回地图选择界面
                     self.game_state = "map_select"
-                if hasattr(self, 'click_sound') and self.click_sound:
-                    self.click_sound.play()
+                    if hasattr(self, 'click_sound') and self.click_sound:
+                        self.click_sound.play()
                     self.needs_redraw = True
+                except Exception as e:
+                    print(f"创建地图时出错: {e}")
+                    self.show_message(f"创建地图失败: {str(e)}")
                 return True
             
             # 检查名称输入框
@@ -3269,7 +3287,7 @@ class Game:
                         self.click_sound.play()
                     self.needs_redraw = True
                     return True
-            
+        
         # 处理键盘输入
         elif event.type == pygame.KEYDOWN and self.map_name_active:
             self.handle_map_name_input(event)
@@ -3554,7 +3572,8 @@ class Game:
             'class': self.selected_class,
             'health': 100,
             'mana': 100,
-            'inventory': []
+            'inventory': [],
+            'skin_color': (255, 223, 196) if self.selected_gender == '女' else (240, 200, 160)  # 添加默认肤色
         }
         # 保存角色
         self.save_character(self.character_name, character_data)
@@ -3587,6 +3606,88 @@ class Game:
             return True
         
         return False
+
+    def update(self):
+        """更新游戏状态"""
+        if self.game_state == "playing":
+            # 更新玩家
+            if hasattr(self, 'player') and hasattr(self, 'world'):
+                # 只在玩家移动时更新
+                old_pos = self.player.get_position()
+                self.player.update(self.world)
+                new_pos = self.player.get_position()
+                
+                # 如果位置改变了，需要重绘
+                if old_pos != new_pos:
+                    self.needs_redraw = True
+            
+            # 更新摄像机位置
+            if hasattr(self, 'camera_x') and hasattr(self, 'camera_y'):
+                old_camera = (self.camera_x, self.camera_y)
+                self.update_camera()
+                new_camera = (self.camera_x, self.camera_y)
+                
+                # 如果摄像机位置改变了，需要重绘
+                if abs(old_camera[0] - new_camera[0]) > 0.1 or abs(old_camera[1] - new_camera[1]) > 0.1:
+                    self.needs_redraw = True
+            
+            # 检查设置消息是否应该消失
+            current_time = pygame.time.get_ticks()
+            if hasattr(self, 'settings_message') and self.settings_message:
+                if current_time - self.settings_message_time >= 500:  # 0.5秒后消失
+                    self.settings_message = None
+                    self.settings_message_time = None
+                    self.needs_redraw = True
+
+    def handle_playing_events(self, event):
+        """处理游戏主界面的事件"""
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            # 检查是否点击了设置按钮
+            if hasattr(self, 'settings_button') and self.settings_button.handle_event(event):
+                self.game_state = "settings"
+                self.needs_redraw = True
+                return
+            
+            # 如果背包可见，检查是否点击了背包槽位
+            if hasattr(self, 'inventory') and self.inventory.visible:
+                if self.inventory.handle_click(event.pos):
+                    self.needs_redraw = True
+                    return
+                    
+            # 左键放置方块，右键破坏方块
+            if event.button == 1:  # 左键
+                self.place_block(event.pos)
+            elif event.button == 3:  # 右键
+                self.break_block(event.pos)
+                
+        # 处理按键事件
+        elif event.type == pygame.KEYDOWN:
+            # ESC 键打开/关闭背包
+            if event.key == pygame.K_ESCAPE:
+                if self.game_state == "settings":
+                    self.game_state = "playing"
+                else:
+                    self.inventory.visible = not self.inventory.visible
+                self.needs_redraw = True
+                return
+                
+            # 数字键选择物品栏
+            elif pygame.K_1 <= event.key <= pygame.K_9:
+                self.inventory.selected_slot = event.key - pygame.K_1
+                self.needs_redraw = True
+            elif event.key == pygame.K_0:
+                self.inventory.selected_slot = 9
+                self.needs_redraw = True
+                
+            # F11 切换全屏
+            elif event.key == pygame.K_F11:
+                self.is_fullscreen = not self.is_fullscreen
+                if self.is_fullscreen:
+                    self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.FULLSCREEN)
+                else:
+                    self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
+                self.needs_redraw = True
+                return
 
 class SettingsButton(SimpleButton):
     def __init__(self, x, y, width, height, text, color=(200, 200, 220), font_size=32, is_selected=False):
