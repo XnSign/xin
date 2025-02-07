@@ -381,64 +381,95 @@ class Player:
             return
         
         # 应用重力
-        self.dy += 0.5
-        
-        # 限制最大下落速度
-        if self.dy > 10:
-            self.dy = 10
+        if not self.on_ground:
+            self.dy += self.gravity
+            # 限制最大下落速度
+            if self.dy > self.max_fall_speed:
+                self.dy = self.max_fall_speed
         
         # 更新位置
         new_rect = self.rect.copy()
-        new_rect.x += self.x_speed
+        
+        # 先处理水平移动
+        if self.x_speed != 0:
+            new_rect.x += self.x_speed
+            # 水平碰撞检测
+            grid_left = new_rect.left // world.grid_size
+            grid_right = (new_rect.right - 1) // world.grid_size
+            grid_top = new_rect.top // world.grid_size
+            grid_bottom = (new_rect.bottom - 1) // world.grid_size
+            
+            # 检查水平移动是否会碰撞
+            collision = False
+            for y in range(grid_top, grid_bottom + 1):
+                if y < 0 or y >= world.height:
+                    continue
+                if self.x_speed > 0:  # 向右移动
+                    if grid_right < world.width and world.grid[y][grid_right] != world.EMPTY:
+                        new_rect.right = grid_right * world.grid_size
+                        collision = True
+                        break
+                elif self.x_speed < 0:  # 向左移动
+                    if grid_left >= 0 and world.grid[y][grid_left] != world.EMPTY:
+                        new_rect.left = (grid_left + 1) * world.grid_size
+                        collision = True
+                        break
+            
+            if not collision:
+                self.rect.x = new_rect.x
+        
+        # 然后处理垂直移动
+        new_rect = self.rect.copy()
         new_rect.y += self.dy
         
-        # 检测与世界的碰撞
-        grid_size = world.grid_size
-        
-        # 获取玩家周围的网格坐标
-        left = new_rect.left // grid_size
-        right = new_rect.right // grid_size
-        top = new_rect.top // grid_size
-        bottom = new_rect.bottom // grid_size
-        
-        self.on_ground = False
-        
         # 垂直碰撞检测
-        if self.dy > 0:  # 下落
-            for x in range(left, right + 1):
-                if 0 <= x < world.width and 0 <= bottom < world.height:
-                    if world.grid[bottom][x] != world.EMPTY:
-                        new_rect.bottom = bottom * grid_size
-                        self.dy = 0
-                        self.on_ground = True
-                        self.jumps_left = 2  # 着地时重置跳跃次数
-                        break
-        elif self.dy < 0:  # 上升
-            for x in range(left, right + 1):
-                if 0 <= x < world.width and 0 <= top < world.height:
-                    if world.grid[top][x] != world.EMPTY:
-                        new_rect.top = (top + 1) * grid_size
-                        self.dy = 0
-                        break
+        grid_left = new_rect.left // world.grid_size
+        grid_right = (new_rect.right - 1) // world.grid_size
+        grid_top = new_rect.top // world.grid_size
+        grid_bottom = (new_rect.bottom - 1) // world.grid_size
         
-        # 水平碰撞检测
-        if self.x_speed > 0:  # 向右移动
-            for y in range(top, bottom + 1):
-                if 0 <= right < world.width and 0 <= y < world.height:
-                    if world.grid[y][right] != world.EMPTY:
-                        new_rect.right = right * grid_size
-                        self.x_speed = 0
-                        break
-        elif self.x_speed < 0:  # 向左移动
-            for y in range(top, bottom + 1):
-                if 0 <= left < world.width and 0 <= y < world.height:
-                    if world.grid[y][left] != world.EMPTY:
-                        new_rect.left = (left + 1) * grid_size
-                        self.x_speed = 0
-                        break
+        # 检查垂直移动是否会碰撞
+        self.on_ground = False
+        for x in range(grid_left, grid_right + 1):
+            if x < 0 or x >= world.width:
+                continue
+            if self.dy > 0:  # 下落
+                if grid_bottom < world.height and world.grid[grid_bottom][x] != world.EMPTY:
+                    new_rect.bottom = grid_bottom * world.grid_size
+                    self.dy = 0
+                    self.on_ground = True
+                    self.jumps_left = 2  # 着地时重置跳跃次数
+                    break
+            elif self.dy < 0:  # 上升
+                if grid_top >= 0 and world.grid[grid_top][x] != world.EMPTY:
+                    new_rect.top = (grid_top + 1) * world.grid_size
+                    self.dy = 0
+                    break
         
-        # 更新位置
-        self.rect = new_rect
+        self.rect.y = new_rect.y
+        
+        # 如果掉出地图，重置位置
+        if self.rect.top > world.height * world.grid_size:
+            self.rect.x = world.width * world.grid_size // 2
+            self.rect.y = 0
+            self.dy = 0
+            self.x_speed = 0
+        
+        # 更新动画状态
+        if self.x_speed != 0:
+            self.state = "walk"
+        elif not self.on_ground:
+            self.state = "jump"
+        else:
+            self.state = "idle"
+        
+        # 如果状态改变或正在移动，重新绘制角色
+        if (self.state != self.last_state or 
+            self.facing_right != self.last_facing or 
+            self.state in ["walk", "jump"]):
+            self.draw_character()
+            self.last_state = self.state
+            self.last_facing = self.facing_right
     
     def move_left(self):
         """向左移动"""

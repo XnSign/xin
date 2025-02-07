@@ -91,11 +91,49 @@ class Inventory:
         return False
     
     def draw_hotbar(self, screen, font):
-        # 只绘制第一行（物品栏）
+        """绘制物品栏"""
+        # 固定位置在左上角
+        x, y = 10, 10
+        slot_size = 40
+        spacing = 2
+        
+        # 创建一个临时surface来绘制物品栏
+        hotbar_width = (slot_size + spacing) * self.cols - spacing
+        hotbar_height = slot_size
+        hotbar_surface = pygame.Surface((hotbar_width, hotbar_height), pygame.SRCALPHA)
+        hotbar_surface.fill((0, 0, 0, 128))  # 半透明黑色背景
+        
+        # 绘制物品槽
         for i in range(self.cols):
-            slot = self.slots[i]
-            slot.draw(screen, font, i == self.selected_slot)
+            # 计算槽位位置
+            slot_x = i * (slot_size + spacing)
+            slot_y = 0
             
+            # 绘制槽位背景
+            pygame.draw.rect(hotbar_surface, (60, 60, 60, 200), 
+                           (slot_x, slot_y, slot_size, slot_size))
+            
+            # 绘制选中槽位的高亮
+            if i == self.selected_slot:
+                pygame.draw.rect(hotbar_surface, (255, 255, 255, 100), 
+                               (slot_x, slot_y, slot_size, slot_size), 2)
+            
+            # 如果槽位有物品，绘制物品
+            slot = self.slots[i]
+            if slot and slot.item:
+                # 绘制物品图标或颜色块
+                pygame.draw.rect(hotbar_surface, slot.item['color'], 
+                               (slot_x + 4, slot_y + 4, slot_size - 8, slot_size - 8))
+                
+                # 如果物品可堆叠且数量大于1，显示数量
+                if 'count' in slot.item and slot.item['count'] > 1:
+                    text = font.render(str(slot.item['count']), True, (255, 255, 255))
+                    text_rect = text.get_rect(bottomright=(slot_x + slot_size - 2, slot_y + slot_size - 2))
+                    hotbar_surface.blit(text, text_rect)
+        
+        # 将物品栏绘制到主界面的左上角
+        screen.blit(hotbar_surface, (x, y))
+    
     def draw(self, screen, font):
         if not self.visible:
             return

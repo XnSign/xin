@@ -675,6 +675,15 @@ class Game:
     def __init__(self):
         """初始化游戏"""
         pygame.init()
+        
+        # 设置默认按键绑定
+        self.key_bindings = {
+            'left': pygame.K_a,      # A键向左移动
+            'right': pygame.K_d,     # D键向右移动
+            'jump': pygame.K_SPACE,  # 空格键跳跃
+            'inventory': pygame.K_e  # E键打开物品栏
+        }
+        
         pygame.mixer.init()
         
         # 添加翻译字典
@@ -2381,7 +2390,8 @@ class Game:
                 # 只在背包打开时显示设置按钮
                 if hasattr(self, 'settings_button'):
                     self.settings_button.draw(self.buffer)
-            self.inventory.draw_hotbar(self.buffer, get_font(20))  # 始终显示物品栏
+            # 修改物品栏位置到左上角
+            self.inventory.draw_hotbar(self.buffer, get_font(20))  # 移除position参数
         
         # 将缓冲区内容复制到屏幕
         self.screen.blit(self.buffer, (0, 0))
@@ -2864,7 +2874,7 @@ class Game:
         """创建新的地图"""
         # 验证地图名
         if not map_name or map_name.strip() == "":
-            self.show_message("提示", "地图名不能为空！")
+            self.show_message("地图名不能为空！")
             return
             
         try:
@@ -2873,14 +2883,13 @@ class Game:
                 'width': width,
                 'height': height,
                 'grid_size': grid_size,
-                'grid': [[0 for _ in range(width)] for _ in range(height)],  # 初始化为空地图
-                'spawn_point': [width // 2, 0]  # 设置出生点在地图中央顶部
+                'grid': [[0 for _ in range(width)] for _ in range(height)]  # 初始化为空地图
             }
             
             # 生成基本地形
             self.generate_terrain(map_data['grid'])
             
-            # 保存地图数据到 maps 目录，使用 .map 扩展名
+            # 保存地图数据到 maps 目录
             map_file = os.path.join(self.maps_path, f"{map_name}.map")
             
             # 确保目录存在
@@ -2894,14 +2903,14 @@ class Game:
             
             print(f"成功创建地图: {map_name}")
             # 显示成功消息
-            self.show_message("提示", "地图创建成功！")
+            self.show_message("地图创建成功！")
             # 返回地图选择界面
             self.game_state = "map_select"
             self.needs_redraw = True
             
         except Exception as e:
             print(f"创建地图时出错: {e}")
-            self.show_message("错误", "创建地图失败！")
+            self.show_message("创建地图失败！")
 
     def generate_terrain(self, grid):
         """生成基础地形"""
@@ -2924,75 +2933,55 @@ class Game:
                         grid[y][x] = 1  # 泥土
 
     def initialize_game(self, character_data=None):
-        """初始化游戏"""
-        # 确保有角色数据
-        if not character_data:
-            print("Error: No character data provided")
-            return False
-        
+        """初始化游戏世界和玩家"""
         try:
-            # 加载或创建世界
-            if self.selected_map:
-                try:
-                    # 尝试加载地图
-                    map_path = os.path.join(self.maps_path, f"{self.selected_map}.map")
-                    if os.path.exists(map_path):
-                        with open(map_path, 'r') as f:
-                            map_data = json.load(f)
-                        self.world = World(
-                            width=map_data['width'],
-                            height=map_data['height'],
-                            grid_size=32  # 使用固定的网格大小
-                        )
-                        self.world.load_from_data(map_data)
-                    else:
-                        # 如果地图不存在，创建新地图
-                        self.world = World(100, 100, 32)  # 添加 grid_size 参数
-                        self.world.generate()
-                except Exception as e:
-                    print(f"Error loading map: {e}")
-                    # 创建默认世界
-                    self.world = World(100, 100, 32)  # 添加 grid_size 参数
-                    self.world.generate()
+            # 加载地图数据
+            if hasattr(self, 'selected_map') and self.selected_map:
+                map_path = os.path.join(self.maps_path, f"{self.selected_map}.map")
+                with open(map_path, 'r', encoding='utf-8') as f:
+                    map_data = json.load(f)
+                    
+                # 初始化世界
+                self.world = World(
+                    width=map_data.get('width', 100),
+                    height=map_data.get('height', 60),
+                    grid_size=map_data.get('grid_size', 32)
+                )
+                self.world.grid = map_data.get('grid', self.world.generate_terrain())
             else:
                 # 如果没有选择地图，创建默认世界
-                self.world = World(100, 100, 32)  # 添加 grid_size 参数
-                self.world.generate()
+                self.world = World(100, 60, 32)
+                self.world.grid = self.world.generate_terrain()
             
-            # 找到合适的出生点（从上往下找到第一个地面方块）
-            spawn_x = self.world.width * self.world.grid_size // 2  # 地图中央
-            spawn_y = 0
-            for y in range(self.world.height):
-                if self.world.grid[y][spawn_x // self.world.grid_size] != self.world.EMPTY:
-                    spawn_y = (y - 2) * self.world.grid_size  # 在地面上方两格
-                    break
-            
-            # 创建玩家
-            self.player = Player(spawn_x, spawn_y, character_data)
-            
-            # 初始化库存系统
-            self.inventory = Inventory(10, self.screen_height - 50)
-            
-            # 初始化摄像机位置
-            self.camera_x = self.player.rect.centerx - self.screen_width // 2
-            self.camera_y = self.player.rect.centery - self.screen_height // 2
-            
-            # 设置游戏状态为正在游戏
-            self.game_state = "playing"
-            self.needs_redraw = True
-            
-            # 初始化按键绑定
-            self.key_bindings = {
-                'left': pygame.K_a,
-                'right': pygame.K_d,
-                'jump': pygame.K_SPACE
-            }
-            
-            return True
+            # 初始化玩家
+            if character_data:
+                # 设置玩家初始位置（地图中央顶部）
+                spawn_x = self.world.width * self.world.grid_size // 2
+                spawn_y = 0
+                self.player = Player(spawn_x, spawn_y, character_data)
+                
+                # 初始化物品栏
+                self.inventory = Inventory(
+                    (self.screen_width - 10 * 34) // 2,  # 居中显示
+                    self.screen_height - 100,  # 底部显示
+                    cols=10, rows=5
+                )
+                
+                # 初始化摄像机位置
+                self.camera_x = max(0, self.player.rect.x - self.screen_width // 2)
+                self.camera_y = max(0, self.player.rect.y - self.screen_height // 2)
+                
+                print("游戏初始化完成")
+                self.game_state = "playing"
+                self.needs_redraw = True
+            else:
+                print("错误：未提供角色数据")
+                self.game_state = "character_select"
             
         except Exception as e:
-            print(f"Error initializing game: {e}")
-            return False
+            print(f"初始化游戏时出错: {e}")
+            self.show_message("初始化游戏失败！")
+            self.game_state = "menu"
 
     def draw_credits(self):
         """绘制制作人员界面"""
@@ -3214,12 +3203,19 @@ class Game:
             mouse_pos = event.pos
             
             # 检查名称输入框
-            name_rect = pygame.Rect(panel_x + 150, panel_y + 30, 300, 40)
-            self.map_name_active = name_rect.collidepoint(mouse_pos)
+            input_rect = pygame.Rect(
+                (self.screen_width - 800) // 2 + 150,  # panel_x + 150
+                120 + 30,  # panel_y + 30
+                300, 40
+            )
+            self.map_name_active = input_rect.collidepoint(mouse_pos)
             
             # 检查大小选项
-            size_y = panel_y + 100
+            size_y = 120 + 100  # panel_y + 100
             size_spacing = 60
+            panel_width = self.screen_width * 0.8
+            panel_x = (self.screen_width - panel_width) // 2
+            
             for i, size in enumerate([self.get_text("small"), self.get_text("medium"), self.get_text("large")]):
                 option_rect = pygame.Rect(panel_x + 50, size_y + i * size_spacing, panel_width - 100, 50)
                 if option_rect.collidepoint(mouse_pos):
@@ -3232,16 +3228,16 @@ class Game:
             # 检查确认按钮
             if hasattr(self, 'confirm_button') and self.confirm_button.rect.collidepoint(mouse_pos):
                 if not hasattr(self, 'map_name_input') or not self.map_name_input:
-                    self.show_message("提示", "请输入地图名称！")
+                    self.show_message("请输入地图名称！")
                     return True
                 
                 # 根据选择的大小创建地图
                 if self.selected_map_size == self.get_text("small"):
-                    size = (50, 50)
+                    size = (40, 23)
                 elif self.selected_map_size == self.get_text("large"):
-                    size = (200, 200)
+                    size = (120, 68)
                 else:  # medium
-                    size = (100, 100)
+                    size = (80, 45)
                 
                 try:
                     self.create_new_map(
@@ -3253,11 +3249,13 @@ class Game:
                     return True
                 except Exception as e:
                     print(f"创建地图失败: {e}")
-                    self.show_message("错误", "创建地图失败！")
+                    self.show_message("创建地图失败！")
                     return True
             
             # 检查返回按钮
             if hasattr(self, 'back_button') and self.back_button.rect.collidepoint(mouse_pos):
+                if hasattr(self, 'click_sound') and self.click_sound:
+                    self.click_sound.play()
                 self.game_state = "map_select"
                 self.needs_redraw = True
                 return True
@@ -3582,25 +3580,28 @@ class Game:
     def update(self):
         """更新游戏状态"""
         if self.game_state == "playing":
-            # 更新玩家
             if hasattr(self, 'player') and hasattr(self, 'world'):
+                # 更新玩家状态
                 self.player.update(self.world)
                 
-                # 更新摄像机位置
+                # 更新摄像机位置跟随玩家
                 target_x = self.player.rect.centerx - self.screen_width // 2
                 target_y = self.player.rect.centery - self.screen_height // 2
                 
-                # 平滑摄像机移动
+                # 平滑移动摄像机
                 self.camera_x += (target_x - self.camera_x) * 0.1
                 self.camera_y += (target_y - self.camera_y) * 0.1
                 
-                # 确保摄像机不会超出世界边界
-                self.camera_x = max(0, min(self.camera_x, 
-                                         self.world.width * self.world.grid_size - self.screen_width))
-                self.camera_y = max(0, min(self.camera_y, 
-                                         self.world.height * self.world.grid_size - self.screen_height))
+                # 确保摄像机不会超出地图边界
+                max_camera_x = self.world.width * self.world.grid_size - self.screen_width
+                max_camera_y = self.world.height * self.world.grid_size - self.screen_height
                 
-                self.needs_redraw = True
+                self.camera_x = max(0, min(self.camera_x, max_camera_x))
+                self.camera_y = max(0, min(self.camera_y, max_camera_y))
+                
+                # 如果玩家移动了，需要重绘
+                if self.player.x_speed != 0 or self.player.dy != 0:
+                    self.needs_redraw = True
             
             # 检查设置消息是否应该消失
             current_time = pygame.time.get_ticks()
@@ -3611,11 +3612,14 @@ class Game:
                     self.needs_redraw = True
 
     def handle_playing_events(self, event):
-        """处理游戏主界面的事件"""
+        """处理游戏进行时的事件"""
+        # 处理鼠标事件
         if event.type == pygame.MOUSEBUTTONDOWN:
-            # ... 其他鼠标事件处理代码 ...
-            pass
-        
+            if event.button == 1:  # 左键
+                self.place_block(event.pos)
+            elif event.button == 3:  # 右键
+                self.break_block(event.pos)
+    
         # 处理按键事件
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
@@ -3627,19 +3631,29 @@ class Game:
                 return
             
             # 处理跳跃
-            elif event.key == self.key_bindings['jump']:
-                if hasattr(self, 'player'):
-                    self.player.jump()
+            if event.key == self.key_bindings['jump'] and hasattr(self, 'player'):
+                self.player.jump()
+                
+            # 处理物品栏快捷键
+            if pygame.K_1 <= event.key <= pygame.K_9:
+                self.inventory.selected_slot = event.key - pygame.K_1
+            elif event.key == pygame.K_0:
+                self.inventory.selected_slot = 9
         
         # 处理持续按键状态
         keys = pygame.key.get_pressed()
         if hasattr(self, 'player'):
+            # 处理左右移动
             if keys[self.key_bindings['left']]:
                 self.player.move_left()
             elif keys[self.key_bindings['right']]:
                 self.player.move_right()
             else:
                 self.player.stop()
+            
+            # 如果玩家正在移动，需要重绘
+            if self.player.x_speed != 0:
+                self.needs_redraw = True
 
 class SettingsButton(SimpleButton):
     def __init__(self, x, y, width, height, text, color=(200, 200, 220), font_size=32, is_selected=False):
