@@ -2957,6 +2957,9 @@ class Game:
     def initialize_game(self, character_data=None):
         """初始化游戏世界和玩家"""
         try:
+            # 停止背景音乐
+            pygame.mixer.music.stop()
+            
             # 加载地图数据
             if hasattr(self, 'selected_map') and self.selected_map:
                 map_path = os.path.join(self.maps_path, f"{self.selected_map}.map")
