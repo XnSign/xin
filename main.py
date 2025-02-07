@@ -675,6 +675,7 @@ class Game:
     def __init__(self):
         """初始化游戏"""
         pygame.init()
+        pygame.mixer.init()
         
         # 设置默认按键绑定
         self.key_bindings = {
@@ -684,7 +685,20 @@ class Game:
             'inventory': pygame.K_e  # E键打开物品栏
         }
         
-        pygame.mixer.init()
+        # 设置游戏目录
+        self.base_path = os.path.dirname(os.path.abspath(__file__))
+        self.assets_path = os.path.join(self.base_path, 'assets')
+        self.player_path = os.path.join(self.base_path, 'players')
+        self.maps_path = os.path.join(self.base_path, 'maps')
+        self.settings_path = os.path.join(self.base_path, 'settings')
+        self.characters_path = os.path.join(self.assets_path, 'characters')  # 新增角色贴图路径
+        
+        # 确保所需目录存在
+        os.makedirs(self.assets_path, exist_ok=True)
+        os.makedirs(self.player_path, exist_ok=True)
+        os.makedirs(self.maps_path, exist_ok=True)
+        os.makedirs(self.settings_path, exist_ok=True)
+        os.makedirs(self.characters_path, exist_ok=True)  # 确保角色贴图目录存在
         
         # 添加翻译字典
         self.translations = {
@@ -2819,23 +2833,31 @@ class Game:
         self.needs_redraw = True
 
     def update_camera(self):
-        """更新摄像机位置以跟随玩家"""
+        """更新摄像机位置"""
         if not hasattr(self, 'player') or not hasattr(self, 'world'):
             return
             
-        # 计算目标摄像机位置（使玩家保持在屏幕中心）
+        # 计算目标位置（以玩家为中心）
         target_x = self.player.rect.centerx - self.screen_width // 2
         target_y = self.player.rect.centery - self.screen_height // 2
         
-        # 限制摄像机不会超出世界边界
-        target_x = max(0, min(target_x, self.world.width * self.world.grid_size - self.screen_width))
-        target_y = max(0, min(target_y, self.world.height * self.world.grid_size - self.screen_height))
+        # 计算世界边界
+        max_camera_x = self.world.width * self.world.grid_size - self.screen_width
+        max_camera_y = self.world.height * self.world.grid_size - self.screen_height
         
-        # 平滑移动摄像机（简单线性插值）
-        self.camera_x += (target_x - self.camera_x) * 0.1
-        self.camera_y += (target_y - self.camera_y) * 0.1
+        # 限制摄像机位置在世界边界内
+        target_x = max(0, min(target_x, max_camera_x))
+        target_y = max(0, min(target_y, max_camera_y))
         
-        # 如果摄像机移动，需要重绘
+        # 平滑移动摄像机
+        self.camera_x += (target_x - self.camera_x) * 0.2
+        self.camera_y += (target_y - self.camera_y) * 0.2
+        
+        # 确保摄像机不会超出边界（修正任何浮点数误差）
+        self.camera_x = max(0, min(self.camera_x, max_camera_x))
+        self.camera_y = max(0, min(self.camera_y, max_camera_y))
+        
+        # 如果摄像机移动了，需要重绘
         if abs(self.camera_x - target_x) > 0.1 or abs(self.camera_y - target_y) > 0.1:
             self.needs_redraw = True
 
@@ -3584,20 +3606,8 @@ class Game:
                 # 更新玩家状态
                 self.player.update(self.world)
                 
-                # 更新摄像机位置跟随玩家
-                target_x = self.player.rect.centerx - self.screen_width // 2
-                target_y = self.player.rect.centery - self.screen_height // 2
-                
-                # 平滑移动摄像机
-                self.camera_x += (target_x - self.camera_x) * 0.1
-                self.camera_y += (target_y - self.camera_y) * 0.1
-                
-                # 确保摄像机不会超出地图边界
-                max_camera_x = self.world.width * self.world.grid_size - self.screen_width
-                max_camera_y = self.world.height * self.world.grid_size - self.screen_height
-                
-                self.camera_x = max(0, min(self.camera_x, max_camera_x))
-                self.camera_y = max(0, min(self.camera_y, max_camera_y))
+                # 更新摄像机位置
+                self.update_camera()
                 
                 # 如果玩家移动了，需要重绘
                 if self.player.x_speed != 0 or self.player.dy != 0:
