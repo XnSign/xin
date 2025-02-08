@@ -1264,7 +1264,7 @@ class Game:
         
         # 绘制地图列表
         self.map_buttons = {}  # 存储地图按钮
-        self.delete_map_buttons = {}  # 存储删除按钮
+        self.delete_map_buttons = {}
         
         if self.maps:
             for i, map_name in enumerate(self.maps):
@@ -1272,14 +1272,14 @@ class Game:
                 entry_y = panel_y + padding + i * (entry_height + 8)
                 
                 # 计算按钮宽度和位置
-                map_button_width = panel_width - 250  # 大幅减小按钮宽度
-                map_button_x = panel_x + (panel_width - map_button_width - 100) // 2  # 居中显示，100是删除按钮宽度和间距的总和
+                map_button_width = panel_width - 250  # 减小按钮宽度
+                map_button_x = panel_x + (panel_width - map_button_width - 80) // 2  # 居中显示，80是删除按钮宽度
                 
                 # 创建地图按钮
-                map_btn = SimpleButton(
+                map_btn = MapButton(
                     map_button_x,
                     entry_y,
-                    map_button_width - 80,  # 减小宽度给删除按钮留空间
+                    map_button_width,  # 使用完整宽度
                     entry_height,
                     map_name,
                     color=(60, 60, 140)
@@ -1289,9 +1289,9 @@ class Game:
                 
                 # 创建删除按钮
                 delete_btn = MapDeleteButton(
-                    map_button_x + map_button_width - 80,  # 紧贴着地图按钮
+                    map_button_x + map_button_width + 10,  # 紧贴着地图按钮
                     entry_y,
-                    80,  # 删除按钮宽度
+                    70,  # 删除按钮宽度
                     entry_height,  # 与地图按钮同高
                     self.get_text("delete"),
                     color=(200, 50, 50)
@@ -1307,7 +1307,7 @@ class Game:
         
         # 创建新建地图按钮
         self.new_map_button = SimpleButton(
-            panel_x + (panel_width - 180) // 2,
+            panel_x + (panel_width - 180) // 2,  # 居中显示
             panel_y + panel_height - 70,  # 距离面板底部30像素
             180,
             45,
@@ -3708,15 +3708,15 @@ class MapButton(SimpleButton):
         # 计算六边形的顶点（调整左右两边内角）
         points = []
         # 上边的两个点
-        points.append((center_x - width/2 + width/3, center_y - height/3))  # 左上，向右移动width/3
-        points.append((center_x + width/2 - width/6, center_y - height/3))  # 右上，向左移动一点
+        points.append((center_x - width/2 + width/6, center_y - height/3))  # 左上，向右移动width/6
+        points.append((center_x + width/2 - width/6, center_y - height/3))  # 右上，向左移动width/6
         # 右边的点
-        points.append((center_x + width/2 + width/6, center_y))   # 右，向外凸出
+        points.append((center_x + width/2, center_y))   # 右，不凸出
         # 下边的两个点
-        points.append((center_x + width/2 - width/6, center_y + height/3))  # 右下，向左移动一点
-        points.append((center_x - width/2 + width/3, center_y + height/3))  # 左下，向右移动width/3
+        points.append((center_x + width/2 - width/6, center_y + height/3))  # 右下，向左移动width/6
+        points.append((center_x - width/2 + width/6, center_y + height/3))  # 左下，向右移动width/6
         # 左边的点
-        points.append((center_x - width/2, center_y))   # 左，不加偏移，保持和红色按钮一样的内角
+        points.append((center_x - width/2, center_y))   # 左，不凸出
         
         # 根据悬停和点击状态确定颜色
         current_color = self.color
