@@ -29,7 +29,7 @@ class Player:
         self.y_speed = 0
         self.dx = 0  # 水平速度
         self.dy = 0  # 垂直速度
-        self.gravity = 0.8  # 重力加速度
+        self.gravity = 0.4  # 重力加速度
         self.max_fall_speed = 20  # 最大下落速度
         self.move_speed = 5  # 移动速度
         
@@ -38,8 +38,10 @@ class Player:
         self.is_jumping = False
         self.on_ground = False
         self.jump_pressed = False
-        self.jumps_left = 2  # 允许二段跳
-        self.jump_power = -15  # 跳跃力度
+        self.jump_hold_time = 0  # 跳跃按住时间
+        self.max_jump_hold_time = 15  # 最大跳跃蓄力时间
+        self.initial_jump_power = -15  # 初始跳跃力度（5格高度）
+        self.max_jump_power = -20  # 最大跳跃力度（7格高度）
         
         # 动画相关
         self.animation_timer = pygame.time.get_ticks()
@@ -220,6 +222,15 @@ class Player:
         if self.preview_mode:
             return
         
+        # 处理跳跃蓄力
+        if self.is_jumping and self.jump_pressed and self.jump_hold_time < self.max_jump_hold_time:
+            self.jump_hold_time += 1
+            # 根据按住时间线性增加向上的速度
+            jump_boost = (self.max_jump_power - self.initial_jump_power) * (self.jump_hold_time / self.max_jump_hold_time)
+            self.dy -= 1.0  # 持续增加向上的速度
+            if self.dy < self.max_jump_power:  # 限制最大上升速度
+                self.dy = self.max_jump_power
+        
         # 应用重力
         if not self.on_ground:
             self.dy += self.gravity
@@ -270,6 +281,8 @@ class Player:
         
         # 检查垂直移动是否会碰撞
         self.on_ground = False
+        collision_with_ground = False  # 添加一个标志来确保检测到地面碰撞
+        
         for x in range(grid_left, grid_right + 1):
             if x < 0 or x >= world.width:
                 continue
@@ -278,22 +291,34 @@ class Player:
                     new_rect.bottom = grid_bottom * world.grid_size
                     self.dy = 0
                     self.on_ground = True
-                    self.jumps_left = 2  # 着地时重置跳跃次数
+                    collision_with_ground = True
                     break
             elif self.dy < 0:  # 上升
+                # 检查是否超出世界上边界
+                if grid_top < 0:
+                    new_rect.top = 0
+                    self.dy = 0
+                    break
+                # 检查方块碰撞
                 if grid_top >= 0 and world.grid[grid_top][x] != world.EMPTY:
                     new_rect.top = (grid_top + 1) * world.grid_size
                     self.dy = 0
                     break
         
+        # 如果检测到地面碰撞，立即重置所有跳跃相关状态
+        if collision_with_ground:
+            self.is_jumping = False
+            self.jump_pressed = False
+            self.jump_hold_time = 0
+        
         self.rect.y = new_rect.y
         
-        # 如果掉出地图，重置位置
-        if self.rect.top > world.height * world.grid_size:
-            self.rect.x = world.width * world.grid_size // 2
-            self.rect.y = 0
+        # 防止掉出地图底部
+        if self.rect.bottom > world.height * world.grid_size:
+            self.rect.bottom = world.height * world.grid_size
             self.dy = 0
-            self.x_speed = 0
+            self.on_ground = True
+            self.is_jumping = False
         
         # 更新动画状态
         if self.x_speed != 0:
@@ -334,15 +359,13 @@ class Player:
     
     def jump(self):
         """处理跳跃"""
-        if self.jumps_left > 0:
-            # 如果是第二段跳跃，跳跃力减弱
-            if not self.on_ground:
-                self.dy = self.jump_power * 0.8
-            else:
-                self.dy = self.jump_power
-            self.jumps_left -= 1
+        if self.on_ground:  # 只有在地面上才能跳跃
+            self.is_jumping = True
+            self.jump_hold_time = 0
             self.on_ground = False
             self.state = "jump"
+            self.jump_pressed = True  # 确保跳跃键状态正确
+            self.dy = self.initial_jump_power  # 设置初始跳跃速度（5格高度）
     
     def draw(self, surface, camera_x, camera_y):
         """绘制玩家"""

@@ -1329,11 +1329,59 @@ class Game:
         
         # 更新屏幕
         self.screen.blit(self.buffer, (0, 0))
+        
+        # 如果有确认对话框，绘制它
+        if hasattr(self, 'confirm_dialog') and self.confirm_dialog:
+            # 绘制半透明背景
+            overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 180))
+            self.screen.blit(overlay, (0, 0))
+            
+            # 绘制对话框
+            self.screen.blit(self.confirm_dialog.surface, self.confirm_dialog.rect)
+        
         pygame.display.flip()
         self.needs_redraw = False
 
     def handle_map_select_events(self, event):
         """处理地图选择界面的事件"""
+        # 如果有确认对话框，优先处理它的事件
+        if hasattr(self, 'confirm_dialog') and self.confirm_dialog:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                mouse_pos = event.pos
+                
+                # 检查确认按钮
+                if self.confirm_dialog.confirm_rect.collidepoint(mouse_pos):
+                    if hasattr(self, 'map_to_delete') and self.map_to_delete:
+                        try:
+                            self.delete_map(self.map_to_delete)
+                            delattr(self, 'map_to_delete')
+                            self.show_message("地图删除成功！")
+                        except Exception as e:
+                            print(f"删除地图失败: {e}")
+                            self.show_message("删除地图失败！")
+                    self.confirm_dialog = None
+                    self.needs_redraw = True
+                    return True
+                
+                # 检查取消按钮
+                elif self.confirm_dialog.cancel_rect.collidepoint(mouse_pos):
+                    if hasattr(self, 'map_to_delete'):
+                        delattr(self, 'map_to_delete')
+                    self.confirm_dialog = None
+                    self.needs_redraw = True
+                    return True
+            
+            # 处理按钮悬停效果
+            elif event.type == pygame.MOUSEMOTION:
+                mouse_pos = event.pos
+                self.confirm_dialog.confirm_btn.is_hovered = self.confirm_dialog.confirm_rect.collidepoint(mouse_pos)
+                self.confirm_dialog.cancel_btn.is_hovered = self.confirm_dialog.cancel_rect.collidepoint(mouse_pos)
+                if self.confirm_dialog.confirm_btn.is_hovered or self.confirm_dialog.cancel_btn.is_hovered:
+                    self.needs_redraw = True
+            
+            return True
+
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mouse_pos = event.pos
             
@@ -2396,6 +2444,65 @@ class Game:
             # 修改物品栏位置到左上角
             self.inventory.draw_hotbar(self.buffer, get_font(20))  # 移除position参数
         
+        # 绘制小地图
+        if hasattr(self, 'world'):
+            # 小地图的大小和位置
+            minimap_size = 200
+            margin = 20
+            minimap_x = self.screen_width - minimap_size - margin
+            minimap_y = margin
+            
+            # 创建小地图surface
+            minimap_surface = pygame.Surface((minimap_size, minimap_size))
+            minimap_surface.fill((0, 0, 0))  # 黑色背景
+            
+            # 计算缩放比例
+            scale_x = minimap_size / (self.world.width * self.world.grid_size)
+            scale_y = minimap_size / (self.world.height * self.world.grid_size)
+            
+            # 绘制地图块
+            for y in range(self.world.height):
+                for x in range(self.world.width):
+                    block = self.world.grid[y][x]
+                    if block:  # 如果有方块
+                        # 计算方块在小地图上的位置和大小
+                        block_x = int(x * self.world.grid_size * scale_x)
+                        block_y = int(y * self.world.grid_size * scale_y)
+                        block_size = max(1, int(self.world.grid_size * scale_x))
+                        
+                        # 使用方块的实际颜色
+                        block_color = self.world.block_colors[block]
+                        pygame.draw.rect(minimap_surface, block_color, 
+                                       (block_x, block_y, block_size, block_size))
+            
+            # 绘制玩家位置（如果玩家存在）
+            if hasattr(self, 'player'):
+                player_x = int(self.player.rect.x * scale_x)
+                player_y = int(self.player.rect.y * scale_y)
+                pygame.draw.circle(minimap_surface, (255, 0, 0), 
+                                 (player_x, player_y), 3)  # 红色圆点表示玩家
+            
+            # 绘制当前视野范围
+            view_x = int(self.camera_x * scale_x)
+            view_y = int(self.camera_y * scale_y)
+            view_width = int(self.screen_width * scale_x)
+            view_height = int(self.screen_height * scale_y)
+            pygame.draw.rect(minimap_surface, (255, 255, 255), 
+                           (view_x, view_y, view_width, view_height), 1)
+            
+            # 添加半透明背景
+            background = pygame.Surface((minimap_size + 10, minimap_size + 10))
+            background.fill((0, 0, 0))
+            background.set_alpha(128)
+            self.buffer.blit(background, (minimap_x - 5, minimap_y - 5))
+            
+            # 将小地图绘制到主界面
+            self.buffer.blit(minimap_surface, (minimap_x, minimap_y))
+            
+            # 绘制小地图边框
+            pygame.draw.rect(self.buffer, (255, 255, 255), 
+                           (minimap_x - 1, minimap_y - 1, minimap_size + 2, minimap_size + 2), 1)
+        
         # 将缓冲区内容复制到屏幕
         self.screen.blit(self.buffer, (0, 0))
         
@@ -2609,8 +2716,13 @@ class Game:
         
         # 如果有确认对话框，绘制它
         if hasattr(self, 'confirm_dialog') and self.confirm_dialog:
-            self.buffer.blit(self.confirm_dialog.surface, self.confirm_dialog.rect)
-            self.screen.blit(self.buffer, (0, 0))
+            # 绘制半透明背景
+            overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 180))
+            self.screen.blit(overlay, (0, 0))
+            
+            # 绘制对话框
+            self.screen.blit(self.confirm_dialog.surface, self.confirm_dialog.rect)
         
         pygame.display.flip()
         
@@ -2812,10 +2924,12 @@ class Game:
         self.confirm_dialog = type('ConfirmDialog', (), {
             'surface': dialog,
             'rect': pygame.Rect(dialog_x, dialog_y, dialog_width, dialog_height),
-            'confirm_rect': pygame.Rect(dialog_width//4 - btn_width//2, btn_y, btn_width, btn_height),
-            'cancel_rect': pygame.Rect(3*dialog_width//4 - btn_width//2, btn_y, btn_width, btn_height),
+            'confirm_rect': pygame.Rect(dialog_x + dialog_width//4 - btn_width//2, dialog_y + btn_y, btn_width, btn_height),
+            'cancel_rect': pygame.Rect(dialog_x + 3*dialog_width//4 - btn_width//2, dialog_y + btn_y, btn_width, btn_height),
             'message': message,
-            'visible': True
+            'visible': True,
+            'confirm_btn': confirm_btn,
+            'cancel_btn': cancel_btn
         })
         
         # 强制重绘
@@ -2863,16 +2977,16 @@ class Game:
     def load_maps(self):
         """加载现有的地图"""
         try:
-            # 确保世界目录存在
-            if not os.path.exists(self.world_path):
-                os.makedirs(self.world_path)
+            # 确保地图目录存在
+            if not os.path.exists(self.maps_path):
+                os.makedirs(self.maps_path)
                 return
             
-            # 获取所有.wld文件
+            # 获取所有.map文件
             self.maps = []
-            for entry in os.listdir(self.world_path):
-                if entry.endswith('.wld'):
-                    map_name = entry[:-4]  # 移除.wld后缀
+            for entry in os.listdir(self.maps_path):
+                if entry.endswith('.map'):
+                    map_name = entry[:-4]  # 移除.map后缀
                     self.maps.append(map_name)
             
             # 按字母顺序排序地图列表
@@ -3055,13 +3169,21 @@ class Game:
 
     def delete_map(self, map_name):
         """删除指定的地图"""
-        map_file = os.path.join(self.world_path, f"{map_name}.wld")
+        if not map_name:
+            raise ValueError("地图名称不能为空")
+            
+        map_file = os.path.join(self.maps_path, f"{map_name}.map")
         if os.path.exists(map_file):
-            os.remove(map_file)
-            self.maps.remove(map_name)
-            print(f"已删除地图: {map_name}")
+            try:
+                os.remove(map_file)
+                if map_name in self.maps:
+                    self.maps.remove(map_name)
+                print(f"已删除地图: {map_name}")
+            except Exception as e:
+                print(f"删除地图文件失败: {e}")
+                raise Exception(f"无法删除地图文件: {e}")
         else:
-            print(f"找不到地图文件: {map_name}")
+            raise FileNotFoundError(f"找不到地图文件: {map_name}")
 
     def show_message(self, message):
         """显示简单的消息提示"""
