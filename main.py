@@ -71,15 +71,10 @@ class SimpleButton:
         self.hover_sound = None
         self.click_sound = None
         try:
-            # 使用相对于当前文件的路径
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            hover_sound_path = os.path.join(current_dir, "assets/sounds/ui/hover.wav")
-            click_sound_path = os.path.join(current_dir, "assets/sounds/ui/click.wav")
-            
-            self.hover_sound = pygame.mixer.Sound(hover_sound_path)
+            self.hover_sound = pygame.mixer.Sound("assets/sounds/ui/hover.wav")
             self.hover_sound.set_volume(0.15)
             
-            self.click_sound = pygame.mixer.Sound(click_sound_path)
+            self.click_sound = pygame.mixer.Sound("assets/sounds/ui/click.wav")
             self.click_sound.set_volume(0.3)
         except Exception as e:
             print(f"Warning: Could not load button sounds: {e}")
@@ -91,17 +86,13 @@ class SimpleButton:
         width = self.rect.width
         height = self.rect.height
         
-        # 计算六边形的顶点（上边是横线的六边形）
+        # 计算六边形的顶点
         points = []
-        # 上边的两个点
         points.append((center_x - width/2, center_y - height/3))  # 左上
         points.append((center_x + width/2, center_y - height/3))  # 右上
-        # 右边的点
         points.append((center_x + width/2 + width/8, center_y))   # 右
-        # 下边的两个点
         points.append((center_x + width/2, center_y + height/3))  # 右下
         points.append((center_x - width/2, center_y + height/3))  # 左下
-        # 左边的点
         points.append((center_x - width/2 - width/8, center_y))   # 左
         
         # 根据悬停和点击状态确定颜色
@@ -111,39 +102,30 @@ class SimpleButton:
         elif self.is_hovered:
             current_color = tuple(min(255, c + 30) for c in self.color)
         
-        # 绘制填充的六边形（分上下两部分）
+        # 计算上下部分的颜色
         upper_color = tuple(min(255, c + 20) for c in current_color)
         lower_color = tuple(max(0, c - 20) for c in current_color)
         
         # 绘制上半部分
-        upper_points = [
-            points[0],  # 左上
-            points[1],  # 右上
-            points[2],  # 右
-            (center_x, center_y),  # 中心
-            points[5]   # 左
-        ]
+        upper_points = [points[0], points[1], points[2], (center_x, center_y), points[5]]
         pygame.draw.polygon(screen, upper_color, upper_points)
         
         # 绘制下半部分
-        lower_points = [
-            points[2],  # 右
-            points[3],  # 右下
-            points[4],  # 左下
-            points[5],  # 左
-            (center_x, center_y)  # 中心
-        ]
+        lower_points = [points[2], points[3], points[4], points[5], (center_x, center_y)]
         pygame.draw.polygon(screen, lower_color, lower_points)
         
-        # 绘制金色边框
+        # 绘制边框
         border_color = (255, 215, 0) if self.is_hovered else (218, 165, 32)
         border_width = 3 if self.is_hovered else 2
         pygame.draw.polygon(screen, border_color, points, border_width)
         
-        # 绘制文本（黑色）
-        text_color = (0, 0, 0)
-        text_surface = self.font.render(self.text, True, text_color)
-        text_rect = text_surface.get_rect(center=self.rect.center)
+        # 绘制文本
+        text_surface = self.font.render(self.text, True, (0, 0, 0))
+        text_rect = text_surface.get_rect()
+        # 计算文本位置，确保在六边形中心
+        text_x = center_x
+        text_y = center_y
+        text_rect.center = (text_x, text_y)
         screen.blit(text_surface, text_rect)
     
     def handle_event(self, event):
@@ -1269,6 +1251,9 @@ class Game:
         panel_x = (self.screen_width - panel_width) // 2
         panel_y = 120
         
+        # 设置面板内边距
+        padding = 30
+        
         # 绘制半透明背景
         panel_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
         panel_surface.fill((0, 0, 0, 200))
@@ -1283,14 +1268,18 @@ class Game:
         
         if self.maps:
             for i, map_name in enumerate(self.maps):
-                entry_height = 80
-                entry_y = panel_y + 20 + i * (entry_height + 10)
+                entry_height = 60
+                entry_y = panel_y + padding + i * (entry_height + 8)
+                
+                # 计算按钮宽度和位置
+                map_button_width = panel_width - 250  # 大幅减小按钮宽度
+                map_button_x = panel_x + (panel_width - map_button_width - 100) // 2  # 居中显示，100是删除按钮宽度和间距的总和
                 
                 # 创建地图按钮
                 map_btn = SimpleButton(
-                    panel_x + 20,
+                    map_button_x,
                     entry_y,
-                    panel_width - 140,  # 减小宽度以适应删除按钮
+                    map_button_width - 80,  # 减小宽度给删除按钮留空间
                     entry_height,
                     map_name,
                     color=(60, 60, 140)
@@ -1299,11 +1288,11 @@ class Game:
                 self.map_buttons[map_name] = map_btn
                 
                 # 创建删除按钮
-                delete_btn = SimpleButton(
-                    panel_x + panel_width - 120,
-                    entry_y + 20,
-                    100,
-                    40,
+                delete_btn = MapDeleteButton(
+                    map_button_x + map_button_width - 80,  # 紧贴着地图按钮
+                    entry_y,
+                    80,  # 删除按钮宽度
+                    entry_height,  # 与地图按钮同高
                     self.get_text("delete"),
                     color=(200, 50, 50)
                 )
@@ -1318,10 +1307,10 @@ class Game:
         
         # 创建新建地图按钮
         self.new_map_button = SimpleButton(
-            panel_x + (panel_width - 200) // 2,
-            panel_y + panel_height + 20,
-            200,
-            50,
+            panel_x + (panel_width - 180) // 2,
+            panel_y + panel_height - 70,  # 距离面板底部30像素
+            180,
+            45,
             self.get_text("create_map"),
             color=(100, 200, 100)
         )
@@ -3710,8 +3699,67 @@ class MapButton(SimpleButton):
             print(f"Warning: Could not load button sounds: {e}")
     
     def draw(self, screen):
-        # 使用父类的绘制方法来绘制六边形按钮
-        super().draw(screen)
+        # 计算六边形的顶点
+        center_x = self.rect.centerx
+        center_y = self.rect.centery
+        width = self.rect.width
+        height = self.rect.height
+        
+        # 计算六边形的顶点（调整左右两边内角）
+        points = []
+        # 上边的两个点
+        points.append((center_x - width/2 + width/3, center_y - height/3))  # 左上，向右移动width/3
+        points.append((center_x + width/2 - width/6, center_y - height/3))  # 右上，向左移动一点
+        # 右边的点
+        points.append((center_x + width/2 + width/6, center_y))   # 右，向外凸出
+        # 下边的两个点
+        points.append((center_x + width/2 - width/6, center_y + height/3))  # 右下，向左移动一点
+        points.append((center_x - width/2 + width/3, center_y + height/3))  # 左下，向右移动width/3
+        # 左边的点
+        points.append((center_x - width/2, center_y))   # 左，不加偏移，保持和红色按钮一样的内角
+        
+        # 根据悬停和点击状态确定颜色
+        current_color = self.color
+        if self.is_clicked:
+            current_color = tuple(max(0, c - 30) for c in self.color)
+        elif self.is_hovered:
+            current_color = tuple(min(255, c + 30) for c in self.color)
+        
+        # 绘制填充的六边形（分上下两部分）
+        upper_color = tuple(min(255, c + 20) for c in current_color)
+        lower_color = tuple(max(0, c - 20) for c in current_color)
+        
+        # 绘制上半部分
+        upper_points = [
+            points[0],  # 左上
+            points[1],  # 右上
+            points[2],  # 右
+            (center_x, center_y),  # 中心
+            points[5]   # 左
+        ]
+        pygame.draw.polygon(screen, upper_color, upper_points)
+        
+        # 绘制下半部分
+        lower_points = [
+            points[2],  # 右
+            points[3],  # 右下
+            points[4],  # 左下
+            points[5],  # 左
+            (center_x, center_y)  # 中心
+        ]
+        pygame.draw.polygon(screen, lower_color, lower_points)
+        
+        # 绘制边框
+        border_color = (255, 215, 0) if self.is_hovered else (218, 165, 32)
+        border_width = 3 if self.is_hovered else 2
+        pygame.draw.polygon(screen, border_color, points, border_width)
+        
+        # 绘制文本
+        text_surface = self.font.render(self.text, True, (255, 255, 255))
+        text_rect = text_surface.get_rect()
+        # 计算文本位置，确保在六边形中心
+        text_rect.center = (center_x, center_y)
+        screen.blit(text_surface, text_rect)
     
     def handle_event(self, event):
         """处理按钮事件"""
@@ -3725,6 +3773,69 @@ class MapButton(SimpleButton):
                 return True
         
         return result
+
+class MapDeleteButton(SimpleButton):
+    def __init__(self, x, y, width, height, text, color=(200, 50, 50), font_size=32):
+        super().__init__(x, y, width, height, text, color, font_size)
+    
+    def draw(self, screen):
+        # 计算六边形的顶点
+        center_x = self.rect.centerx
+        center_y = self.rect.centery
+        width = self.rect.width
+        height = self.rect.height
+        
+        # 计算正常六边形的顶点
+        points = []
+        points.append((center_x - width/3, center_y - height/3))  # 左上
+        points.append((center_x + width/3, center_y - height/3))  # 右上
+        points.append((center_x + width/2, center_y))            # 右
+        points.append((center_x + width/3, center_y + height/3))  # 右下
+        points.append((center_x - width/3, center_y + height/3))  # 左下
+        points.append((center_x - width/2, center_y))            # 左
+        
+        # 根据悬停和点击状态确定颜色
+        current_color = self.color
+        if self.is_clicked:
+            current_color = tuple(max(0, c - 30) for c in self.color)
+        elif self.is_hovered:
+            current_color = tuple(min(255, c + 30) for c in self.color)
+        
+        # 绘制填充的六边形（分上下两部分）
+        upper_color = tuple(min(255, c + 20) for c in current_color)
+        lower_color = tuple(max(0, c - 20) for c in current_color)
+        
+        # 绘制上半部分
+        upper_points = [
+            points[0],  # 左上
+            points[1],  # 右上
+            points[2],  # 右
+            (center_x, center_y),  # 中心
+            points[5]   # 左
+        ]
+        pygame.draw.polygon(screen, upper_color, upper_points)
+        
+        # 绘制下半部分
+        lower_points = [
+            points[2],  # 右
+            points[3],  # 右下
+            points[4],  # 左下
+            points[5],  # 左
+            (center_x, center_y)  # 中心
+        ]
+        pygame.draw.polygon(screen, lower_color, lower_points)
+        
+        # 绘制边框
+        border_color = (255, 215, 0) if self.is_hovered else (218, 165, 32)
+        border_width = 3 if self.is_hovered else 2
+        pygame.draw.polygon(screen, border_color, points, border_width)
+        
+        # 绘制文本
+        text_surface = self.font.render(self.text, True, (255, 255, 255))
+        text_rect = text_surface.get_rect()
+        # 计算文本位置，确保在六边形中心
+        text_rect.center = (center_x, center_y)
+        screen.blit(text_surface, text_rect)
 
 if __name__ == "__main__":
     game = Game()
