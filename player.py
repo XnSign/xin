@@ -227,9 +227,7 @@ class Player:
             self.jump_hold_time += 1
             # 根据按住时间线性增加向上的速度
             jump_boost = (self.max_jump_power - self.initial_jump_power) * (self.jump_hold_time / self.max_jump_hold_time)
-            self.dy -= 1.0  # 持续增加向上的速度
-            if self.dy < self.max_jump_power:  # 限制最大上升速度
-                self.dy = self.max_jump_power
+            self.dy = self.initial_jump_power + jump_boost  # 根据按住时间增加跳跃高度
         
         # 应用重力
         if not self.on_ground:
@@ -283,6 +281,23 @@ class Player:
         self.on_ground = False
         collision_with_ground = False  # 添加一个标志来确保检测到地面碰撞
         
+        # 检查是否站在地面上（即使没有垂直移动）
+        check_ground_rect = self.rect.copy()
+        check_ground_rect.y += 1  # 向下检测一个像素
+        ground_grid_bottom = (check_ground_rect.bottom - 1) // world.grid_size
+        
+        for x in range(grid_left, grid_right + 1):
+            if x < 0 or x >= world.width:
+                continue
+            # 检查当前位置下方是否有地面
+            if ground_grid_bottom < world.height and world.grid[ground_grid_bottom][x] != world.EMPTY:
+                self.on_ground = True
+                if not self.is_jumping:  # 如果不在跳跃状态，重置所有跳跃相关状态
+                    self.jump_pressed = False
+                    self.jump_hold_time = 0
+                break
+        
+        # 处理垂直移动的碰撞
         for x in range(grid_left, grid_right + 1):
             if x < 0 or x >= world.width:
                 continue
@@ -319,6 +334,13 @@ class Player:
             self.dy = 0
             self.on_ground = True
             self.is_jumping = False
+            self.jump_pressed = False
+            self.jump_hold_time = 0
+        
+        # 如果玩家在空中且向上速度为0，说明达到最高点，开始下落
+        if not self.on_ground and self.dy == 0:
+            self.is_jumping = False
+            self.jump_pressed = False
         
         # 更新动画状态
         if self.x_speed != 0:
@@ -359,7 +381,7 @@ class Player:
     
     def jump(self):
         """处理跳跃"""
-        if self.on_ground:  # 只有在地面上才能跳跃
+        if self.on_ground and not self.is_jumping:  # 只有在地面上且没有在跳跃状态时才能跳跃
             self.is_jumping = True
             self.jump_hold_time = 0
             self.on_ground = False

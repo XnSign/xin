@@ -2445,7 +2445,7 @@ class Game:
             self.inventory.draw_hotbar(self.buffer, get_font(20))  # 移除position参数
         
         # 绘制小地图
-        if hasattr(self, 'world'):
+        if hasattr(self, 'world') and hasattr(self, 'player'):
             # 小地图的大小和位置
             minimap_size = 200
             margin = 20
@@ -2460,34 +2460,44 @@ class Game:
             scale_x = minimap_size / (self.world.width * self.world.grid_size)
             scale_y = minimap_size / (self.world.height * self.world.grid_size)
             
-            # 绘制地图块
+            # 计算玩家在小地图上的位置
+            player_minimap_x = int(self.player.rect.centerx * scale_x)
+            player_minimap_y = int(self.player.rect.centery * scale_y)
+            
+            # 计算小地图偏移量，使玩家居中
+            minimap_offset_x = max(0, min(player_minimap_x - minimap_size//2, 
+                                        int(self.world.width * self.world.grid_size * scale_x) - minimap_size))
+            minimap_offset_y = max(0, min(player_minimap_y - minimap_size//2, 
+                                        int(self.world.height * self.world.grid_size * scale_y) - minimap_size))
+            
+            # 绘制地形
             for y in range(self.world.height):
                 for x in range(self.world.width):
                     block = self.world.grid[y][x]
-                    if block:  # 如果有方块
+                    if block != self.world.EMPTY:
                         # 计算方块在小地图上的位置和大小
-                        block_x = int(x * self.world.grid_size * scale_x)
-                        block_y = int(y * self.world.grid_size * scale_y)
-                        block_size = max(1, int(self.world.grid_size * scale_x))
+                        block_x = int(x * self.world.grid_size * scale_x) - minimap_offset_x
+                        block_y = int(y * self.world.grid_size * scale_y) - minimap_offset_y
+                        block_width = max(1, int(self.world.grid_size * scale_x))
+                        block_height = max(1, int(self.world.grid_size * scale_y))
                         
-                        # 使用方块的实际颜色
-                        block_color = self.world.block_colors[block]
-                        pygame.draw.rect(minimap_surface, block_color, 
-                                       (block_x, block_y, block_size, block_size))
+                        # 只绘制在小地图范围内的方块
+                        if -block_width <= block_x <= minimap_size and -block_height <= block_y <= minimap_size:
+                            block_color = self.world.block_colors[block]
+                            pygame.draw.rect(minimap_surface, block_color,
+                                           (block_x, block_y, block_width, block_height))
             
-            # 绘制玩家位置（如果玩家存在）
-            if hasattr(self, 'player'):
-                player_x = int(self.player.rect.x * scale_x)
-                player_y = int(self.player.rect.y * scale_y)
-                pygame.draw.circle(minimap_surface, (255, 0, 0), 
-                                 (player_x, player_y), 3)  # 红色圆点表示玩家
+            # 绘制玩家位置（始终在小地图中心，除非靠近边界）
+            player_x = player_minimap_x - minimap_offset_x
+            player_y = player_minimap_y - minimap_offset_y
+            pygame.draw.circle(minimap_surface, (255, 0, 0), (player_x, player_y), 3)
             
             # 绘制当前视野范围
-            view_x = int(self.camera_x * scale_x)
-            view_y = int(self.camera_y * scale_y)
+            view_x = int(self.camera_x * scale_x) - minimap_offset_x
+            view_y = int(self.camera_y * scale_y) - minimap_offset_y
             view_width = int(self.screen_width * scale_x)
             view_height = int(self.screen_height * scale_y)
-            pygame.draw.rect(minimap_surface, (255, 255, 255), 
+            pygame.draw.rect(minimap_surface, (255, 255, 255),
                            (view_x, view_y, view_width, view_height), 1)
             
             # 添加半透明背景
@@ -2500,7 +2510,7 @@ class Game:
             self.buffer.blit(minimap_surface, (minimap_x, minimap_y))
             
             # 绘制小地图边框
-            pygame.draw.rect(self.buffer, (255, 255, 255), 
+            pygame.draw.rect(self.buffer, (255, 255, 255),
                            (minimap_x - 1, minimap_y - 1, minimap_size + 2, minimap_size + 2), 1)
         
         # 将缓冲区内容复制到屏幕
@@ -3083,9 +3093,22 @@ class Game:
             
             # 初始化玩家
             if character_data:
-                # 设置玩家初始位置（地图中央顶部）
+                # 在地图中央寻找合适的生成点
                 spawn_x = self.world.width * self.world.grid_size // 2
                 spawn_y = 0
+                
+                # 从上往下扫描，找到第一个实心方块的位置
+                for y in range(self.world.height):
+                    grid_x = spawn_x // self.world.grid_size
+                    if grid_x >= self.world.width:
+                        grid_x = self.world.width - 1
+                    
+                    if y < self.world.height - 1 and self.world.grid[y+1][grid_x] != 0:
+                        # 找到地面了，将玩家放在这个位置上
+                        spawn_y = y * self.world.grid_size
+                        break
+                
+                # 创建玩家实例
                 self.player = Player(spawn_x, spawn_y, character_data)
                 
                 # 初始化物品栏
@@ -3763,6 +3786,11 @@ class Game:
                 self.inventory.selected_slot = event.key - pygame.K_1
             elif event.key == pygame.K_0:
                 self.inventory.selected_slot = 9
+        
+        # 处理松开按键事件
+        elif event.type == pygame.KEYUP:
+            if event.key == self.key_bindings['jump'] and hasattr(self, 'player'):
+                self.player.jump_pressed = False  # 重置跳跃按键状态
         
         # 处理持续按键状态
         keys = pygame.key.get_pressed()

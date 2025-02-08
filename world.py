@@ -46,7 +46,7 @@ class World:
                     )
                     pygame.draw.rect(surface, self.block_colors[block_type], rect)
                     if block_type != self.EMPTY:  # 只给非空方块添加边框
-                        pygame.draw.rect(surface, (0, 0, 0), rect, 2)  # 2像素宽的黑色边框
+                        pygame.draw.rect(surface, (0, 0, 0), rect, 1)  # 1像素宽的黑色边框
     
     def get_block(self, x, y):
         """获取指定位置的方块类型"""
