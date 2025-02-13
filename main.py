@@ -659,6 +659,84 @@ class Game:
         pygame.init()
         pygame.mixer.init()
         
+        # 初始化翻译字典
+        self.translations = {
+            "简体中文": {
+                "settings": "设置",
+                "sound_volume": "音效音量",
+                "music_volume": "音乐音量",
+                "graphics_quality": "画质",
+                "language": "语言",
+                "resolution": "分辨率",
+                "display_mode": "显示模式",
+                "low": "低",
+                "medium": "中",
+                "high": "高",
+                "fullscreen": "全屏",
+                "windowed": "窗口",
+                "borderless": "无边框",
+                "apply": "应用",
+                "back": "返回",
+                "create_character": "创建角色",
+                "next_page": "下一页",
+                "confirm": "确认"
+            },
+            "English": {
+                "settings": "Settings",
+                "sound_volume": "Sound Volume",
+                "music_volume": "Music Volume",
+                "graphics_quality": "Graphics Quality",
+                "language": "Language",
+                "resolution": "Resolution",
+                "display_mode": "Display Mode",
+                "low": "Low",
+                "medium": "Medium",
+                "high": "High",
+                "fullscreen": "Fullscreen",
+                "windowed": "Windowed",
+                "borderless": "Borderless",
+                "apply": "Apply",
+                "back": "Back",
+                "create_character": "Create Character",
+                "next_page": "Next Page",
+                "confirm": "Confirm"
+            }
+        }
+        
+        # 设置默认语言
+        self.language = "简体中文"
+        
+        # 设置默认分辨率
+        self.screen_width = 1280
+        self.screen_height = 720
+        
+        # 加载设置
+        self.load_settings()
+        
+        # 设置显示
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
+        pygame.display.set_caption("2D游戏")
+        
+        # 创建缓冲区
+        self.buffer = pygame.Surface((self.screen_width, self.screen_height))
+        
+        # 初始化设置按钮（默认隐藏）
+        self.settings_button = SimpleButton(
+            self.screen_width - 150,  # 右边距离
+            self.screen_height - 60,  # 下边距离
+            120,  # 按钮宽度
+            40,   # 按钮高度
+            self.get_text("settings"),  # 使用当前语言的"设置"文本
+            color=(60, 60, 140),  # 深蓝色
+            font_size=24
+        )
+        self.settings_button.visible = False  # 默认隐藏
+        
+        # 初始化游戏状态
+        self.game_state = "main_menu"
+        self.needs_redraw = True
+        self.running = True
+        
         # 设置默认按键绑定
         self.key_bindings = {
             'left': pygame.K_a,      # A键向左移动
@@ -670,17 +748,15 @@ class Game:
         # 设置游戏目录
         self.base_path = os.path.dirname(os.path.abspath(__file__))
         self.assets_path = os.path.join(self.base_path, 'assets')
-        self.player_path = os.path.join(self.base_path, 'players')
         self.maps_path = os.path.join(self.base_path, 'maps')
+        self.player_path = os.path.join(self.base_path, 'players')  # 添加玩家存档目录
         self.settings_path = os.path.join(self.base_path, 'settings')
-        self.characters_path = os.path.join(self.assets_path, 'characters')  # 新增角色贴图路径
         
         # 确保所需目录存在
         os.makedirs(self.assets_path, exist_ok=True)
-        os.makedirs(self.player_path, exist_ok=True)
         os.makedirs(self.maps_path, exist_ok=True)
+        os.makedirs(self.player_path, exist_ok=True)  # 创建玩家存档目录
         os.makedirs(self.settings_path, exist_ok=True)
-        os.makedirs(self.characters_path, exist_ok=True)  # 确保角色贴图目录存在
         
         # 添加翻译字典
         self.translations = {
@@ -715,262 +791,7 @@ class Game:
                 "windowed": "窗口",
                 "apply": "应用",
                 "resolution_changed": "分辨率已更改",
-                "display_mode": "显示模式",
-                "character_name": "角色名称",
-                "gender": "性别",
-                "hairstyle": "发型",
-                "body_type": "体型",
-                "class": "职业",
-                "preview": "预览",
-                "health": "生命值",
-                "mana": "魔力值",
-                "playtime": "游戏时间",
-                "delete": "删除",
-                "create": "创建",
-                "name": "名字",
-                "small": "小型",
-                "medium": "中型",
-                "large": "大型",
-                "small_world": "小型世界",
-                "medium_world": "中型世界",
-                "large_world": "大型世界",
-                "grid": "格",
-                "fast_game_exploration": "适合快速游戏和探索",
-                "balanced_gameplay": "平衡的游戏体验",
-                "epic_adventure": "史诗般的冒险之旅",
-                "select_hairstyle": "选择发型",
-                "prev_page": "上一页",
-                "next_page": "下一页",
-                "confirm": "确认",
-                "normal": "普通",
-                "warrior": "战士",
-                "game_design": "游戏设计",
-                "programming": "程序开发",
-                "art_design": "美术设计",
-                "sound_design": "音效设计",
-                "testing_team": "测试团队",
-                "team": "团队",
-                "create_world": "创建世界",
-                "select_map": "选择地图",
-                "create_map": "创建地图",
-                "delete": "删除",
-                "no_maps": "暂无地图"
-            },
-            "繁體中文": {
-                "start_game": "開始遊戲",
-                "settings": "設置",
-                "credits": "製作人員",
-                "quit": "退出",
-                "back": "返回",
-                "save_settings": "保存設置",
-                "sound_volume": "音效音量",
-                "music_volume": "音樂音量",
-                "graphics_quality": "畫面質量",
-                "language": "語言",
-                "low": "低",
-                "medium": "中",
-                "high": "高",
-                "create_character": "創建角色",
-                "select_character": "選擇角色",
-                "delete_character": "刪除角色",
-                "create_map": "創建地圖",
-                "select_map": "選擇地圖",
-                "delete_map": "刪除地圖",
-                "settings_saved": "設置已保存",
-                "confirm_delete": "確認刪除？",
-                "yes": "是",
-                "no": "否",
-                "achievements": "成就",
-                "resolution": "分辨率",
-                "borderless": "無邊框窗口",
-                "fullscreen": "全屏",
-                "windowed": "窗口",
-                "apply": "應用",
-                "resolution_changed": "分辨率已更改",
-                "display_mode": "顯示模式",
-                "character_name": "角色名稱",
-                "gender": "性別",
-                "hairstyle": "髮型",
-                "body_type": "體型",
-                "class": "職業",
-                "preview": "預覽",
-                "health": "生命值",
-                "mana": "魔力值",
-                "playtime": "遊戲時間",
-                "delete": "刪除",
-                "create": "創建",
-                "name": "名字",
-                "small": "小型",
-                "medium": "中型",
-                "large": "大型",
-                "small_world": "小型世界",
-                "medium_world": "中型世界",
-                "large_world": "大型世界",
-                "grid": "格",
-                "fast_game_exploration": "適合快速遊戲和探索",
-                "balanced_gameplay": "平衡的遊戲體驗",
-                "epic_adventure": "史詩般的冒險之旅",
-                "select_hairstyle": "選擇髮型",
-                "prev_page": "上一頁",
-                "next_page": "下一頁",
-                "confirm": "確認",
-                "normal": "普通",
-                "warrior": "戰士",
-                "game_design": "遊戲設計",
-                "programming": "程序開發",
-                "art_design": "美術設計",
-                "sound_design": "音效設計",
-                "testing_team": "測試團隊",
-                "team": "團隊",
-                "create_world": "創建世界",
-                "select_map": "選擇地圖",
-                "create_map": "創建地圖",
-                "delete": "刪除",
-                "no_maps": "暫無地圖"
-            },
-            "日本語": {
-                "start_game": "ゲーム開始",
-                "settings": "設定",
-                "credits": "クレジット",
-                "quit": "終了",
-                "back": "戻る",
-                "save_settings": "設定を保存",
-                "sound_volume": "効果音量",
-                "music_volume": "音楽音量",
-                "graphics_quality": "画質",
-                "language": "言語",
-                "low": "低",
-                "medium": "中",
-                "high": "高",
-                "create_character": "キャラクター作成",
-                "select_character": "キャラクター選択",
-                "delete_character": "キャラクター削除",
-                "create_map": "マップ作成",
-                "select_map": "マップ選択",
-                "delete_map": "マップ削除",
-                "settings_saved": "設定を保存しました",
-                "confirm_delete": "削除しますか？",
-                "yes": "はい",
-                "no": "いいえ",
-                "achievements": "実績",
-                "resolution": "解像度",
-                "borderless": "ボーダーレス",
-                "fullscreen": "フルスクリーン",
-                "windowed": "ウィンドウ",
-                "apply": "適用",
-                "resolution_changed": "解像度を変更しました",
-                "display_mode": "表示モード",
-                "character_name": "キャラクター名",
-                "gender": "性別",
-                "hairstyle": "ヘアスタイル",
-                "body_type": "体型",
-                "class": "職業",
-                "preview": "プレビュー",
-                "health": "体力",
-                "mana": "魔力",
-                "playtime": "プレイ時間",
-                "delete": "削除",
-                "create": "作成",
-                "name": "名前",
-                "small": "小",
-                "medium": "中",
-                "large": "大",
-                "small_world": "小さい世界",
-                "medium_world": "中くらいの世界",
-                "large_world": "大きい世界",
-                "grid": "マス",
-                "fast_game_exploration": "クイックゲームと探索に最適",
-                "balanced_gameplay": "バランスの取れたゲームプレイ",
-                "epic_adventure": "壮大な冒険の旅",
-                "select_hairstyle": "ヘアスタイル選択",
-                "prev_page": "前のページ",
-                "next_page": "次のページ",
-                "confirm": "確認",
-                "normal": "普通",
-                "warrior": "戦士",
-                "game_design": "ゲームデザイン",
-                "programming": "プログラミング",
-                "art_design": "アートデザイン",
-                "sound_design": "サウンドデザイン",
-                "testing_team": "テストチーム",
-                "team": "チーム",
-                "create_world": "世界作成",
-                "select_map": "マップ選択",
-                "create_map": "マップ作成",
-                "delete": "削除",
-                "no_maps": "マップなし"
-            },
-            "English": {
-                "start_game": "Start Game",
-                "settings": "Settings",
-                "credits": "Credits",
-                "quit": "Quit",
-                "back": "Back",
-                "save_settings": "Save Settings",
-                "sound_volume": "Sound Volume",
-                "music_volume": "Music Volume",
-                "graphics_quality": "Graphics Quality",
-                "language": "Language",
-                "low": "Low",
-                "medium": "Medium",
-                "high": "High",
-                "create_character": "Create Character",
-                "select_character": "Select Character",
-                "delete_character": "Delete Character",
-                "create_map": "Create Map",
-                "select_map": "Select Map",
-                "delete_map": "Delete Map",
-                "settings_saved": "Settings Saved",
-                "confirm_delete": "Confirm Delete?",
-                "yes": "Yes",
-                "no": "No",
-                "achievements": "Achievements",
-                "resolution": "Resolution",
-                "borderless": "Borderless Window",
-                "fullscreen": "Fullscreen",
-                "windowed": "Windowed",
-                "apply": "Apply",
-                "resolution_changed": "Resolution Changed",
-                "display_mode": "Display Mode",
-                "character_name": "Character Name",
-                "gender": "Gender",
-                "hairstyle": "Hairstyle",
-                "body_type": "Body Type",
-                "class": "Class",
-                "preview": "Preview",
-                "health": "Health",
-                "mana": "Mana",
-                "playtime": "Playtime",
-                "delete": "Delete",
-                "create": "Create",
-                "name": "Name",
-                "small": "Small",
-                "medium": "Medium",
-                "large": "Large",
-                "small_world": "Small World",
-                "medium_world": "Medium World",
-                "large_world": "Large World",
-                "grid": "Grid",
-                "fast_game_exploration": "Suitable for quick games and exploration",
-                "balanced_gameplay": "Balanced gameplay experience",
-                "epic_adventure": "Epic adventure journey",
-                "select_hairstyle": "Select Hairstyle",
-                "prev_page": "Previous",
-                "next_page": "Next",
-                "confirm": "Confirm",
-                "normal": "Normal",
-                "warrior": "Warrior",
-                "game_design": "Game Design",
-                "programming": "Programming",
-                "art_design": "Art Design",
-                "sound_design": "Sound Design",
-                "testing_team": "Testing Team",
-                "team": "Team",
-                "create_world": "Create World",
-                "select_map": "Select Map",
-                "create_map": "Create Map",
-                "delete": "Delete",
-                "no_maps": "No Maps"
+                "display_mode": "显示模式"
             }
         }
         
@@ -1003,14 +824,8 @@ class Game:
         self.settings_scroll_y = 0
         self.settings_max_scroll = 0
         
-        # 加载设置
-        self.load_settings()
-        
         # 应用显示设置
         self.apply_display_settings()
-        
-        # 创建缓冲区
-        self.buffer = pygame.Surface((self.screen_width, self.screen_height))
         
         # 初始化时钟
         self.clock = pygame.time.Clock()
@@ -1018,11 +833,6 @@ class Game:
         # 加载字体
         self.font = get_font(32)
         self.title_font = get_font(48)
-        
-        # 游戏状态
-        self.game_state = "main_menu"
-        self.running = True
-        self.needs_redraw = True
         
         # 加载背景图片
         try:
@@ -1038,6 +848,14 @@ class Game:
             pygame.mixer.music.play(-1)  # -1表示循环播放
         except Exception as e:
             print(f"Warning: Could not load background music: {e}")
+        
+        # 加载音效
+        try:
+            self.click_sound = pygame.mixer.Sound("assets/sounds/ui/click.wav")
+            self.click_sound.set_volume(0.5)  # 设置音量为50%
+        except Exception as e:
+            print(f"加载音效时出错: {e}")
+            self.click_sound = None
         
         # 初始化按钮
         self.initialize_buttons()
@@ -1059,57 +877,16 @@ class Game:
         print(f"地图存档路径: {self.world_path}")
         print(f"地图存档路径: {self.maps_path}")
         
-        # 加载音效
-        try:
-            self.click_sound = pygame.mixer.Sound("assets/sounds/ui/click.wav")
-            self.click_sound.set_volume(0.5)  # 设置音量为50%
-        except Exception as e:
-            print(f"加载音效时出错: {e}")
-            self.click_sound = None
-        
         # 加载角色和地图列表
         self.characters = []
         self.maps = []
         self.load_characters_and_maps()
         
-        # 初始化角色创建相关属性
-        self.character_name = ""
-        self.input_active = False
-        self.selected_gender = '男'
-        self.selected_hairstyle = {'style': '1', 'color': (0, 0, 0)}  # 默认发型和发色
-        self.selected_body_type = BODY_TYPES[1]  # 默认选择"普通"体型
-        self.selected_class = CLASSES[0]  # 默认选择"战士"职业
+        # 角色创建相关的状态
         self.in_hairstyle_selection = False  # 是否在发型选择界面
         
-        # 初始化发色滑块
-        self.hair_color_sliders = {
-            'R': Slider(0, 0, 200, 20, "R", 255, 0),
-            'G': Slider(0, 0, 200, 20, "G", 255, 0),
-            'B': Slider(0, 0, 200, 20, "B", 255, 0)
-        }
-        
-        # 初始化发型预览状态
-        self.hairstyle_page = 0  # 当前发型页码
-        self.hairstyles_per_page = 8  # 每页显示的发型数量
-        
-        # 初始化地图创建相关属性
-        self.map_name_input = ""
-        self.map_name_active = False
-        self.selected_map_size = self.get_text("medium")  # 默认选择中型地图
-        
-        # 初始化消息框和弹出框
-        self.message_box = None
-        self.popup = None
-        
-        # 初始化角色选择界面的滚动位置
-        self.scroll_y = 0
-        self.scroll_speed = 30  # 滚动速度
-        self.is_dragging = False
-        self.drag_start_y = 0
-        self.scroll_start = 0
-        
-        # 初始化按钮
-        self.initialize_buttons()
+        # 初始化滚动位置
+        self.scroll_y = 0  # 用于列表滚动
 
     def initialize_buttons(self):
         """初始化所有按钮"""
@@ -1614,6 +1391,20 @@ class Game:
 
     def draw_character_create(self):
         """绘制角色创建界面"""
+        # 初始化必要的属性
+        if not hasattr(self, 'selected_gender'):
+            self.selected_gender = "男"
+        if not hasattr(self, 'selected_hairstyle'):
+            self.selected_hairstyle = "default"
+        if not hasattr(self, 'selected_hair_color'):
+            self.selected_hair_color = (0, 0, 0)  # 黑色
+        if not hasattr(self, 'selected_body_type'):
+            self.selected_body_type = "标准"
+        if not hasattr(self, 'selected_class'):
+            self.selected_class = "战士"
+        if not hasattr(self, 'character_name'):
+            self.character_name = ""
+        
         # 清空并填充背景
         self.buffer.fill((0, 20, 50))  # 深蓝色背景
         
@@ -2422,105 +2213,28 @@ class Game:
         print(f"已加载地图: {self.maps}")  # 调试信息
 
     def draw_game(self):
-        """绘制游戏主界面"""
-        # 清空缓冲区
-        self.buffer.fill((135, 206, 235))  # 天空蓝色背景
+        """绘制游戏界面"""
+        # 清空屏幕
+        self.screen.fill((135, 206, 235))  # 天蓝色背景
         
         # 绘制世界
         if hasattr(self, 'world'):
-            self.world.draw(self.buffer, self.camera_x, self.camera_y)
+            self.world.draw(self.screen, self.camera_x, self.camera_y)
         
         # 绘制玩家
         if hasattr(self, 'player'):
-            self.player.draw(self.buffer, self.camera_x, self.camera_y)
+            self.player.draw(self.screen, self.camera_x, self.camera_y)
         
-        # 绘制背包
+        # 绘制物品栏
         if hasattr(self, 'inventory'):
-            if self.inventory.visible:
-                self.inventory.draw(self.buffer, get_font(20))
-                # 只在背包打开时显示设置按钮
-                if hasattr(self, 'settings_button'):
-                    self.settings_button.draw(self.buffer)
-            # 修改物品栏位置到左上角
-            self.inventory.draw_hotbar(self.buffer, get_font(20))  # 移除position参数
+            self.inventory.draw(self.screen, get_font(20))  # 添加font参数
         
-        # 绘制小地图
-        if hasattr(self, 'world') and hasattr(self, 'player'):
-            # 小地图的大小和位置
-            minimap_size = 200
-            margin = 20
-            minimap_x = self.screen_width - minimap_size - margin
-            minimap_y = margin
-            
-            # 创建小地图surface
-            minimap_surface = pygame.Surface((minimap_size, minimap_size))
-            minimap_surface.fill((0, 0, 0))  # 黑色背景
-            
-            # 计算缩放比例
-            scale_x = minimap_size / (self.world.width * self.world.grid_size)
-            scale_y = minimap_size / (self.world.height * self.world.grid_size)
-            
-            # 计算玩家在小地图上的位置
-            player_minimap_x = int(self.player.rect.centerx * scale_x)
-            player_minimap_y = int(self.player.rect.centery * scale_y)
-            
-            # 计算小地图偏移量，使玩家居中
-            minimap_offset_x = max(0, min(player_minimap_x - minimap_size//2, 
-                                        int(self.world.width * self.world.grid_size * scale_x) - minimap_size))
-            minimap_offset_y = max(0, min(player_minimap_y - minimap_size//2, 
-                                        int(self.world.height * self.world.grid_size * scale_y) - minimap_size))
-            
-            # 绘制地形
-            for y in range(self.world.height):
-                for x in range(self.world.width):
-                    block = self.world.grid[y][x]
-                    if block != self.world.EMPTY:
-                        # 计算方块在小地图上的位置和大小
-                        block_x = int(x * self.world.grid_size * scale_x) - minimap_offset_x
-                        block_y = int(y * self.world.grid_size * scale_y) - minimap_offset_y
-                        block_width = max(1, int(self.world.grid_size * scale_x))
-                        block_height = max(1, int(self.world.grid_size * scale_y))
-                        
-                        # 只绘制在小地图范围内的方块
-                        if -block_width <= block_x <= minimap_size and -block_height <= block_y <= minimap_size:
-                            block_color = self.world.block_colors[block]
-                            pygame.draw.rect(minimap_surface, block_color,
-                                           (block_x, block_y, block_width, block_height))
-            
-            # 绘制玩家位置（始终在小地图中心，除非靠近边界）
-            player_x = player_minimap_x - minimap_offset_x
-            player_y = player_minimap_y - minimap_offset_y
-            pygame.draw.circle(minimap_surface, (255, 0, 0), (player_x, player_y), 3)
-            
-            # 绘制当前视野范围
-            view_x = int(self.camera_x * scale_x) - minimap_offset_x
-            view_y = int(self.camera_y * scale_y) - minimap_offset_y
-            view_width = int(self.screen_width * scale_x)
-            view_height = int(self.screen_height * scale_y)
-            pygame.draw.rect(minimap_surface, (255, 255, 255),
-                           (view_x, view_y, view_width, view_height), 1)
-            
-            # 添加半透明背景
-            background = pygame.Surface((minimap_size + 10, minimap_size + 10))
-            background.fill((0, 0, 0))
-            background.set_alpha(128)
-            self.buffer.blit(background, (minimap_x - 5, minimap_y - 5))
-            
-            # 将小地图绘制到主界面
-            self.buffer.blit(minimap_surface, (minimap_x, minimap_y))
-            
-            # 绘制小地图边框
-            pygame.draw.rect(self.buffer, (255, 255, 255),
-                           (minimap_x - 1, minimap_y - 1, minimap_size + 2, minimap_size + 2), 1)
+        # 绘制设置按钮（如果可见）
+        if hasattr(self, 'settings_button') and self.settings_button.visible:
+            self.settings_button.draw(self.screen)
         
-        # 将缓冲区内容复制到屏幕
-        self.screen.blit(self.buffer, (0, 0))
-        
-        # 如果在设置状态，绘制设置界面
-        if self.game_state == "settings":
-            self.draw_settings()
-        
-        self.needs_redraw = False
+        # 更新显示
+        pygame.display.flip()
 
     def draw_menu(self):
         """绘制主菜单"""
@@ -2591,6 +2305,10 @@ class Game:
 
     def draw_character_select(self):
         """绘制角色选择界面"""
+        # 确保滚动位置被初始化
+        if not hasattr(self, 'scroll_y'):
+            self.scroll_y = 0
+        
         # 清空缓冲区
         self.buffer.fill((0, 0, 0))
         
@@ -2631,6 +2349,12 @@ class Game:
             self.delete_buttons = {}
         if not hasattr(self, 'character_rects'):
             self.character_rects = {}
+        
+        # 计算最大滚动范围
+        if self.characters:
+            max_scroll = max(0, len(self.characters) * 220 - (panel_height - 60))
+            self.scroll_y = min(self.scroll_y, max_scroll)  # 限制最大滚动位置
+            self.scroll_y = max(0, self.scroll_y)  # 限制最小滚动位置
         
         # 绘制角色列表
         if self.characters:
@@ -3688,30 +3412,51 @@ class Game:
         """创建新角色"""
         # 验证角色名
         if not hasattr(self, 'character_name') or not self.character_name or self.character_name.strip() == "":
-            self.show_message("提示", "角色名不能为空！")
+            self.show_message("请输入角色名称")
             return
+
+        # 确保所有必要的属性都已初始化
+        if not hasattr(self, 'selected_gender'):
+            self.selected_gender = "男"
+        if not hasattr(self, 'selected_hairstyle'):
+            self.selected_hairstyle = "default"
+        if not hasattr(self, 'selected_hair_color'):
+            self.selected_hair_color = (0, 0, 0)  # 黑色
+        if not hasattr(self, 'selected_body_type'):
+            self.selected_body_type = "标准"
+        if not hasattr(self, 'selected_class'):
+            self.selected_class = "战士"
 
         # 创建角色数据
         character_data = {
             'name': self.character_name,
             'gender': self.selected_gender,
-            'hairstyle': self.selected_hairstyle,  # 发型名称
-            'hair_color': self.selected_hair_color,  # 发色
+            'hairstyle': self.selected_hairstyle,
+            'hair_color': self.selected_hair_color,
             'body_type': self.selected_body_type,
             'class': self.selected_class,
             'health': 100,
             'mana': 100,
-            'inventory': [],
-            'skin_color': (255, 223, 196) if self.selected_gender == '女' else (240, 200, 160)
+            'skin_color': (240, 200, 160)  # 默认肤色
         }
-        # 保存角色
-        self.save_character(self.character_name, character_data)
-        # 返回角色选择界面
-        self.game_state = "character_select"
-        self.load_characters_and_maps()  # 重新加载角色列表
-        if self.click_sound:
-            self.click_sound.play()
-        self.needs_redraw = True
+
+        try:
+            # 保存角色数据
+            self.save_character(self.character_name, character_data)
+            
+            # 重新加载角色列表
+            self.load_characters_and_maps()
+            
+            # 显示成功消息
+            self.show_message("角色创建成功！")
+            
+            # 切换到角色选择界面
+            self.game_state = "character_select"
+            self.needs_redraw = True
+            
+        except Exception as e:
+            print(f"创建角色失败: {e}")
+            self.show_message("创建角色失败！")
 
     def handle_map_name_input(self, event):
         """处理地图名称的键盘输入"""
@@ -3762,20 +3507,28 @@ class Game:
         """处理游戏进行时的事件"""
         # 处理鼠标事件
         if event.type == pygame.MOUSEBUTTONDOWN:
+            # 检查是否点击了设置按钮
+            if hasattr(self, 'settings_button') and self.settings_button.visible and self.settings_button.rect.collidepoint(event.pos):
+                if hasattr(self, 'click_sound') and self.click_sound:
+                    self.click_sound.play()
+                self.previous_state = "playing"  # 记住之前的状态
+                self.game_state = "settings"
+                self.needs_redraw = True
+                return True
+                
             if event.button == 1:  # 左键
                 self.place_block(event.pos)
             elif event.button == 3:  # 右键
                 self.break_block(event.pos)
-    
+
         # 处理按键事件
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
-                if self.game_state == "settings":
-                    self.game_state = "playing"
-                else:
-                    self.inventory.visible = not self.inventory.visible
-                self.needs_redraw = True
-                return
+                # 切换设置按钮的显示状态
+                if hasattr(self, 'settings_button'):
+                    self.settings_button.visible = not self.settings_button.visible
+                    self.needs_redraw = True
+                    return True
             
             # 处理跳跃
             if event.key == self.key_bindings['jump'] and hasattr(self, 'player'):
@@ -3786,12 +3539,18 @@ class Game:
                 self.inventory.selected_slot = event.key - pygame.K_1
             elif event.key == pygame.K_0:
                 self.inventory.selected_slot = 9
-        
+
+        # 处理鼠标移动事件
+        elif event.type == pygame.MOUSEMOTION:
+            if hasattr(self, 'settings_button') and self.settings_button.visible:
+                self.settings_button.handle_event(event)
+                self.needs_redraw = True
+
         # 处理松开按键事件
         elif event.type == pygame.KEYUP:
             if event.key == self.key_bindings['jump'] and hasattr(self, 'player'):
                 self.player.jump_pressed = False  # 重置跳跃按键状态
-        
+
         # 处理持续按键状态
         keys = pygame.key.get_pressed()
         if hasattr(self, 'player'):

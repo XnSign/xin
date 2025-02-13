@@ -24,12 +24,12 @@ class Player:
         self.load_sprites()
         
         # 位置和移动
-        self.rect = pygame.Rect(x, y, 48, 64)  # 玩家碰撞箱
+        self.rect = pygame.Rect(x, y, 48, 96)  # 玩家碰撞箱改为3格高
         self.x_speed = 0
         self.y_speed = 0
         self.dx = 0  # 水平速度
         self.dy = 0  # 垂直速度
-        self.gravity = 0.4  # 重力加速度
+        self.gravity = 0.8  # 重力加速度
         self.max_fall_speed = 20  # 最大下落速度
         self.move_speed = 5  # 移动速度
         
@@ -40,8 +40,8 @@ class Player:
         self.jump_pressed = False
         self.jump_hold_time = 0  # 跳跃按住时间
         self.max_jump_hold_time = 15  # 最大跳跃蓄力时间
-        self.initial_jump_power = -15  # 初始跳跃力度（5格高度）
-        self.max_jump_power = -20  # 最大跳跃力度（7格高度）
+        self.initial_jump_power = -9.6  # 初始跳跃力度（2.2格高度 = 70像素）
+        self.max_jump_power = -11.4  # 最大跳跃力度（3.1格高度 = 99像素）
         
         # 动画相关
         self.animation_timer = pygame.time.get_ticks()
@@ -53,7 +53,7 @@ class Player:
         self.preview_mode = False
         
         # 创建玩家图像
-        self.image = pygame.Surface((64, 64), pygame.SRCALPHA)
+        self.image = pygame.Surface((64, 96), pygame.SRCALPHA)
         self.update_appearance()
         
         # 初始化装备系统
@@ -117,30 +117,10 @@ class Player:
                 body_config = config['body_parts']['male' if self.gender == '男' else 'female']
                 part_config = body_config[part_name]
         except:
-            print("无法加载配置，使用硬编码的默认值")
+            print("无法加载配置，使用空白贴图")
             return surface
         
-        # 根据部件类型绘制不同的形状
-        color = self.skin_color if isinstance(self.skin_color, tuple) else (240, 200, 160)
-        
-        x = 32 + part_config['offset_x']
-        y = part_config['offset_y']
-        width = part_config['width']
-        height = part_config['height']
-        
-        if part_name == 'head':
-            pygame.draw.ellipse(surface, color, (x - width//2, y, width, height))
-        elif part_name == 'body':
-            pygame.draw.rect(surface, color, (x - width//2, y, width, height))
-        elif part_name == 'arms':
-            pygame.draw.rect(surface, color, (x - width//2, y, width, height))
-        elif part_name == 'legs':
-            leg_width = width // 2 - 2
-            pygame.draw.rect(surface, color, (x - width//2, y, leg_width, height))  # 左腿
-            pygame.draw.rect(surface, color, (x + 2, y, leg_width, height))  # 右腿
-        elif part_name == 'feet':
-            pygame.draw.rect(surface, color, (x - width//2, y, width, height))
-        
+        # 返回空白的透明surface，不再绘制肉色方块
         return surface
 
     def create_default_hair(self):
@@ -152,7 +132,7 @@ class Player:
     def update_appearance(self):
         """更新角色外观"""
         # 创建新的surface
-        self.image = pygame.Surface((64, 64), pygame.SRCALPHA)
+        self.image = pygame.Surface((64, 96), pygame.SRCALPHA)
         
         # 获取角色配置
         try:
@@ -167,8 +147,10 @@ class Player:
         leg_offset = math.sin(self.animation_frame * 0.2) * 4 if self.state == "walk" else 0
         arm_offset = -math.sin(self.animation_frame * 0.2) * 4 if self.state == "walk" else 0
         
-        # 按顺序绘制身体部件
-        for part in ['feet', 'legs', 'body', 'arms', 'head']:
+        # 按顺序绘制身体部件（先绘制身体，再绘制其他部件）
+        draw_order = ['body', 'feet', 'legs', 'arms', 'head']  # 修改绘制顺序
+        
+        for part in draw_order:
             if part in self.body_parts:
                 part_config = body_config[part]
                 x = 32 + part_config['offset_x']  # 32是图像中心点
@@ -387,7 +369,7 @@ class Player:
             self.on_ground = False
             self.state = "jump"
             self.jump_pressed = True  # 确保跳跃键状态正确
-            self.dy = self.initial_jump_power  # 设置初始跳跃速度（5格高度）
+            self.dy = self.initial_jump_power  # 设置初始跳跃速度（2.2格高度）
     
     def draw(self, surface, camera_x, camera_y):
         """绘制玩家"""
