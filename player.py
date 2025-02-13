@@ -44,9 +44,8 @@ class Player:
         self.max_jump_power = -11.4  # 最大跳跃力度（3.1格高度 = 99像素）
         
         # 动画相关
-        self.animation_timer = pygame.time.get_ticks()
-        self.animation_speed = 100  # 每帧动画持续100毫秒
-        self.animation_frame = 0
+        self.animation_frame = 0  # 动画帧计数器
+        self.walk_frame = 0  # 行走动画帧计数器
         self.state = "idle"
         self.last_state = "idle"
         self.last_facing = True
@@ -143,19 +142,28 @@ class Player:
             print(f"加载角色配置失败: {e}")
             return
         
-        # 按顺序绘制身体部件（先绘制身体，再绘制其他部件）
-        draw_order = ['body', 'left_foot', 'right_foot', 'left_leg', 'right_leg', 'left_arm', 'right_arm', 'head']
+        # 计算行走动画
+        if self.state == "walk":
+            legs_swapped = (self.walk_frame // 15) % 2 == 1
+        else:
+            legs_swapped = False
+            self.walk_frame = 0  # 重置行走帧计数器
+            
+        # 按顺序绘制身体部件
+        if legs_swapped:
+            draw_order = ['body', 'right_foot', 'left_foot', 'right_leg', 'left_leg', 'left_arm', 'right_arm', 'head']
+        else:
+            draw_order = ['body', 'left_foot', 'right_foot', 'left_leg', 'right_leg', 'left_arm', 'right_arm', 'head']
         
         for part in draw_order:
             if part in self.body_parts:
                 part_config = body_config[part]
                 x = 32 + part_config['offset_x']  # 32是图像中心点
+                y = part_config['offset_y']
                 
                 # 如果朝左，镜像x偏移
                 if not self.facing_right:
                     x = 64 - x
-                
-                y = part_config['offset_y']
                 
                 # 获取部件图像
                 part_image = self.body_parts[part]
@@ -182,10 +190,9 @@ class Player:
     def draw_character(self):
         """绘制角色"""
         # 更新动画帧
-        current_time = pygame.time.get_ticks()
-        if current_time - self.animation_timer > self.animation_speed:
-            self.animation_frame += 1
-            self.animation_timer = current_time
+        self.animation_frame += 1
+        if self.state == "walk":
+            self.walk_frame += 1
         
         # 更新外观
         self.update_appearance()
