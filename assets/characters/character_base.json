@@ -40,13 +40,13 @@
             "left_foot": {
                 "width": 8,
                 "height": 4,
-                "offset_x": 16,
+                "offset_x": 17,
                 "offset_y": 74
             },
             "right_foot": {
                 "width": 8,
                 "height": 4,
-                "offset_x": 1,
+                "offset_x": 0,
                 "offset_y": 74
             }
         },
@@ -90,13 +90,13 @@
             "left_foot": {
                 "width": 7,
                 "height": 4,
-                "offset_x": 4,
+                "offset_x": 5,
                 "offset_y": 66
             },
             "right_foot": {
                 "width": 7,
                 "height": 4,
-                "offset_x": 12,
+                "offset_x": 11,
                 "offset_y": 66
             }
         }

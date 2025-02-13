@@ -144,9 +144,15 @@ class Player:
         
         # 计算行走动画
         if self.state == "walk":
-            legs_swapped = (self.walk_frame // 15) % 2 == 1
+            legs_swapped = (self.walk_frame // 30) % 2 == 1  # 60帧一个完整周期，30帧切换一次
+            # 在交替的瞬间下移2像素（只对身体部分）
+            y_offset = 2 if legs_swapped else 0
+            # 添加脚部左右摆动
+            foot_x_offset = 1 if legs_swapped else -1
         else:
             legs_swapped = False
+            y_offset = 0
+            foot_x_offset = 0
             self.walk_frame = 0  # 重置行走帧计数器
             
         # 按顺序绘制身体部件
@@ -165,6 +171,16 @@ class Player:
                 if not self.facing_right:
                     x = 64 - x
                 
+                # 只对非脚部应用y偏移
+                if part not in ['left_foot', 'right_foot']:
+                    y += y_offset
+                else:
+                    # 对脚部应用左右偏移
+                    if part == 'left_foot':
+                        x += foot_x_offset
+                    elif part == 'right_foot':
+                        x -= foot_x_offset
+                
                 # 获取部件图像
                 part_image = self.body_parts[part]
                 if not self.facing_right:
@@ -177,15 +193,15 @@ class Player:
         colored_hair.fill(self.hair_color, special_flags=pygame.BLEND_RGBA_MULT)
         if not self.facing_right:
             colored_hair = pygame.transform.flip(colored_hair, True, False)
-        # 绘制头发
-        self.image.blit(colored_hair, (0, 0))
+        # 绘制头发（应用相同的y偏移）
+        self.image.blit(colored_hair, (0, y_offset))
         
-        # 绘制装备
+        # 绘制装备（应用相同的y偏移）
         for sprite in self.equipment_sprites.values():
             equip_sprite = sprite
             if not self.facing_right:
                 equip_sprite = pygame.transform.flip(sprite, True, False)
-            self.image.blit(equip_sprite, (0, 0))
+            self.image.blit(equip_sprite, (0, y_offset))
 
     def draw_character(self):
         """绘制角色"""
