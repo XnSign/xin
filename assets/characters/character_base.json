@@ -13,22 +13,40 @@
                 "offset_x": 6,
                 "offset_y": 22
             },
-            "arms": {
-                "width": 26,
+            "left_arm": {
+                "width": 13,
+                "height": 26,
+                "offset_x":18,
+                "offset_y": 40
+            },
+            "right_arm": {
+                "width": 13,
                 "height": 26,
                 "offset_x": 0,
                 "offset_y": 38
             },
-            "legs": {
-                "width": 16,
+            "left_leg": {
+                "width": 8,
                 "height": 16,
-                "offset_x": 6,
+                "offset_x": 12,
                 "offset_y": 49
             },
-            "feet": {
-                "width": 16,
+            "right_leg": {
+                "width": 8,
+                "height": 16,
+                "offset_x": 2,
+                "offset_y": 49
+            },
+            "left_foot": {
+                "width": 8,
                 "height": 4,
-                "offset_x": 8,
+                "offset_x": 13,
+                "offset_y": 74
+            },
+            "right_foot": {
+                "width": 8,
+                "height": 4,
+                "offset_x": -2,
                 "offset_y": 74
             }
         },
@@ -45,22 +63,40 @@
                 "offset_x": 8,
                 "offset_y": 18
             },
-            "arms": {
-                "width": 20,
+            "left_arm": {
+                "width": 10,
                 "height": 24,
-                "offset_x": 8,
+                "offset_x": -2,
                 "offset_y": 30
             },
-            "legs": {
-                "width": 14,
+            "right_arm": {
+                "width": 10,
+                "height": 24,
+                "offset_x": 18,
+                "offset_y": 30
+            },
+            "left_leg": {
+                "width": 7,
                 "height": 16,
-                "offset_x": 8,
+                "offset_x": 4,
                 "offset_y": 50
             },
-            "feet": {
-                "width": 14,
+            "right_leg": {
+                "width": 7,
+                "height": 16,
+                "offset_x": 12,
+                "offset_y": 50
+            },
+            "left_foot": {
+                "width": 7,
                 "height": 4,
-                "offset_x": 8,
+                "offset_x": 4,
+                "offset_y": 66
+            },
+            "right_foot": {
+                "width": 7,
+                "height": 4,
+                "offset_x": 12,
                 "offset_y": 66
             }
         }

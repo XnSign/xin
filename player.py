@@ -71,7 +71,7 @@ class Player:
             parts_path = os.path.join(char_path, gender_folder, 'parts')
             
             self.body_parts = {}
-            for part in ['head', 'body', 'arms', 'legs', 'feet']:
+            for part in ['head', 'body', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'left_foot', 'right_foot']:
                 part_path = os.path.join(parts_path, f"{part}.png")
                 try:
                     self.body_parts[part] = pygame.image.load(part_path).convert_alpha()
@@ -101,7 +101,7 @@ class Player:
             print(f"加载角色贴图失败: {e}")
             # 创建所有默认贴图
             self.body_parts = {}
-            for part in ['head', 'body', 'arms', 'legs', 'feet']:
+            for part in ['head', 'body', 'left_arm', 'right_arm', 'left_leg', 'right_leg', 'left_foot', 'right_foot']:
                 self.body_parts[part] = self.create_default_part(part)
             self.hair_sprite = self.create_default_hair()
             self.equipment_sprites = {}
@@ -144,7 +144,7 @@ class Player:
             return
         
         # 按顺序绘制身体部件（先绘制身体，再绘制其他部件）
-        draw_order = ['body', 'feet', 'legs', 'arms', 'head']  # 修改绘制顺序
+        draw_order = ['body', 'left_foot', 'right_foot', 'left_leg', 'right_leg', 'left_arm', 'right_arm', 'head']
         
         for part in draw_order:
             if part in self.body_parts:
