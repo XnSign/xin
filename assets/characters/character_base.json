@@ -34,19 +34,19 @@
             "right_leg": {
                 "width": 8,
                 "height": 16,
-                "offset_x": 2,
+                "offset_x": 5,
                 "offset_y": 49
             },
             "left_foot": {
                 "width": 8,
                 "height": 4,
-                "offset_x": 13,
+                "offset_x": 16,
                 "offset_y": 74
             },
             "right_foot": {
                 "width": 8,
                 "height": 4,
-                "offset_x": -2,
+                "offset_x": 1,
                 "offset_y": 74
             }
         },
