@@ -201,8 +201,3 @@ class Inventory:
         }
         return block_colors.get(block_type, (200, 200, 200))  # 默认为浅灰色 
 
-    def remove_grass_blocks(self):
-        """删除所有草方块"""
-        for slot in self.slots:
-            if slot.item and slot.item['name'] == "草地":
-                slot.item = None 

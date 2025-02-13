@@ -24,7 +24,7 @@ class Player:
         self.load_sprites()
         
         # 位置和移动
-        self.rect = pygame.Rect(x, y, 48, 96)  # 玩家碰撞箱改为3格高
+        self.rect = pygame.Rect(x, y - 96, 48, 96)  # 修改初始位置，向上偏移一个角色高度
         self.x_speed = 0
         self.y_speed = 0
         self.dx = 0  # 水平速度
@@ -143,10 +143,6 @@ class Player:
             print(f"加载角色配置失败: {e}")
             return
         
-        # 获取动画偏移量
-        leg_offset = math.sin(self.animation_frame * 0.2) * 4 if self.state == "walk" else 0
-        arm_offset = -math.sin(self.animation_frame * 0.2) * 4 if self.state == "walk" else 0
-        
         # 按顺序绘制身体部件（先绘制身体，再绘制其他部件）
         draw_order = ['body', 'feet', 'legs', 'arms', 'head']  # 修改绘制顺序
         
@@ -161,12 +157,6 @@ class Player:
                 
                 y = part_config['offset_y']
                 
-                # 应用动画偏移
-                if part == 'legs':
-                    y += leg_offset
-                elif part == 'arms':
-                    y += arm_offset
-                
                 # 获取部件图像
                 part_image = self.body_parts[part]
                 if not self.facing_right:
@@ -179,6 +169,7 @@ class Player:
         colored_hair.fill(self.hair_color, special_flags=pygame.BLEND_RGBA_MULT)
         if not self.facing_right:
             colored_hair = pygame.transform.flip(colored_hair, True, False)
+        # 绘制头发
         self.image.blit(colored_hair, (0, 0))
         
         # 绘制装备
