@@ -144,7 +144,7 @@ class Player:
         
         # 计算行走动画
         if self.state == "walk":
-            legs_swapped = (self.walk_frame // 30) % 2 == 1  # 60帧一个完整周期，30帧切换一次
+            legs_swapped = (self.walk_frame // 15) % 2 == 1  # 30帧一个完整周期，15帧切换一次
             # 在交替的瞬间下移2像素（只对身体部分）
             y_offset = 2 if legs_swapped else 0
             # 添加脚部左右摆动
@@ -154,7 +154,7 @@ class Player:
             y_offset = 0
             foot_x_offset = 0
             self.walk_frame = 0  # 重置行走帧计数器
-            
+        
         # 按顺序绘制身体部件
         if legs_swapped:
             draw_order = ['body', 'right_foot', 'left_foot', 'right_leg', 'left_leg', 'left_arm', 'right_arm', 'head']
